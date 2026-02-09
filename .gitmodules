@@ -7,3 +7,18 @@
 [submodule "desktop"]
 	path = desktop
 	url = https://github.com/neuroforest/desktop.git
+[submodule "tw5-plugins/neuroforest/core"]
+	path = tw5-plugins/neuroforest/core
+	url = https://github.com/neuroforest/tp-core.git
+[submodule "tw5-plugins/neuroforest/front"]
+	path = tw5-plugins/neuroforest/front
+	url = https://github.com/neuroforest/tp-front.git
+[submodule "tw5-plugins/neuroforest/neo4j-syncadaptor"]
+	path = tw5-plugins/neuroforest/neo4j-syncadaptor
+	url = https://github.com/neuroforest/tp-neo4j-syncadaptor.git
+[submodule "tw5-plugins/neuroforest/basic"]
+	path = tw5-plugins/neuroforest/basic
+	url = https://github.com/neuroforest/tt-basic.git
+[submodule "tw5-plugins/neuroforest/mobile"]
+	path = tw5-plugins/neuroforest/mobile
+	url = https://github.com/neuroforest/tt-mobile.git
