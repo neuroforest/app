@@ -1,0 +1,9 @@
+[submodule "neuro"]
+	path = neuro
+	url = https://github.com/neuroforest/tw5.git
+[submodule "tw5"]
+	path = tw5
+	url = https://github.com/TiddlyWiki/TiddlyWiki5.git
+[submodule "desktop"]
+	path = desktop
+	url = https://github.com/neuroforest/desktop.git
