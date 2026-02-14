@@ -41,17 +41,6 @@ def prepare_neuro_local():
         subprocess.run(install_command, check=True, capture_output=True)
     print(f"{terminal_style.SUCCESS} Install neuro")
 
-    checkout_tw5_command = [
-        "git",
-        "reset",
-        "--hard",
-        "9e6a53755"
-    ]
-    with internal_utils.chdir(internal_utils.get_path("tw5")):
-        with Console().status("[bold] reset tw5...", spinner="dots"):
-            subprocess.run(checkout_tw5_command, check=True, capture_output=True)
-    print(f"{terminal_style.SUCCESS} Reset tw5")
-
 
 def test_neuro(mode, pytest_args):
     if mode == "local":
@@ -89,7 +78,8 @@ def main():
     os.environ["ENVIRONMENT"] = "TESTING"
     app_path = os.getenv("NF_DIR")
     with internal_utils.chdir(app_path):
-        from neuro.utils import config  # noqa: F401
+        from neuro.utils import config
+        config.main()
         test_neuro(mode, pytest_args)
 
 

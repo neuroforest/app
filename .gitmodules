@@ -1,6 +1,6 @@
 [submodule "neuro"]
 	path = neuro
-	url = https://github.com/neuroforest/tw5.git
+	url = https://github.com/neuroforest/neuro
 [submodule "tw5"]
 	path = tw5
 	url = https://github.com/TiddlyWiki/TiddlyWiki5.git
