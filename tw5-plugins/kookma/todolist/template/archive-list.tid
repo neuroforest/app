@@ -1,0 +1,13 @@
+tags: 
+title: $:/plugins/kookma/todolist/template/archive-list
+type: text/vnd.tiddlywiki
+
+\import $:/plugins/kookma/todolist/macros/archive-operations
+\import $:/plugins/kookma/todolist/macros/priority
+
+!! Archive of completed (done) items
+
+<$macrocall $name="todolist-empty-archived-tiddler" base={{!!td-namespace}} />
+
+> <$macrocall $name="todolist-list-archived-items"  base={{!!td-namespace}} />
+
