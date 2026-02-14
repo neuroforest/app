@@ -92,14 +92,24 @@ class TestRun:
         with pytest.raises(SystemExit, match="1"):
             run_mod.run(str(tmp_path))
 
-    def test_launches_nwjs(self, run_mod, tmp_path, monkeypatch):
+    def test_launches_and_saves_pid(self, run_mod, tmp_path, monkeypatch):
         nw = tmp_path / "nw"
         nw.write_text("#!/bin/sh")
         nw.chmod(0o755)
         monkeypatch.setattr(run_mod, "verify_neo4j", lambda: None)
+
+        class FakeProcess:
+            pid = 12345
+
         calls = []
-        monkeypatch.setattr(run_mod.subprocess, "Popen", lambda *a, **kw: calls.append((a, kw)))
+
+        def fake_popen(*a, **kw):
+            calls.append((a, kw))
+            return FakeProcess()
+
+        monkeypatch.setattr(run_mod.subprocess, "Popen", fake_popen)
         run_mod.run(str(tmp_path))
         assert len(calls) == 1
         assert calls[0][0][0] == [str(nw)]
         assert calls[0][1]["cwd"] == str(tmp_path)
+        assert (tmp_path / "nw.pid").read_text() == "12345"

@@ -3,6 +3,7 @@ Run NeuroForest desktop application
 
 Verifies Neo4j connectivity, then launches the NW.js desktop app.
 Supports neuro:// protocol handler for deep linking.
+Stores PID in build/nw.pid for use by close.py.
 """
 
 import logging
@@ -17,6 +18,7 @@ from neuro.utils import internal_utils, network_utils, terminal_style
 
 
 BUILD_DIR = "build"
+PID_FILE = "nw.pid"
 
 
 def verify_neo4j():
@@ -54,10 +56,20 @@ def register_protocol(url):
         print(f"Not found: {uuid}")
 
 
+def get_build_dir():
+    app_path = internal_utils.get_path("app")
+    return os.path.join(app_path, BUILD_DIR)
+
+
+def save_pid(build_dir, pid):
+    pid_path = os.path.join(build_dir, PID_FILE)
+    with open(pid_path, "w") as f:
+        f.write(str(pid))
+
+
 def run(build_dir=None):
     if build_dir is None:
-        app_path = internal_utils.get_path("app")
-        build_dir = os.path.join(app_path, BUILD_DIR)
+        build_dir = get_build_dir()
 
     nw_binary = os.path.join(build_dir, "nw")
     if not os.path.isfile(nw_binary):
@@ -65,13 +77,14 @@ def run(build_dir=None):
         sys.exit(1)
 
     verify_neo4j()
-    print("Running NW.js")
-    subprocess.Popen(
+    process = subprocess.Popen(
         [nw_binary],
         cwd=build_dir,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    save_pid(build_dir, process.pid)
+    print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
 def main():
