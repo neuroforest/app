@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m venv nenv
+          nenv/bin/pip install neuro/
+          nenv/bin/pip install pytest
+
+      - name: Run tests
+        env:
+          NF_DIR: ${{ github.workspace }}
+        run: nenv/bin/pytest tests/ -v
