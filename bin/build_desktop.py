@@ -1,0 +1,114 @@
+"""
+Build NeuroForest desktop application
+
+Assembles NW.js SDK, TiddlyWiki, and desktop source into a build directory.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+from rich.console import Console
+
+from neuro.utils import internal_utils, terminal_style
+
+
+BUILD_DIR = "build"
+
+
+def copy_nwjs(build_dir):
+    console = Console()
+    app_path = internal_utils.get_path("app")
+    nwjs_version = os.getenv("NWJS_VERSION")
+    nwjs_source = os.path.join(app_path, "desktop", "nwjs", f"v{nwjs_version}")
+
+    if not os.path.isdir(nwjs_source):
+        print(f"  NW.js v{nwjs_version} not found. Run build_nwjs.py first.")
+        return False
+
+    with console.status("[bold] Copy NW.js...", spinner="dots"):
+        subprocess.run([
+            "rsync", "-a", "--delete",
+            nwjs_source + "/",
+            build_dir,
+        ], check=True, stdout=subprocess.DEVNULL)
+    print(f"{terminal_style.SUCCESS} Copy NW.js v{nwjs_version}")
+    return True
+
+
+def copy_tw5(build_dir):
+    console = Console()
+    tw5_path = internal_utils.get_path("tw5")
+
+    with console.status("[bold] Copy TW5...", spinner="dots"):
+        subprocess.run([
+            "rsync", "-a", "--delete",
+            tw5_path + "/",
+            os.path.join(build_dir, "tw5"),
+        ], check=True, stdout=subprocess.DEVNULL)
+        git_dir = os.path.join(build_dir, "tw5", ".git")
+        if os.path.isdir(git_dir):
+            shutil.rmtree(git_dir)
+    print(f"{terminal_style.SUCCESS} Copy TW5")
+
+
+def copy_source(build_dir):
+    console = Console()
+    app_path = internal_utils.get_path("app")
+    source_dir = os.path.join(app_path, "desktop", "source")
+
+    with console.status("[bold] Copy desktop source...", spinner="dots"):
+        subprocess.run([
+            "rsync", "-a", "--delete",
+            source_dir + "/",
+            os.path.join(build_dir, "source"),
+        ], check=True, stdout=subprocess.DEVNULL)
+        shutil.move(
+            os.path.join(build_dir, "source", "package.json"),
+            os.path.join(build_dir, "package.json"),
+        )
+    print(f"{terminal_style.SUCCESS} Copy desktop source")
+
+
+def install_node_modules(build_dir):
+    console = Console()
+    with console.status("[bold] Installing node modules...", spinner="dots"):
+        subprocess.run([
+            "npm", "install", "-l",
+            "fs", "neo4j-driver",
+        ], cwd=build_dir, stdout=subprocess.DEVNULL)
+    print(f"{terminal_style.SUCCESS} Install node modules")
+
+
+def build(build_dir=None):
+    if build_dir is None:
+        app_path = internal_utils.get_path("app")
+        build_dir = os.path.join(app_path, BUILD_DIR)
+
+    os.makedirs(build_dir, exist_ok=True)
+    start_time = time.time()
+
+    if not copy_nwjs(build_dir):
+        return
+    copy_tw5(build_dir)
+    copy_source(build_dir)
+    install_node_modules(build_dir)
+
+    elapsed = time.time() - start_time
+    print(f"{terminal_style.SUCCESS} {terminal_style.BOLD}Finished in {elapsed:.1f}s{terminal_style.RESET}")
+
+
+def main():
+    if len(sys.argv) > 1:
+        build_path = sys.argv[1]
+        if not os.path.isabs(build_path):
+            build_path = os.path.abspath(build_path)
+        build(build_path)
+    else:
+        build()
+
+
+if __name__ == "__main__":
+    main()
