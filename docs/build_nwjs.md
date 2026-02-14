@@ -1,8 +1,8 @@
-# nwjs.py
+# build_nwjs.py
 
 Download and install the NW.js SDK for building the desktop application.
 
-    python bin/nwjs.py
+    python bin/build_nwjs.py
 
 ## Configuration
 
@@ -41,4 +41,4 @@ Both stages respect the `overwrite` flag. When set, existing cached files are re
 
 ## Tests
 
-    pytest tests/test_nwjs.py
+    pytest tests/test_build_nwjs.py

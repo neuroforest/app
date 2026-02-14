@@ -1,8 +1,8 @@
-# build.py
+# build_tw5.py
 
 Build NeuroForest app by assembling custom editions and plugins into the TiddlyWiki tree.
 
-    python bin/build.py
+    python bin/build_tw5.py
 
 ## Stages
 
@@ -98,4 +98,4 @@ tw5-plugins/
 
 ## Tests
 
-    pytest tests/test_build.py
+    pytest tests/test_build_tw5.py

@@ -1,5 +1,5 @@
 """
-Tests for bin/build.py
+Tests for bin/build_tw5.py
 
 Logic:
     Copies valid edition directories from tw5-editions/ into tw5/editions/.
@@ -44,7 +44,7 @@ VALID_THEME = json.dumps({
 def build():
     spec = importlib.util.spec_from_file_location(
         "build",
-        os.path.join(internal_utils.get_path("app"), "bin/build.py"),
+        os.path.join(internal_utils.get_path("app"), "bin/build_tw5.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     sys.modules["build"] = mod

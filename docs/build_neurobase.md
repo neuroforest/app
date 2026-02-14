@@ -1,8 +1,8 @@
-# neurobase.py
+# build_neurobase.py
 
 Manage the NeuroBase Neo4j container.
 
-    python bin/neurobase.py
+    python bin/build_neurobase.py
 
 ## Behavior
 

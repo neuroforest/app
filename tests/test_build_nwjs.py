@@ -1,5 +1,5 @@
 """
-Tests for bin/nwjs.py
+Tests for bin/build_nwjs.py
 
 Logic:
     Downloads NW.js SDK tarball via wget.
@@ -22,7 +22,7 @@ from neuro.utils import internal_utils
 def nwjs():
     spec = importlib.util.spec_from_file_location(
         "nwjs",
-        os.path.join(internal_utils.get_path("app"), "bin/nwjs.py"),
+        os.path.join(internal_utils.get_path("app"), "bin/build_nwjs.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     sys.modules["nwjs"] = mod

@@ -1,5 +1,5 @@
 """
-Tests for bin/neurobase.py
+Tests for bin/build_neurobase.py
 
 Logic:
     container running?  -> do nothing
@@ -22,7 +22,7 @@ from neuro.utils import internal_utils, test_utils
 def neurobase():
     spec = importlib.util.spec_from_file_location(
         "neurobase",
-        os.path.join(internal_utils.get_path("app"), "bin/neurobase.py"),
+        os.path.join(internal_utils.get_path("app"), "bin/build_neurobase.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     sys.modules["neurobase"] = mod
