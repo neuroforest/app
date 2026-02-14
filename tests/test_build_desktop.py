@@ -49,6 +49,7 @@ def mock_paths(desktop, tmp_path, monkeypatch):
     (tmp_path / "desktop" / "source").mkdir(parents=True)
     (tmp_path / "desktop" / "source" / "package.json").write_text(TEMPLATE_PACKAGE)
     (tmp_path / "desktop" / "source" / "main.js").write_text("//main")
+    (tmp_path / "desktop" / "VERSION").write_text("1.2.3\n")
     (tmp_path / "tw5" / ".git").mkdir(parents=True)
     (tmp_path / "tw5" / "tiddlywiki.js").write_text("//tw5")
     monkeypatch.setenv("NWJS_VERSION", "0.90.0")
@@ -116,8 +117,15 @@ class TestCopySource:
         assert not os.path.isfile(os.path.join(build_dir, "source", "package.json"))
 
 
+class TestReadVersion:
+    """read_version() reads version from desktop/VERSION."""
+
+    def test_reads_version(self, desktop, mock_paths):
+        assert desktop.read_version() == "1.2.3"
+
+
 class TestGeneratePackageJson:
-    """generate_package_json() creates package.json with APP_NAME and user-data-dir."""
+    """generate_package_json() creates package.json with APP_NAME, version, and user-data-dir."""
 
     def test_sets_app_name(self, desktop, mock_paths, monkeypatch):
         build_dir = str(mock_paths / "build")
@@ -135,6 +143,14 @@ class TestGeneratePackageJson:
         pkg = json.loads(open(os.path.join(build_dir, "package.json")).read())
         expected = os.path.join(build_dir, "user-data")
         assert f"--user-data-dir={expected}" in pkg["chromium-args"]
+
+    def test_sets_version(self, desktop, mock_paths, monkeypatch):
+        build_dir = str(mock_paths / "build")
+        os.makedirs(build_dir, exist_ok=True)
+        monkeypatch.setenv("APP_NAME", "TestApp")
+        desktop.generate_package_json(build_dir)
+        pkg = json.loads(open(os.path.join(build_dir, "package.json")).read())
+        assert pkg["version"] == "1.2.3"
 
     def test_preserves_existing_chromium_args(self, desktop, mock_paths, monkeypatch):
         build_dir = str(mock_paths / "build")

@@ -131,5 +131,5 @@ class TestRun:
 
         monkeypatch.setattr(run_mod.subprocess, "Popen", lambda *a, **kw: FakeProcess())
         run_mod.run(str(tmp_path))
-        assert "Another instance" in capsys.readouterr().out
+        assert "Already running" in capsys.readouterr().out
         assert not (tmp_path / "nw.pid").exists()

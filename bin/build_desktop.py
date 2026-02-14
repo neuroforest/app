@@ -70,6 +70,13 @@ def copy_source(build_dir):
     print(f"{terminal_style.SUCCESS} Copy desktop source")
 
 
+def read_version():
+    app_path = internal_utils.get_path("app")
+    version_path = os.path.join(app_path, "desktop", "VERSION")
+    with open(version_path) as f:
+        return f.read().strip()
+
+
 def generate_package_json(build_dir):
     app_path = internal_utils.get_path("app")
     source_path = os.path.join(app_path, "desktop", "source", "package.json")
@@ -78,14 +85,16 @@ def generate_package_json(build_dir):
         package = json.load(f)
 
     app_name = os.getenv("APP_NAME", "NeuroDesktop")
+    version = read_version()
     package["name"] = app_name
+    package["version"] = version
     user_data_dir = os.path.join(build_dir, "user-data")
     chromium_args = package.get("chromium-args", "")
     package["chromium-args"] = f"{chromium_args} --user-data-dir={user_data_dir}"
 
     with open(os.path.join(build_dir, "package.json"), "w") as f:
         json.dump(package, f, indent=2)
-    print(f"{terminal_style.SUCCESS} Generate package.json ({app_name})")
+    print(f"{terminal_style.SUCCESS} Generate package.json ({app_name} v{version})")
 
 
 def install_node_modules(build_dir):
@@ -104,6 +113,8 @@ def build(build_dir=None):
         build_dir = os.path.join(app_path, BUILD_DIR)
 
     os.makedirs(build_dir, exist_ok=True)
+    version = read_version()
+    print(f"Building {os.getenv('APP_NAME', 'NeuroDesktop')} v{version}")
     start_time = time.time()
 
     if not copy_nwjs(build_dir):
