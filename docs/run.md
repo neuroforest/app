@@ -23,7 +23,7 @@ Connects to Neo4j using `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` from the
 
 ### 2. Launch NW.js
 
-Starts the `nw` binary from the build directory as a background process. Exits if the binary is not found.
+Starts the `nw` binary from the build directory as a background process. Stores the process PID in `{build_dir}/nw.pid` for use by `close.py`. Exits if the binary is not found.
 
 ## Protocol handler
 
