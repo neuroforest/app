@@ -1,11 +1,25 @@
-name: app-neurobase
+name: ${BASE_NAME}
 
 services:
   nbase:
-    image: nbase:1.0
-    container_name: app-neurobase
+    build:
+      context: .
+      args:
+        NEO4J_BASE_VERSION: ${NEO4J_VERSION}
+    image: ${NBASE_IMAGE}:${NBASE_VERSION}
+    container_name: ${BASE_NAME}
+    restart: unless-stopped
     ports:
       - "${NEO4J_PORT_HTTP}:7474"
       - "${NEO4J_PORT_BOLT}:7687"
+    volumes:
+      - data:/data
+      - logs:/logs
     environment:
       NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD}"
+
+volumes:
+  data:
+    name: ${BASE_NAME}-data
+  logs:
+    name: ${BASE_NAME}-logs
