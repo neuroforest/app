@@ -143,30 +143,30 @@ def make_plugin(base, author, name, info_content=VALID_PLUGIN):
 # -- Plugin tests --
 
 class TestValidatePlugin:
-    """validate_plugin() checks plugin.info has valid JSON and required fields."""
+    """validate_tw5_plugin() checks plugin.info has valid JSON and required fields."""
 
     def test_valid(self, build, tmp_path):
         plugin = make_plugin(tmp_path, "acme", "widget")
-        info = build.validate_plugin(str(plugin / "plugin.info"))
+        info = build.validate_tw5_plugin(str(plugin / "plugin.info"))
         assert info["title"] == "$:/plugins/acme/widget"
 
     def test_invalid_json(self, build, tmp_path, capsys):
         plugin = make_plugin(tmp_path, "acme", "bad", info_content="{broken")
-        assert build.validate_plugin(str(plugin / "plugin.info")) is None
+        assert build.validate_tw5_plugin(str(plugin / "plugin.info")) is None
         assert "invalid JSON" in capsys.readouterr().out
 
     def test_missing_fields(self, build, tmp_path, capsys):
         plugin = make_plugin(tmp_path, "acme", "incomplete", info_content='{"title": "x"}')
-        assert build.validate_plugin(str(plugin / "plugin.info")) is None
+        assert build.validate_tw5_plugin(str(plugin / "plugin.info")) is None
         assert "missing fields" in capsys.readouterr().out
 
 
 class TestCopyPlugins:
-    """copy_plugins() discovers and copies plugins/themes to tw5/."""
+    """copy_tw5_plugins() discovers and copies plugins/themes to tw5/."""
 
     def test_copies_plugin(self, build, mock_paths):
         make_plugin(mock_paths, "acme", "widget")
-        build.copy_plugins()
+        build.copy_tw5_plugins()
         target = mock_paths / "tw5" / "plugins" / "acme" / "widget"
         assert target.exists()
         assert (target / "plugin.info").exists()
@@ -174,7 +174,7 @@ class TestCopyPlugins:
 
     def test_copies_theme(self, build, mock_paths):
         make_plugin(mock_paths, "acme", "dark", info_content=VALID_THEME)
-        build.copy_plugins()
+        build.copy_tw5_plugins()
         target = mock_paths / "tw5" / "themes" / "acme" / "dark"
         assert target.exists()
         assert (target / "plugin.info").exists()
@@ -182,14 +182,14 @@ class TestCopyPlugins:
     def test_default_type_is_plugin(self, build, mock_paths):
         info = json.dumps({"title": "$:/plugins/acme/plain", "description": "no type"})
         make_plugin(mock_paths, "acme", "plain", info_content=info)
-        build.copy_plugins()
+        build.copy_tw5_plugins()
         assert (mock_paths / "tw5" / "plugins" / "acme" / "plain").exists()
 
     def test_skips_invalid(self, build, mock_paths):
         make_plugin(mock_paths, "acme", "bad", info_content='{"title": "x"}')
-        build.copy_plugins()
+        build.copy_tw5_plugins()
         assert not (mock_paths / "tw5" / "plugins" / "acme" / "bad").exists()
 
     def test_no_plugins_dir(self, build, mock_paths, capsys):
-        build.copy_plugins()
+        build.copy_tw5_plugins()
         assert "No plugins directory found" in capsys.readouterr().out
