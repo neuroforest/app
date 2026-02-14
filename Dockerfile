@@ -1,4 +1,5 @@
-FROM neo4j:5.26.7
+ARG NEO4J_BASE_VERSION
+FROM neo4j:${NEO4J_BASE_VERSION}
 
 ENV NEO4J_PLUGINS='["apoc", "apoc-extended"]'
 ENV NEO4J_dbms_security_procedures_unrestricted=apoc.*
