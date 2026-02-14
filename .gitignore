@@ -1,4 +1,11 @@
-.env
-.env.testing
+# Bytecode
+__pycache__/
+*.py[cod]
+
+# Dirs
 build
 nenv
+
+# Files
+.env
+.env.testing
