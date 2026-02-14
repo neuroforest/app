@@ -10,6 +10,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 
 import neo4j
 
@@ -83,6 +84,10 @@ def run(build_dir=None):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+    time.sleep(1)
+    if process.poll() is not None:
+        print(f"{terminal_style.FAIL} Already running.")
+        return
     save_pid(build_dir, process.pid)
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 

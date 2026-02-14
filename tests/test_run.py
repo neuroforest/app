@@ -97,9 +97,12 @@ class TestRun:
         nw.write_text("#!/bin/sh")
         nw.chmod(0o755)
         monkeypatch.setattr(run_mod, "verify_neo4j", lambda: None)
+        monkeypatch.setattr(run_mod.time, "sleep", lambda s: None)
 
         class FakeProcess:
             pid = 12345
+            def poll(self):
+                return None
 
         calls = []
 
@@ -113,3 +116,20 @@ class TestRun:
         assert calls[0][0][0] == [str(nw)]
         assert calls[0][1]["cwd"] == str(tmp_path)
         assert (tmp_path / "nw.pid").read_text() == "12345"
+
+    def test_detects_immediate_exit(self, run_mod, tmp_path, monkeypatch, capsys):
+        nw = tmp_path / "nw"
+        nw.write_text("#!/bin/sh")
+        nw.chmod(0o755)
+        monkeypatch.setattr(run_mod, "verify_neo4j", lambda: None)
+        monkeypatch.setattr(run_mod.time, "sleep", lambda s: None)
+
+        class FakeProcess:
+            pid = 99999
+            def poll(self):
+                return 0
+
+        monkeypatch.setattr(run_mod.subprocess, "Popen", lambda *a, **kw: FakeProcess())
+        run_mod.run(str(tmp_path))
+        assert "Another instance" in capsys.readouterr().out
+        assert not (tmp_path / "nw.pid").exists()

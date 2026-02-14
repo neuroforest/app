@@ -5,11 +5,13 @@ Logic:
     Assembles NW.js SDK, TW5, and desktop source into a build directory.
     copy_nwjs: rsyncs NW.js SDK, fails gracefully if not found.
     copy_tw5: rsyncs TW5, removes .git directory.
-    copy_source: rsyncs source, moves package.json to build root.
+    copy_source: rsyncs source, removes source package.json.
+    generate_package_json: generates package.json with APP_NAME and user-data-dir.
     install_node_modules: runs npm install in build directory.
 """
 
 import importlib.util
+import json
 import os
 import sys
 
@@ -32,11 +34,20 @@ def desktop():
     return mod
 
 
+TEMPLATE_PACKAGE = json.dumps({
+    "name": "NeuroDesktop",
+    "main": "../source/index.html",
+    "single-instance": False,
+    "window": {"frame": True},
+    "chromium-args": "--mixed-context",
+})
+
+
 @pytest.fixture()
 def mock_paths(desktop, tmp_path, monkeypatch):
     (tmp_path / "desktop" / "nwjs" / "v0.90.0").mkdir(parents=True)
     (tmp_path / "desktop" / "source").mkdir(parents=True)
-    (tmp_path / "desktop" / "source" / "package.json").write_text("{}")
+    (tmp_path / "desktop" / "source" / "package.json").write_text(TEMPLATE_PACKAGE)
     (tmp_path / "desktop" / "source" / "main.js").write_text("//main")
     (tmp_path / "tw5" / ".git").mkdir(parents=True)
     (tmp_path / "tw5" / "tiddlywiki.js").write_text("//tw5")
@@ -89,9 +100,9 @@ class TestCopyTw5:
 
 
 class TestCopySource:
-    """copy_source() rsyncs source and moves package.json."""
+    """copy_source() rsyncs source and removes source package.json."""
 
-    def test_moves_package_json(self, desktop, mock_paths, monkeypatch):
+    def test_removes_source_package_json(self, desktop, mock_paths, monkeypatch):
         build_dir = str(mock_paths / "build")
         os.makedirs(build_dir)
 
@@ -102,8 +113,36 @@ class TestCopySource:
 
         monkeypatch.setattr(desktop.subprocess, "run", fake_run)
         desktop.copy_source(build_dir)
-        assert os.path.isfile(os.path.join(build_dir, "package.json"))
         assert not os.path.isfile(os.path.join(build_dir, "source", "package.json"))
+
+
+class TestGeneratePackageJson:
+    """generate_package_json() creates package.json with APP_NAME and user-data-dir."""
+
+    def test_sets_app_name(self, desktop, mock_paths, monkeypatch):
+        build_dir = str(mock_paths / "build")
+        os.makedirs(build_dir, exist_ok=True)
+        monkeypatch.setenv("APP_NAME", "TestApp")
+        desktop.generate_package_json(build_dir)
+        pkg = json.loads(open(os.path.join(build_dir, "package.json")).read())
+        assert pkg["name"] == "TestApp"
+
+    def test_adds_user_data_dir(self, desktop, mock_paths, monkeypatch):
+        build_dir = str(mock_paths / "build")
+        os.makedirs(build_dir, exist_ok=True)
+        monkeypatch.setenv("APP_NAME", "TestApp")
+        desktop.generate_package_json(build_dir)
+        pkg = json.loads(open(os.path.join(build_dir, "package.json")).read())
+        expected = os.path.join(build_dir, "user-data")
+        assert f"--user-data-dir={expected}" in pkg["chromium-args"]
+
+    def test_preserves_existing_chromium_args(self, desktop, mock_paths, monkeypatch):
+        build_dir = str(mock_paths / "build")
+        os.makedirs(build_dir, exist_ok=True)
+        monkeypatch.setenv("APP_NAME", "TestApp")
+        desktop.generate_package_json(build_dir)
+        pkg = json.loads(open(os.path.join(build_dir, "package.json")).read())
+        assert "--mixed-context" in pkg["chromium-args"]
 
 
 class TestInstallNodeModules:
