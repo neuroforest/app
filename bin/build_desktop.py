@@ -4,6 +4,7 @@ Build NeuroForest desktop application
 Assembles NW.js SDK, TiddlyWiki, and desktop source into a build directory.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -65,11 +66,26 @@ def copy_source(build_dir):
             source_dir + "/",
             os.path.join(build_dir, "source"),
         ], check=True, stdout=subprocess.DEVNULL)
-        shutil.move(
-            os.path.join(build_dir, "source", "package.json"),
-            os.path.join(build_dir, "package.json"),
-        )
+        os.remove(os.path.join(build_dir, "source", "package.json"))
     print(f"{terminal_style.SUCCESS} Copy desktop source")
+
+
+def generate_package_json(build_dir):
+    app_path = internal_utils.get_path("app")
+    source_path = os.path.join(app_path, "desktop", "source", "package.json")
+
+    with open(source_path) as f:
+        package = json.load(f)
+
+    app_name = os.getenv("APP_NAME", "NeuroDesktop")
+    package["name"] = app_name
+    user_data_dir = os.path.join(build_dir, "user-data")
+    chromium_args = package.get("chromium-args", "")
+    package["chromium-args"] = f"{chromium_args} --user-data-dir={user_data_dir}"
+
+    with open(os.path.join(build_dir, "package.json"), "w") as f:
+        json.dump(package, f, indent=2)
+    print(f"{terminal_style.SUCCESS} Generate package.json ({app_name})")
 
 
 def install_node_modules(build_dir):
@@ -94,6 +110,7 @@ def build(build_dir=None):
         return
     copy_tw5(build_dir)
     copy_source(build_dir)
+    generate_package_json(build_dir)
     install_node_modules(build_dir)
 
     elapsed = time.time() - start_time
