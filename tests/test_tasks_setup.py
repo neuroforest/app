@@ -7,7 +7,7 @@ import os
 import pytest
 from invoke.exceptions import Exit
 
-import tasks.setup as setup_mod
+import tasks.actions.setup as setup_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
 
 

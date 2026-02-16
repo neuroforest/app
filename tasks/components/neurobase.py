@@ -6,7 +6,7 @@ from invoke import task
 from neuro.base import docker_tools
 from neuro.utils import terminal_style
 
-from .. import setup
+from ..actions import setup
 
 
 @task(pre=[setup.env])
