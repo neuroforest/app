@@ -11,7 +11,7 @@ from invoke import task
 from neuro.utils import internal_utils, terminal_style
 
 from . import setup
-from ..components import neuro as neuro_mod, tw5 as tw5_mod
+from ..components import tw5 as tw5_mod
 
 
 ALL_LOCAL_COMPONENTS = ["app", "neuro", "tw5"]
@@ -41,7 +41,6 @@ def local(c, components):
             if component == "app":
                 results["app"] = pytest.main(["tests"])
             elif component == "neuro":
-                neuro_mod.rsync_and_install()
                 results["neuro"] = pytest.main(["neuro/tests"])
             elif component == "tw5":
                 tw5_mod.copy_tw5_editions()
