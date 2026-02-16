@@ -32,9 +32,10 @@ SUBMODULES = [
 def env(c, environment=None):
     """Load config and chdir to NF_DIR."""
     nf_dir = os.getenv("NF_DIR")
-    print(f"Environment [{environment}] {nf_dir}")
     if environment:
         os.environ["ENVIRONMENT"] = environment
+    print(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
+
     config.main()
     try:
         os.chdir(nf_dir)
@@ -48,7 +49,7 @@ def reset_submodule(path, branch_name):
         with terminal_style.step(f"Reset {path} to {branch_name}"):
             subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
             subprocess.run(
-                ["git", "reset", "--hard", f"origin/{branch_name}"],
+                ["git", "reset", "--hard", f"{branch_name}"],
                 check=True,
                 capture_output=True
             )
