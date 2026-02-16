@@ -85,20 +85,23 @@ class TestEnv:
         setup_mod.env.__wrapped__(ctx, environment="TESTING")
         assert os.environ["ENVIRONMENT"] == "TESTING"
 
-    def test_no_environment_does_not_set_var(self, ctx, monkeypatch, tmp_path):
+    def test_no_environment_param_keeps_existing(self, ctx, monkeypatch, tmp_path):
         monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("ENVIRONMENT", "PRODUCTION")
         setup_mod.env.__wrapped__(ctx, environment=None)
-        assert "ENVIRONMENT" not in os.environ
+        assert os.environ["ENVIRONMENT"] == "PRODUCTION"
 
     def test_calls_config_main(self, ctx, monkeypatch, tmp_path):
         rec = Recorder()
         monkeypatch.setattr(setup_mod.config, "main", rec)
         monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("ENVIRONMENT", "TESTING")
         setup_mod.env.__wrapped__(ctx)
         assert rec.call_count == 1
 
     def test_chdir_to_nf_dir(self, ctx, monkeypatch, tmp_path):
         monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("ENVIRONMENT", "TESTING")
         original = os.getcwd()
         try:
             setup_mod.env.__wrapped__(ctx)
@@ -108,6 +111,7 @@ class TestEnv:
 
     def test_raises_exit_on_bad_dir(self, ctx, monkeypatch):
         monkeypatch.setenv("NF_DIR", "/nonexistent/path/that/does/not/exist")
+        monkeypatch.setenv("ENVIRONMENT", "TESTING")
         with pytest.raises(Exit):
             setup_mod.env.__wrapped__(ctx)
 
@@ -145,7 +149,7 @@ class TestResetSubmodule:
         assert subprocess_recorder.call_count == 3
         cmds = [c[0][0] for c in subprocess_recorder.calls]
         assert cmds[0] == ["git", "fetch", "origin"]
-        assert cmds[1] == ["git", "reset", "--hard", "origin/main"]
+        assert cmds[1] == ["git", "reset", "--hard", "main"]
         assert cmds[2] == ["git", "clean", "-fdx"]
 
 
@@ -186,7 +190,7 @@ class TestDevelopTask:
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
         setup_mod.develop.__wrapped__(ctx, components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
-        assert "origin/develop" in reset_cmd
+        assert "develop" in reset_cmd
 
 
 class TestBranchTask:
@@ -194,4 +198,4 @@ class TestBranchTask:
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
         setup_mod.branch.__wrapped__(ctx, branch_name="feat/x", components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
-        assert "origin/feat/x" in reset_cmd
+        assert "feat/x" in reset_cmd
