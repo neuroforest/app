@@ -49,13 +49,6 @@ def pytest_recorder(monkeypatch):
 
 
 @pytest.fixture
-def fake_neuro(monkeypatch):
-    rec = Recorder()
-    monkeypatch.setattr(test_mod.neuro_mod, "rsync_and_install", rec)
-    return rec
-
-
-@pytest.fixture
 def fake_tw5(monkeypatch):
     monkeypatch.setattr(test_mod.tw5_mod, "copy_tw5_editions", lambda: None)
     monkeypatch.setattr(test_mod.tw5_mod, "copy_tw5_plugins", lambda: None)
@@ -90,7 +83,7 @@ class TestApp:
 
 class TestLocal:
     def test_defaults_to_all_components(self, ctx, patch_get_path,
-                                        fake_neuro, subprocess_recorder,
+                                        subprocess_recorder,
                                         pytest_recorder, fake_tw5):
         test_mod.local.__wrapped__(ctx, components=[])
         assert pytest_recorder.call_count == 2
