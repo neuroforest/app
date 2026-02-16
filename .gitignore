@@ -5,6 +5,7 @@ __pycache__/
 # Dirs
 /app
 nenv
+nwjs
 
 # Files
 .env
