@@ -155,11 +155,11 @@ class TestResetSubmodule:
 
 class TestRsyncTask:
     def test_defaults_to_local_submodules(self, ctx, patch_get_path, rsync_recorder):
-        setup_mod.rsync.__wrapped__(ctx, modules=[])
+        setup_mod.rsync.__wrapped__(ctx, components=[])
         assert rsync_recorder.call_count == len(setup_mod.LOCAL_SUBMODULES)
 
     def test_specific_module(self, ctx, patch_get_path, rsync_recorder):
-        setup_mod.rsync.__wrapped__(ctx, modules=["neuro"])
+        setup_mod.rsync.__wrapped__(ctx, components=["neuro"])
         assert rsync_recorder.call_count == 1
         args = rsync_recorder.last_args
         assert args[2] == "neuro"
@@ -172,19 +172,19 @@ class TestRsyncTask:
 class TestMasterTask:
     def test_resets_all_submodules(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.master.__wrapped__(ctx, submodules=[])
+        setup_mod.master.__wrapped__(ctx, components=[])
         assert subprocess_recorder.call_count == 3 * len(setup_mod.SUBMODULES)
 
     def test_specific_submodule(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.master.__wrapped__(ctx, submodules=["neuro"])
+        setup_mod.master.__wrapped__(ctx, components=["neuro"])
         assert subprocess_recorder.call_count == 3
 
 
 class TestDevelopTask:
     def test_resets_to_develop(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.develop.__wrapped__(ctx, submodules=["neuro"])
+        setup_mod.develop.__wrapped__(ctx, components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
         assert "origin/develop" in reset_cmd
 
@@ -192,6 +192,6 @@ class TestDevelopTask:
 class TestBranchTask:
     def test_resets_to_given_branch(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.branch.__wrapped__(ctx, branch_name="feat/x", submodules=["neuro"])
+        setup_mod.branch.__wrapped__(ctx, branch_name="feat/x", components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
         assert "origin/feat/x" in reset_cmd

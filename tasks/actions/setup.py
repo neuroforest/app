@@ -55,39 +55,40 @@ def reset_submodule(path, branch_name):
             subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
 
 
-@task(iterable="modules")
-def rsync(c, modules):
+@task(iterable="components")
+def rsync(c, components):
     """Rsync local submodules (neuro, desktop) into app/."""
-    if not modules:
-        modules = LOCAL_SUBMODULES
-    for module in modules:
-        source = internal_utils.get_path(module) + "/"
-        dest = internal_utils.get_path("nf") + "/" + module
-        build_utils.rsync_local(source, dest, module)
+    if not components:
+        components = LOCAL_SUBMODULES
+    for component in components:
+        source = internal_utils.get_path(component) + "/"
+        dest = internal_utils.get_path("nf") + "/" + component
+        build_utils.rsync_local(source, dest, component)
 
 
-@task(pre=[env], iterable="submodules")
-def master(c, submodules):
+
+@task(pre=[env], iterable="components")
+def master(c, components):
     """Reset all submodules to their configured branches."""
-    if not submodules:
-        submodules = SUBMODULES
-    for submodule in submodules:
-        reset_submodule(submodule, "master")
+    if not components:
+        components = SUBMODULES
+    for component in components:
+        reset_submodule(component, "master")
 
 
-@task(pre=[env], iterable="submodules")
-def develop(c, submodules):
+@task(pre=[env], iterable="components")
+def develop(c, components):
     """Reset NF submodules to develop."""
-    if not submodules:
-        submodules = SUBMODULES
-    for path in submodules:
-        reset_submodule(path, "develop")
+    if not components:
+        components = SUBMODULES
+    for component in components:
+        reset_submodule(component, "develop")
 
 
-@task(pre=[env], iterable="submodules")
-def branch(c, branch_name, submodules):
+@task(pre=[env], iterable="components")
+def branch(c, branch_name, components):
     """Reset submodules to a branch, with fallback to configured branch."""
-    if not submodules:
-        submodules = SUBMODULES
-    for submodules in submodules:
-        reset_submodule(submodules, branch_name)
+    if not components:
+        components = SUBMODULES
+    for component in components:
+        reset_submodule(component, branch_name)
