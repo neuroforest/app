@@ -26,7 +26,7 @@ def _nwjs_paths(version):
     }
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def download(c, version=None, overwrite=False):
     """Download NW.js SDK tarball."""
     version = _resolve_version(version)
@@ -47,7 +47,7 @@ def download(c, version=None, overwrite=False):
         ], check=True)
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def extract(c, version=None, overwrite=False):
     """Extract NW.js SDK tarball."""
     version = _resolve_version(version)
@@ -67,7 +67,7 @@ def extract(c, version=None, overwrite=False):
         os.rename(p["extract_temp"], p["extract_final"])
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def get(c, version=None, overwrite=False):
     """Download and extract NW.js SDK."""
     download(c, version=version, overwrite=overwrite)

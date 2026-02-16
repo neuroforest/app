@@ -9,7 +9,7 @@ from neuro.utils import terminal_style
 from .. import setup
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def start(c):
     """Start or create the neurobase docker container."""
     container_name = os.getenv("BASE_NAME")

@@ -18,7 +18,7 @@ from invoke import call, task, exceptions
 from neuro.tools.tw5api import tw_get, tw_actions
 from neuro.utils import internal_utils, terminal_style, build_utils, network_utils, terminal_components
 
-from .. import setup, prepare
+from .. import setup
 from . import neurobase, nwjs, tw5
 
 
@@ -78,7 +78,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@task(pre=[setup.setup, call(prepare.rsync, modules=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
+@task(pre=[setup.env, call(setup.rsync, modules=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
@@ -113,7 +113,7 @@ def build(c, build_dir=None):
         subprocess.run(["npm", "install"], cwd=build_dir, check=True)
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def run(c):
     """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
     app_dir = get_app_dir()
@@ -138,7 +138,7 @@ def run(c):
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
-@task(pre=[setup.setup])
+@task(pre=[setup.env])
 def close(c):
     """Close NW.js desktop app by reading PID file."""
     app_dir = get_app_dir()
