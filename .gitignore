@@ -3,9 +3,10 @@ __pycache__/
 *.py[cod]
 
 # Dirs
-build
+/app
 nenv
 
 # Files
 .env
 .env.testing
+*.egg-info
