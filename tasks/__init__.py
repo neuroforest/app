@@ -1,5 +1,5 @@
 from invoke import Collection
-from . import setup, test
+from .actions import setup, test
 from .components import desktop, neuro, neurobase, nwjs, tw5
 
 ns = Collection()

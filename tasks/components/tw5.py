@@ -7,7 +7,7 @@ from invoke import task
 
 from neuro.utils import internal_utils, terminal_style
 
-from .. import setup
+from ..actions import setup
 
 
 REQUIRED_EDITION_FIELDS = ["description", "plugins", "themes", "build"]

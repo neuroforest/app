@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-import tasks.test as test_mod
+import tasks.actions.test as test_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
 
 

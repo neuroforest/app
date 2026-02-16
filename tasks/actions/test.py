@@ -11,7 +11,7 @@ from invoke import task
 from neuro.utils import internal_utils, terminal_style
 
 from . import setup
-from .components import neuro as neuro_mod, tw5 as tw5_mod
+from ..components import neuro as neuro_mod, tw5 as tw5_mod
 
 
 ALL_LOCAL_COMPONENTS = ["app", "neuro", "tw5"]
