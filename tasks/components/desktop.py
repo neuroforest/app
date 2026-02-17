@@ -78,7 +78,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@task(pre=[setup.env, call(setup.rsync, modules=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
+@task(pre=[setup.env, call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
