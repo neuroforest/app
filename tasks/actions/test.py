@@ -42,10 +42,14 @@ def local(c, components):
 
 
 @task
-def ruff(c):
+def ruff(c, ruff_args=""):
     """Run ruff check on neuro/ and app (tasks/, tests/)."""
-    neuro.ruff(c)
-    result = subprocess.run(["nenv/bin/ruff", "check", "tasks/", "tests/"])
+    neuro.ruff(c, ruff_args=ruff_args)
+    if not ruff_args:
+        ruff_args = []
+    else:
+        ruff_args = ruff_args.split()
+    result = subprocess.run(["nenv/bin/ruff", "check", "tasks/", "tests/"] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
