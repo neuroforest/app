@@ -104,6 +104,29 @@ class TestLocal:
 
 
 # ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+
+class TestRuff:
+    def test_calls_neuro_ruff(self, ctx, monkeypatch, patch_subprocess):
+        rec = Recorder()
+        monkeypatch.setattr(test_mod.neuro, "ruff", rec)
+        test_mod.ruff.__wrapped__(ctx)
+        assert rec.call_count == 1
+
+    def test_runs_ruff_on_app(self, ctx, monkeypatch, patch_subprocess):
+        monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
+        test_mod.ruff.__wrapped__(ctx)
+        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "tasks/", "tests/"],)
+
+    def test_nonzero_exit_raises(self, ctx, monkeypatch):
+        monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
+        monkeypatch.setattr(test_mod.subprocess, "run", lambda args: SubprocessResult(1))
+        with pytest.raises(SystemExit):
+            test_mod.ruff.__wrapped__(ctx)
+
+
+# ---------------------------------------------------------------------------
 # production
 # ---------------------------------------------------------------------------
 

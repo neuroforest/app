@@ -41,6 +41,15 @@ def local(c, components):
         app(c)
 
 
+@task
+def ruff(c):
+    """Run ruff check on neuro/ and app (tasks/, tests/)."""
+    neuro.ruff(c)
+    result = subprocess.run(["nenv/bin/ruff", "check", "tasks/", "tests/"])
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+
 @task(pre=[setup.env])
 def production(c):
     """Build desktop and run production tests (stub)."""
