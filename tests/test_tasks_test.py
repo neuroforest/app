@@ -114,10 +114,21 @@ class TestRuff:
         test_mod.ruff.__wrapped__(ctx)
         assert rec.call_count == 1
 
+    def test_passes_ruff_args_to_neuro(self, ctx, monkeypatch, patch_subprocess):
+        rec = Recorder()
+        monkeypatch.setattr(test_mod.neuro, "ruff", rec)
+        test_mod.ruff.__wrapped__(ctx, ruff_args="--fix")
+        assert rec.last_kwargs == {"ruff_args": "--fix"}
+
     def test_runs_ruff_on_app(self, ctx, monkeypatch, patch_subprocess):
         monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
         test_mod.ruff.__wrapped__(ctx)
         assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "tasks/", "tests/"],)
+
+    def test_custom_args(self, ctx, monkeypatch, patch_subprocess):
+        monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
+        test_mod.ruff.__wrapped__(ctx, ruff_args="--fix")
+        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "tasks/", "tests/", "--fix"],)
 
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
         monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())

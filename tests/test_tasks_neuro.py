@@ -62,6 +62,10 @@ class TestRuff:
         neuro_mod.ruff.__wrapped__(ctx)
         assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "neuro/"],)
 
+    def test_custom_args(self, ctx, patch_subprocess):
+        neuro_mod.ruff.__wrapped__(ctx, ruff_args="--fix --select E")
+        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "neuro/", "--fix", "--select", "E"],)
+
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
         monkeypatch.setattr(neuro_mod.subprocess, "run", lambda args: SubprocessResult(1))
         with pytest.raises(SystemExit):

@@ -21,9 +21,13 @@ def test_branch(c, branch_name, pytest_args=""):
 
 
 @task
-def ruff(c):
+def ruff(c, ruff_args=""):
     """Run ruff check on neuro/."""
-    result = subprocess.run(["nenv/bin/ruff", "check", "neuro/"])
+    if not ruff_args:
+        ruff_args = []
+    else:
+        ruff_args = ruff_args.split()
+    result = subprocess.run(["nenv/bin/ruff", "check", "neuro/"] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
