@@ -6,8 +6,9 @@ import os
 
 import pytest
 
-import tasks.actions.test as test_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult
+
+import tasks.actions.test as test_mod
 
 
 # ---------------------------------------------------------------------------

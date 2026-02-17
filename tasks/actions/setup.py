@@ -5,8 +5,7 @@ Load environment config, chdir to NF_DIR, and prepare submodules.
 import os
 import subprocess
 
-from invoke import task
-from invoke.exceptions import Exit
+import invoke
 
 from neuro.utils import build_utils, config, internal_utils, terminal_style
 
@@ -28,7 +27,7 @@ SUBMODULES = [
 ]
 
 
-@task
+@invoke.task
 def env(c, environment=None):
     """Load config and chdir to NF_DIR."""
     nf_dir = internal_utils.get_path("nf")
@@ -40,7 +39,7 @@ def env(c, environment=None):
     try:
         os.chdir(nf_dir)
     except FileNotFoundError:
-        raise Exit("Invalid directory: {}")
+        raise invoke.exceptions.Exit("Invalid directory: {}")
 
 
 def reset_submodule(path, branch_name):
@@ -56,7 +55,7 @@ def reset_submodule(path, branch_name):
             subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
 
 
-@task(pre=[env], iterable="components")
+@invoke.task(pre=[env], iterable="components")
 def rsync(c, components):
     """Rsync local submodules (neuro, desktop) into app/."""
     if not components:
@@ -67,7 +66,7 @@ def rsync(c, components):
         build_utils.rsync_local(source, dest, component)
 
 
-@task(pre=[env], iterable="components")
+@invoke.task(pre=[env], iterable="components")
 def master(c, components):
     """Reset all submodules to their configured branches."""
     if not components:
@@ -76,7 +75,7 @@ def master(c, components):
         reset_submodule(component, "master")
 
 
-@task(pre=[env], iterable="components")
+@invoke.task(pre=[env], iterable="components")
 def develop(c, components):
     """Reset NF submodules to develop."""
     if not components:
@@ -85,7 +84,7 @@ def develop(c, components):
         reset_submodule(component, "develop")
 
 
-@task(pre=[env], iterable="components")
+@invoke.task(pre=[env], iterable="components")
 def branch(c, branch_name, components):
     """Reset submodules to a branch, with fallback to configured branch."""
     if not components:
@@ -94,7 +93,7 @@ def branch(c, branch_name, components):
         reset_submodule(component, branch_name)
 
 
-@task
+@invoke.task
 def nenv(c):
     """Create virtualenv and install neuro."""
     subprocess.run(["python3", "-m", "venv", "nenv"], check=True)

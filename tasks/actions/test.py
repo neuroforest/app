@@ -5,7 +5,7 @@ Run NeuroForest tests.
 import os
 import subprocess
 
-from invoke import task, call
+import invoke
 
 from . import setup
 from ..components import neuro, tw5
@@ -14,7 +14,7 @@ from ..components import neuro, tw5
 COMPONENTS = ["app", "neuro", "tw5"]
 
 
-@task(pre=[call(setup.env, environment="TESTING")])
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def app(c, pytest_args=""):
     """Run app tests (pytest tests/)."""
     if not pytest_args:
@@ -26,7 +26,7 @@ def app(c, pytest_args=""):
         raise SystemExit(result.returncode)
 
 
-@task(pre=[call(setup.env, environment="TESTING")], iterable="components")
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], iterable="components")
 def local(c, components):
     if not components:
         components = COMPONENTS
@@ -41,7 +41,7 @@ def local(c, components):
         app(c)
 
 
-@task
+@invoke.task
 def ruff(c, ruff_args=""):
     """Run ruff check on neuro/ and app (tasks/, tests/)."""
     neuro.ruff(c, ruff_args=ruff_args)
@@ -54,7 +54,7 @@ def ruff(c, ruff_args=""):
         raise SystemExit(result.returncode)
 
 
-@task(pre=[setup.env])
+@invoke.task(pre=[setup.env])
 def production(c):
     """Build desktop and run production tests (stub)."""
     os.environ["ENVIRONMENT"] = "TESTING"

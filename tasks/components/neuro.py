@@ -1,11 +1,11 @@
 import subprocess
 
-from invoke import task, call
+import invoke
 
 from ..actions import setup
 
 
-@task(pre=[call(setup.env, environment="TESTING")])
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test_local(c, pytest_args=""):
     """Rsync neuro and run tests."""
     setup.rsync(c, components=["neuro"])
@@ -13,14 +13,14 @@ def test_local(c, pytest_args=""):
     test(c, pytest_args)
 
 
-@task(pre=[call(setup.env, environment="TESTING")])
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test_branch(c, branch_name, pytest_args=""):
     """Set neuro branch and run tests."""
     setup.branch(c, branch_name, components=["neuro"])
     test(c, pytest_args)
 
 
-@task
+@invoke.task
 def ruff(c, ruff_args=""):
     """Run ruff check on neuro/."""
     if not ruff_args:
@@ -32,7 +32,7 @@ def ruff(c, ruff_args=""):
         raise SystemExit(result.returncode)
 
 
-@task(pre=[call(setup.env, environment="TESTING")])
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, pytest_args=""):
     """Run neuro tests."""
     if not pytest_args:

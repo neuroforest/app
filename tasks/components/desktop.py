@@ -12,8 +12,7 @@ import sys
 import time
 
 import neo4j
-
-from invoke import call, task, exceptions
+import invoke
 
 from neuro.tools.tw5api import tw_get, tw_actions
 from neuro.utils import internal_utils, terminal_style, build_utils, network_utils, terminal_components
@@ -78,7 +77,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@task(pre=[setup.env, call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
+@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
@@ -87,7 +86,7 @@ def build(c, build_dir=None):
         if terminal_components.bool_prompt(f"Rewrite {build_dir}?"):
             shutil.rmtree(build_dir, ignore_errors=True)
         else:
-            exceptions.Exit("Aborting...")
+            invoke.exceptions.Exit("Aborting...")
 
     # NWjs
     nwjs_version = os.getenv("NWJS_VERSION")
@@ -113,7 +112,7 @@ def build(c, build_dir=None):
         subprocess.run(["npm", "install"], cwd=build_dir, check=True)
 
 
-@task(pre=[setup.env])
+@invoke.task(pre=[setup.env])
 def run(c):
     """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
     app_dir = get_app_dir()
@@ -138,7 +137,7 @@ def run(c):
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
-@task(pre=[setup.env])
+@invoke.task(pre=[setup.env])
 def close(c):
     """Close NW.js desktop app by reading PID file."""
     app_dir = get_app_dir()

@@ -4,7 +4,7 @@ Tests for tasks.components.neurobase.
 
 import pytest
 
-from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
+from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult
 
 import tasks.components.neurobase as neurobase_mod
 
