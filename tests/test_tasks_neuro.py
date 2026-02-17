@@ -82,8 +82,8 @@ class TestTest:
         assert patch_subprocess.last_args == (["nenv/bin/pytest", "neuro/tests"],)
 
     def test_custom_args(self, ctx, patch_subprocess):
-        neuro_mod.test.__wrapped__(ctx, pytest_args="-x neuro/tests/test_foo.py")
-        assert patch_subprocess.last_args == (["nenv/bin/pytest", "-x", "neuro/tests/test_foo.py"],)
+        neuro_mod.test.__wrapped__(ctx, pytest_args="-m 'not integration'")
+        assert patch_subprocess.last_args == (["nenv/bin/pytest", "neuro/tests", "-m", "not integration"],)
 
     def test_exit_code_zero(self, ctx, patch_subprocess):
         neuro_mod.test.__wrapped__(ctx)  # should not raise

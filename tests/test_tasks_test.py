@@ -55,11 +55,11 @@ def patch_app(monkeypatch):
 class TestApp:
     def test_default_args(self, ctx, patch_subprocess):
         test_mod.app.__wrapped__(ctx)
-        assert patch_subprocess.last_args == (["nenv/bin/pytest", "./tests"],)
+        assert patch_subprocess.last_args == (["nenv/bin/pytest", "tests/"],)
 
     def test_custom_args(self, ctx, patch_subprocess):
-        test_mod.app.__wrapped__(ctx, pytest_args="-x tests/test_foo.py")
-        assert patch_subprocess.last_args == (["nenv/bin/pytest", "-x", "tests/test_foo.py"],)
+        test_mod.app.__wrapped__(ctx, pytest_args="-m 'not integration'")
+        assert patch_subprocess.last_args == (["nenv/bin/pytest", "tests/", "-m", "not integration"],)
 
     def test_exit_code_zero(self, ctx, patch_subprocess):
         test_mod.app.__wrapped__(ctx)  # should not raise
