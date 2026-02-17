@@ -3,12 +3,19 @@ Tests for tasks.setup.
 """
 
 import os
+from contextlib import contextmanager
 
 import pytest
-from invoke.exceptions import Exit
+import invoke
+
+from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
 
 import tasks.actions.setup as setup_mod
-from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
+
+
+@contextmanager
+def _noop_chdir(path):
+    yield
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +120,7 @@ class TestEnv:
         bad_path = "/nonexistent/path/that/does/not/exist"
         monkeypatch.setattr(setup_mod.internal_utils, "get_path", lambda k: bad_path)
         monkeypatch.setenv("ENVIRONMENT", "TESTING")
-        with pytest.raises(Exit):
+        with pytest.raises(invoke.exceptions.Exit):
             setup_mod.env.__wrapped__(ctx)
 
 
@@ -135,13 +142,6 @@ class TestConstants:
 # ---------------------------------------------------------------------------
 # reset_submodule
 # ---------------------------------------------------------------------------
-
-from contextlib import contextmanager
-
-@contextmanager
-def _noop_chdir(path):
-    yield
-
 
 class TestResetSubmodule:
     def test_runs_git_commands(self, monkeypatch, tmp_path, subprocess_recorder):

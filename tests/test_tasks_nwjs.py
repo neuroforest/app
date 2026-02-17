@@ -6,8 +6,9 @@ import os
 
 import pytest
 
-import tasks.components.nwjs as nwjs_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
+
+import tasks.components.nwjs as nwjs_mod
 
 
 # ---------------------------------------------------------------------------

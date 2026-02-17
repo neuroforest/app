@@ -3,12 +3,12 @@ Tests for tasks.components.tw5.
 """
 
 import json
-import os
 
 import pytest
 
-import tasks.components.tw5 as tw5_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
+
+import tasks.components.tw5 as tw5_mod
 
 
 # ---------------------------------------------------------------------------

@@ -8,8 +8,9 @@ import signal
 
 import pytest
 
-import tasks.components.desktop as desktop_mod
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult, noop_step
+
+import tasks.components.desktop as desktop_mod
 
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from invoke import task, call
+import invoke
 
 from neuro.utils import internal_utils, terminal_style
 
@@ -113,7 +113,7 @@ def copy_tw5_plugins():
             shutil.copytree(source_dir, target)
 
 
-@task(pre=[setup.env])
+@invoke.task(pre=[setup.env])
 def bundle(c):
     """Copy TW5 editions and plugins into the TW5 tree."""
     terminal_style.header("TW5 Bundle")
@@ -121,7 +121,7 @@ def bundle(c):
     copy_tw5_plugins()
 
 
-@task(pre=[call(setup.env, environment="TESTING")])
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c):
     """Copy editions/plugins, run tw5/bin/test.sh."""
     bundle(c)
