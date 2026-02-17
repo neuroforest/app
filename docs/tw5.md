@@ -1,20 +1,25 @@
-# build_tw5.py
+# TW5
 
-Build NeuroForest app by assembling custom editions and plugins into the TiddlyWiki tree.
+TiddlyWiki5 tree assembly: copy custom editions and plugins, then run TW5 tests.
 
-    python bin/build_tw5.py
+## Tasks
 
-## Stages
+| Task | Description |
+|------|-------------|
+| `tw5.bundle` | Copy editions and plugins into the TW5 tree |
+| `tw5.test` | Bundle and run `tw5/bin/test.sh` |
+
+## Bundle
+
+    invoke tw5.bundle
 
 ### 1. Copy editions
 
-Copies validated edition directories from `tw5-editions/` into `tw5/editions/`. This makes custom editions available to TiddlyWiki for local testing and building.
-
-If an edition already exists in the target, it is replaced.
+Copies validated edition directories from `tw5-editions/` into `tw5/editions/`. If an edition already exists in the target, it is replaced.
 
 #### Edition validation
 
-Each edition directory must contain a `tiddlywiki.info` file with valid JSON and the following required fields:
+Each edition directory must contain a `tiddlywiki.info` file with valid JSON and the required fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -23,7 +28,7 @@ Each edition directory must contain a `tiddlywiki.info` file with valid JSON and
 | `themes` | array | List of theme references |
 | `build` | object | Build targets and their commands |
 
-#### Example edition
+#### Example
 
 ```
 tw5-editions/
@@ -46,14 +51,7 @@ tw5-editions/
 
 ### 2. Copy plugins
 
-Discovers plugins and themes in `tw5-plugins/` by walking the directory tree for `plugin.info` files, then copies them into `tw5/plugins/` or `tw5/themes/` based on the `plugin-type` field.
-
-#### Plugin discovery
-
-The script walks `tw5-plugins/` recursively for `plugin.info` files. Two directory patterns are supported:
-
-- **Neuroforest repos**: `tw5-plugins/neuroforest/<name>/source/plugin.info` — the `source/` directory is copied
-- **Third-party**: `tw5-plugins/<author>/<name>/plugin.info` — the plugin directory is copied
+Discovers plugins and themes in `tw5-plugins/` by walking for `plugin.info` files, then copies them into `tw5/plugins/` or `tw5/themes/` based on `plugin-type`.
 
 #### Plugin validation
 
@@ -66,16 +64,14 @@ Each `plugin.info` must contain valid JSON with required fields:
 
 #### Segregation by type
 
-The `plugin-type` field determines the target directory:
-
 | `plugin-type` | Target | Example |
 |---------------|--------|---------|
-| `"plugin"` or not set | `tw5/plugins/<author>/<name>/` | `$:/plugins/kookma/shiraz` → `tw5/plugins/kookma/shiraz/` |
-| `"theme"` | `tw5/themes/<author>/<name>/` | `$:/themes/neuroforest/basic` → `tw5/themes/neuroforest/basic/` |
+| `"plugin"` or not set | `tw5/plugins/<author>/<name>/` | `$:/plugins/kookma/shiraz` -> `tw5/plugins/kookma/shiraz/` |
+| `"theme"` | `tw5/themes/<author>/<name>/` | `$:/themes/neuroforest/basic` -> `tw5/themes/neuroforest/basic/` |
 
 The `<author>/<name>` path is derived from the `title` field by stripping the `$:/plugins/` or `$:/themes/` prefix.
 
-#### Example plugin
+#### Example
 
 ```
 tw5-plugins/
@@ -84,7 +80,6 @@ tw5-plugins/
       plugin.info
       readme.tid
       styles.tid
-      ...
 ```
 
 ```json
@@ -96,6 +91,15 @@ tw5-plugins/
 }
 ```
 
+## Test
+
+    invoke tw5.test
+
+1. Runs `tw5.bundle` (copy editions and plugins)
+2. Runs `tw5/bin/test.sh`
+
+Non-zero exit code raises `SystemExit`.
+
 ## Tests
 
-    pytest tests/test_build_tw5.py
+    pytest tests/test_tasks_tw5.py

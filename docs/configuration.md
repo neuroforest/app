@@ -10,7 +10,14 @@ Environment variables are managed through dotenv files in the `app/` directory.
 | `.env` | Local overrides, not committed (machine-specific paths, ports, API keys) |
 | `.env.testing` | Overrides applied when `ENVIRONMENT=TESTING` |
 
-Loading order: `.env.defaults` first, then `.env` (or `.env.testing`) with override. This is handled by `neuro.utils.config`.
+Loading order: `.env.defaults` first, then `.env` (or `.env.testing`) with override. This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
+
+## Setup
+
+All tasks depend on `setup.env` as a pre-task. It loads config and changes to `NF_DIR`:
+
+    invoke setup.env
+    invoke setup.env --environment=TESTING
 
 ## Variable reference
 
@@ -18,16 +25,20 @@ Loading order: `.env.defaults` first, then `.env` (or `.env.testing`) with overr
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_NAME` | `NeuroDesktop` | Application name |
 | `HOST` | `127.0.0.1` | Server bind address |
 | `PORT` | `8080` | Server port |
+| `TEST_PORT` | `8069` | Test server port |
 | `LOGGING` | `WARNING` | Log level |
 | `LOGGING_FORMAT` | `%(levelname)s %(name)s: %(message)s` | Log format string |
+| `ENVIRONMENT` | `DEVELOP` | Active environment (`DEVELOP`, `TESTING`) |
 
 ### Paths
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP` | `.` | Application root |
+| `APP` | `app` | Application root |
+| `NF` | `.` | NeuroForest root |
 | `DESIGN` | `design` | Design directory |
 | `DESKTOP` | `desktop` | Desktop submodule |
 | `NEURO` | `neuro` | Neuro submodule |
@@ -68,4 +79,4 @@ In `.env`, these are typically set to absolute paths. In `.env.defaults`, they a
 ## Notes
 
 - Variable interpolation (`${VAR}`) does not work in `.env` files. Use hardcoded values.
-- The `NF_DIR` variable points to the app root and is expected to be set externally (e.g. by the shell environment or launcher script).
+- The `NF_DIR` variable points to the NeuroForest root and is expected to be set externally (e.g. by the shell environment or launcher script).
