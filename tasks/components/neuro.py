@@ -1,4 +1,5 @@
-import pytest
+import subprocess
+
 from invoke import task, call
 
 from ..actions import setup
@@ -8,6 +9,7 @@ from ..actions import setup
 def test_local(c, pytest_args=""):
     """Rsync neuro and run tests."""
     setup.rsync(c, components=["neuro"])
+    setup.nenv(c)
     test(c, pytest_args)
 
 
@@ -25,6 +27,6 @@ def test(c, pytest_args=""):
         pytest_args = ["neuro/tests"]
     else:
         pytest_args = pytest_args.split(" ")
-    exit_code = pytest.main(pytest_args)
-    if exit_code != 0:
-        raise SystemExit(exit_code)
+    result = subprocess.run(["nenv/bin/pytest"] + pytest_args)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)

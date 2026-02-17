@@ -200,3 +200,21 @@ class TestBranchTask:
         setup_mod.branch.__wrapped__(ctx, branch_name="feat/x", components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
         assert "feat/x" in reset_cmd
+
+
+# ---------------------------------------------------------------------------
+# Task: nenv
+# ---------------------------------------------------------------------------
+
+class TestNenvTask:
+    def test_creates_venv_and_installs(self, ctx, subprocess_recorder):
+        setup_mod.nenv.__wrapped__(ctx)
+        assert subprocess_recorder.call_count == 2
+        cmds = [c[0][0] for c in subprocess_recorder.calls]
+        assert cmds[0] == ["python3", "-m", "venv", "nenv"]
+        assert cmds[1] == ["nenv/bin/pip", "install", "./neuro"]
+
+    def test_passes_check_true(self, ctx, subprocess_recorder):
+        setup_mod.nenv.__wrapped__(ctx)
+        for call in subprocess_recorder.calls:
+            assert call[1].get("check") is True

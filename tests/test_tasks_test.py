@@ -7,7 +7,7 @@ import os
 import pytest
 
 import tasks.actions.test as test_mod
-from neuro.utils.test_utils import FakeContext, Recorder
+from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult
 
 
 # ---------------------------------------------------------------------------
@@ -20,9 +20,9 @@ def ctx():
 
 
 @pytest.fixture
-def patch_pytest_main(monkeypatch):
-    rec = Recorder(return_value=0)
-    monkeypatch.setattr(test_mod.pytest, "main", rec)
+def patch_subprocess(monkeypatch):
+    rec = Recorder(return_value=SubprocessResult(0))
+    monkeypatch.setattr(test_mod.subprocess, "run", rec)
     return rec
 
 
@@ -52,19 +52,19 @@ def patch_app(monkeypatch):
 # ---------------------------------------------------------------------------
 
 class TestApp:
-    def test_default_args(self, ctx, patch_pytest_main):
+    def test_default_args(self, ctx, patch_subprocess):
         test_mod.app.__wrapped__(ctx)
-        assert patch_pytest_main.last_args == (["tests"],)
+        assert patch_subprocess.last_args == (["nenv/bin/pytest", "./tests"],)
 
-    def test_custom_args(self, ctx, patch_pytest_main):
+    def test_custom_args(self, ctx, patch_subprocess):
         test_mod.app.__wrapped__(ctx, pytest_args="-x tests/test_foo.py")
-        assert patch_pytest_main.last_args == (["-x", "tests/test_foo.py"],)
+        assert patch_subprocess.last_args == (["nenv/bin/pytest", "-x", "tests/test_foo.py"],)
 
-    def test_exit_code_zero(self, ctx, patch_pytest_main):
+    def test_exit_code_zero(self, ctx, patch_subprocess):
         test_mod.app.__wrapped__(ctx)  # should not raise
 
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
-        monkeypatch.setattr(test_mod.pytest, "main", lambda args: 1)
+        monkeypatch.setattr(test_mod.subprocess, "run", lambda args: SubprocessResult(1))
         with pytest.raises(SystemExit):
             test_mod.app.__wrapped__(ctx)
 
