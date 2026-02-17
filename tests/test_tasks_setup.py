@@ -110,7 +110,8 @@ class TestEnv:
             os.chdir(original)
 
     def test_raises_exit_on_bad_dir(self, ctx, monkeypatch):
-        monkeypatch.setenv("NF_DIR", "/nonexistent/path/that/does/not/exist")
+        bad_path = "/nonexistent/path/that/does/not/exist"
+        monkeypatch.setattr(setup_mod.internal_utils, "get_path", lambda k: bad_path)
         monkeypatch.setenv("ENVIRONMENT", "TESTING")
         with pytest.raises(Exit):
             setup_mod.env.__wrapped__(ctx)
