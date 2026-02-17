@@ -1,10 +1,16 @@
-# build_neurobase.py
+# NeuroBase
 
-Manage the NeuroBase Neo4j container.
+NeuroBase is a containerized Neo4j graph database that serves as the persistent storage backend for NeuroDesktop. It is deployed via Docker Compose with APOC plugins enabled. NeuroDesktop connects to it over Bolt protocol. Multiple instances can run side by side using different `BASE_NAME` values.
 
-    python bin/build_neurobase.py
+## Tasks
 
-## Behavior
+| Task | Description |
+|------|-------------|
+| `neurobase.start` | Start or create the Neo4j container |
+
+## Usage
+
+    invoke neurobase.start
 
 1. If the container is already running, prints a message and exits
 2. If the container exists but is stopped, starts it with `docker start`
@@ -14,7 +20,7 @@ The container name is read from the `BASE_NAME` environment variable.
 
 ## Docker Compose
 
-The `docker-compose.yml` defines a single service `nbase` built from the local `Dockerfile`. All values are configured through environment variables:
+The `docker-compose.yml` defines a single service `nbase` built from the local `Dockerfile`:
 
 ```yaml
 name: ${BASE_NAME}
@@ -29,9 +35,7 @@ services:
     container_name: ${BASE_NAME}
 ```
 
-### Volumes
-
-Two named volumes are created per project, prefixed with `BASE_NAME`:
+## Volumes
 
 | Volume | Mount | Purpose |
 |--------|-------|---------|
@@ -40,7 +44,7 @@ Two named volumes are created per project, prefixed with `BASE_NAME`:
 
 Multiple projects with different `BASE_NAME` values can run side by side without volume conflicts.
 
-### Ports
+## Ports
 
 | Variable | Default | Container port |
 |----------|---------|----------------|
@@ -56,9 +60,7 @@ ARG NEO4J_BASE_VERSION
 FROM neo4j:${NEO4J_BASE_VERSION}
 ```
 
-The Neo4j version is passed as a build argument from `NEO4J_VERSION` in `.env`.
-
-## Environment variables
+## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -69,4 +71,8 @@ The Neo4j version is passed as a build argument from `NEO4J_VERSION` in `.env`.
 | `NEO4J_PORT_HTTP` | `7474` | Host port for Neo4j Browser |
 | `NEO4J_PORT_BOLT` | `7687` | Host port for Bolt protocol |
 | `NEO4J_PASSWORD` | | Neo4j authentication password |
-| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Bolt connection URI (used by application code) |
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Bolt connection URI |
+
+## Tests
+
+    pytest tests/test_tasks_neurobase.py
