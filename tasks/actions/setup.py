@@ -92,3 +92,10 @@ def branch(c, branch_name, components):
         components = SUBMODULES
     for component in components:
         reset_submodule(component, branch_name)
+
+
+@task
+def nenv(c):
+    """Create virtualenv and install neuro."""
+    subprocess.run(["python3", "-m", "venv", "nenv"], check=True)
+    subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True)

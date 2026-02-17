@@ -3,8 +3,8 @@ Run NeuroForest tests.
 """
 
 import os
+import subprocess
 
-import pytest
 from invoke import task, call
 
 from . import setup
@@ -18,12 +18,12 @@ COMPONENTS = ["app", "neuro", "tw5"]
 def app(c, pytest_args=""):
     """Run app tests (pytest tests/)."""
     if not pytest_args:
-        pytest_args = ["tests"]
+        pytest_args = ["./tests"]
     else:
         pytest_args = pytest_args.split()
-    exit_code = pytest.main(pytest_args)
-    if exit_code != 0:
-        raise SystemExit(exit_code)
+    result = subprocess.run(["nenv/bin/pytest"] + pytest_args)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
 
 
 @task(pre=[call(setup.env, environment="TESTING")], iterable="components")

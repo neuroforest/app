@@ -11,6 +11,7 @@ Environment loading, submodule syncing, and branch management.
 | `setup.master` | Reset all submodules to master |
 | `setup.develop` | Reset submodules to develop |
 | `setup.branch` | Reset submodules to a specific branch |
+| `setup.nenv` | Create virtualenv and install neuro |
 
 ## env
 
@@ -54,6 +55,13 @@ All submodules:
 
 - `neuro`, `desktop`, `tw5`
 - `tw5-plugins/neuroforest/core`, `front`, `neo4j-syncadaptor`, `basic`, `mobile`
+
+## nenv
+
+    invoke setup.nenv
+
+1. Creates a virtualenv at `nenv/` via `python3 -m venv nenv`
+2. Installs the local neuro package via `nenv/bin/pip install ./neuro`
 
 ## Tests
 
