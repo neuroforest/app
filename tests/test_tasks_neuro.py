@@ -20,7 +20,6 @@ def ctx():
 
 @pytest.fixture
 def patch_pytest_main(monkeypatch):
-    """Replace pytest.main with a Recorder; default exit code 0."""
     rec = Recorder(return_value=0)
     monkeypatch.setattr(neuro_mod.pytest, "main", rec)
     return rec
@@ -29,14 +28,21 @@ def patch_pytest_main(monkeypatch):
 @pytest.fixture
 def patch_rsync(monkeypatch):
     rec = Recorder()
-    monkeypatch.setattr(neuro_mod.setup.rsync, "__wrapped__", rec)
+    monkeypatch.setattr(neuro_mod.setup, "rsync", rec)
     return rec
 
 
 @pytest.fixture
 def patch_branch(monkeypatch):
     rec = Recorder()
-    monkeypatch.setattr(neuro_mod.setup.branch, "__wrapped__", rec)
+    monkeypatch.setattr(neuro_mod.setup, "branch", rec)
+    return rec
+
+
+@pytest.fixture
+def patch_test(monkeypatch):
+    rec = Recorder()
+    monkeypatch.setattr(neuro_mod, "test", rec)
     return rec
 
 
@@ -46,21 +52,17 @@ def patch_branch(monkeypatch):
 
 class TestTest:
     def test_default_args(self, ctx, patch_pytest_main):
-        """No pytest_args → runs with ['neuro/tests']."""
         neuro_mod.test.__wrapped__(ctx)
         assert patch_pytest_main.last_args == (["neuro/tests"],)
 
     def test_custom_args(self, ctx, patch_pytest_main):
-        """String pytest_args gets split on spaces."""
         neuro_mod.test.__wrapped__(ctx, pytest_args="-x neuro/tests/test_foo.py")
         assert patch_pytest_main.last_args == (["-x", "neuro/tests/test_foo.py"],)
 
     def test_exit_code_zero(self, ctx, patch_pytest_main):
-        """Exit code 0 → no exception."""
         neuro_mod.test.__wrapped__(ctx)  # should not raise
 
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
-        """Non-zero exit code → SystemExit."""
         monkeypatch.setattr(neuro_mod.pytest, "main", lambda args: 1)
         with pytest.raises(SystemExit):
             neuro_mod.test.__wrapped__(ctx)
@@ -71,16 +73,18 @@ class TestTest:
 # ---------------------------------------------------------------------------
 
 class TestTestLocal:
-    def test_calls_rsync_then_test(self, ctx, patch_rsync, patch_pytest_main):
-        """test_local rsyncs neuro, then runs test."""
+    def test_calls_rsync(self, ctx, patch_rsync, patch_test):
         neuro_mod.test_local.__wrapped__(ctx)
         assert patch_rsync.call_count == 1
         assert patch_rsync.last_kwargs == {"components": ["neuro"]}
-        assert patch_pytest_main.call_count == 1
 
-    def test_passes_pytest_args(self, ctx, patch_rsync, patch_pytest_main):
+    def test_calls_test(self, ctx, patch_rsync, patch_test):
+        neuro_mod.test_local.__wrapped__(ctx)
+        assert patch_test.call_count == 1
+
+    def test_passes_pytest_args(self, ctx, patch_rsync, patch_test):
         neuro_mod.test_local.__wrapped__(ctx, pytest_args="-k foo")
-        assert patch_pytest_main.last_args == (["-k", "foo"],)
+        assert patch_test.last_args[1] == "-k foo"
 
 
 # ---------------------------------------------------------------------------
@@ -88,14 +92,16 @@ class TestTestLocal:
 # ---------------------------------------------------------------------------
 
 class TestTestBranch:
-    def test_calls_branch_then_test(self, ctx, patch_branch, patch_pytest_main):
-        """test_branch sets branch, then runs test."""
+    def test_calls_branch(self, ctx, patch_branch, patch_test):
         neuro_mod.test_branch.__wrapped__(ctx, branch_name="feature/x")
         assert patch_branch.call_count == 1
         assert patch_branch.last_args[1] == "feature/x"
         assert patch_branch.last_kwargs == {"components": ["neuro"]}
-        assert patch_pytest_main.call_count == 1
 
-    def test_passes_pytest_args(self, ctx, patch_branch, patch_pytest_main):
+    def test_calls_test(self, ctx, patch_branch, patch_test):
+        neuro_mod.test_branch.__wrapped__(ctx, branch_name="dev")
+        assert patch_test.call_count == 1
+
+    def test_passes_pytest_args(self, ctx, patch_branch, patch_test):
         neuro_mod.test_branch.__wrapped__(ctx, branch_name="dev", pytest_args="-v")
-        assert patch_pytest_main.last_args == (["-v"],)
+        assert patch_test.last_args[1] == "-v"

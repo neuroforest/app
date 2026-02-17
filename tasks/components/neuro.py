@@ -7,15 +7,15 @@ from ..actions import setup
 @task(pre=[call(setup.env, environment="TESTING")])
 def test_local(c, pytest_args=""):
     """Rsync neuro and run tests."""
-    setup.rsync.__wrapped__(c, components=["neuro"])
-    test.__wrapped__(c, pytest_args)
+    setup.rsync(c, components=["neuro"])
+    test(c, pytest_args)
 
 
 @task(pre=[call(setup.env, environment="TESTING")])
 def test_branch(c, branch_name, pytest_args=""):
     """Set neuro branch and run tests."""
-    setup.branch.__wrapped__(c, branch_name, components=["neuro"])
-    test.__wrapped__(c, pytest_args)
+    setup.branch(c, branch_name, components=["neuro"])
+    test(c, pytest_args)
 
 
 @task(pre=[call(setup.env, environment="TESTING")])
