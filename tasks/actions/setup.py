@@ -31,7 +31,7 @@ SUBMODULES = [
 @task
 def env(c, environment=None):
     """Load config and chdir to NF_DIR."""
-    nf_dir = os.getenv("NF_DIR")
+    nf_dir = internal_utils.get_path("nf")
     if environment:
         os.environ["ENVIRONMENT"] = environment
     print(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
@@ -56,7 +56,7 @@ def reset_submodule(path, branch_name):
             subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
 
 
-@task(iterable="components")
+@task(pre=[env], iterable="components")
 def rsync(c, components):
     """Rsync local submodules (neuro, desktop) into app/."""
     if not components:
@@ -65,7 +65,6 @@ def rsync(c, components):
         source = internal_utils.get_path(component) + "/"
         dest = internal_utils.get_path("nf") + "/" + component
         build_utils.rsync_local(source, dest, component)
-
 
 
 @task(pre=[env], iterable="components")
