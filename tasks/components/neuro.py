@@ -1,3 +1,4 @@
+import shlex
 import subprocess
 
 import invoke
@@ -26,7 +27,7 @@ def ruff(c, ruff_args=""):
     if not ruff_args:
         ruff_args = []
     else:
-        ruff_args = ruff_args.split()
+        ruff_args = shlex.split(ruff_args)
     result = subprocess.run(["nenv/bin/ruff", "check", "neuro/"] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
@@ -35,10 +36,7 @@ def ruff(c, ruff_args=""):
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, pytest_args=""):
     """Run neuro tests."""
-    if not pytest_args:
-        pytest_args = ["neuro/tests"]
-    else:
-        pytest_args = pytest_args.split(" ")
-    result = subprocess.run(["nenv/bin/pytest"] + pytest_args)
+    extra = shlex.split(pytest_args) if pytest_args else []
+    result = subprocess.run(["nenv/bin/pytest", "neuro/tests"] + extra)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
