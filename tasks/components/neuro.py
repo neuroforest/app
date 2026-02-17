@@ -20,6 +20,14 @@ def test_branch(c, branch_name, pytest_args=""):
     test(c, pytest_args)
 
 
+@task
+def ruff(c):
+    """Run ruff check on neuro/."""
+    result = subprocess.run(["nenv/bin/ruff", "check", "neuro/"])
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+
 @task(pre=[call(setup.env, environment="TESTING")])
 def test(c, pytest_args=""):
     """Run neuro tests."""
