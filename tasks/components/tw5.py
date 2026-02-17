@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from invoke import task
+from invoke import task, call
 
 from neuro.utils import internal_utils, terminal_style
 
@@ -12,14 +12,6 @@ from ..actions import setup
 
 REQUIRED_EDITION_FIELDS = ["description", "plugins", "themes", "build"]
 REQUIRED_PLUGIN_FIELDS = ["title", "description"]
-
-
-def _editions_dir():
-    return os.path.join(internal_utils.get_path("nf"), "tw5-editions")
-
-
-def _plugins_dir():
-    return os.path.join(internal_utils.get_path("nf"), "tw5-plugins")
 
 
 def validate_tw5_edition(path):
@@ -64,7 +56,7 @@ def validate_tw5_plugin(info_path):
 
 
 def discover_tw5_plugins():
-    plugins_dir = _plugins_dir()
+    plugins_dir = os.path.join(internal_utils.get_path("nf"), "tw5-plugins")
     results = []
     for root, _dirs, files in os.walk(plugins_dir):
         if "plugin.info" in files:
@@ -77,9 +69,7 @@ def discover_tw5_plugins():
 
 def copy_tw5_editions():
     tw5_path = internal_utils.get_path("tw5")
-    editions_dir = _editions_dir()
-    app_path = internal_utils.get_path("nf")
-    editions_source = os.path.join(app_path, editions_dir)
+    editions_source = os.path.join(internal_utils.get_path("nf"), "tw5-editions")
 
     if not os.path.isdir(editions_source):
         print(f"No editions directory found at {editions_source}")
@@ -99,7 +89,7 @@ def copy_tw5_editions():
 
 def copy_tw5_plugins():
     tw5_path = internal_utils.get_path("tw5")
-    plugins_dir = _plugins_dir()
+    plugins_dir = os.path.join(internal_utils.get_path("nf"), "tw5-plugins")
 
     if not os.path.isdir(plugins_dir):
         print(f"No plugins directory found at {plugins_dir}")
@@ -126,20 +116,17 @@ def copy_tw5_plugins():
 @task(pre=[setup.env])
 def bundle(c):
     """Copy TW5 editions and plugins into the TW5 tree."""
+    terminal_style.header("TW5 Bundle")
     copy_tw5_editions()
     copy_tw5_plugins()
 
 
-@task(pre=[setup.env])
+@task(pre=[call(setup.env, environment="TESTING")])
 def test(c):
     """Copy editions/plugins, run tw5/bin/test.sh."""
-    os.environ["ENVIRONMENT"] = "TESTING"
-
-    copy_tw5_editions()
-    copy_tw5_plugins()
-
+    bundle(c)
+    terminal_style.header("TW5 Test")
     tw5_path = internal_utils.get_path("tw5")
-    with terminal_style.step("tw5 tests"):
-        result = subprocess.run(["bin/test.sh"], cwd=tw5_path)
+    result = subprocess.run(["bin/test.sh"], cwd=tw5_path)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
