@@ -108,17 +108,16 @@ def copy_tw5_plugins():
 
         source_dir = os.path.dirname(info_path)
         target = os.path.join(tw5_path, target_base, relative)
-        with terminal_style.step(f"Copy {plugin_type} {relative}"):
-            shutil.rmtree(target, ignore_errors=True)
-            shutil.copytree(source_dir, target)
+        shutil.rmtree(target, ignore_errors=True)
+        shutil.copytree(source_dir, target)
 
 
 @invoke.task(pre=[setup.env])
 def bundle(c):
     """Copy TW5 editions and plugins into the TW5 tree."""
-    terminal_style.header("TW5 Bundle")
-    copy_tw5_editions()
-    copy_tw5_plugins()
+    with terminal_style.step("Bundle tw5"):
+        copy_tw5_editions()
+        copy_tw5_plugins()
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

@@ -27,6 +27,19 @@ SUBMODULES = [
 ]
 
 
+def reset_submodule(path, branch_name):
+    """git fetch + reset --hard + clean."""
+    with build_utils.chdir(path):
+        with terminal_style.step(f"Reset {path} to {branch_name}"):
+            subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
+            subprocess.run(
+                ["git", "reset", "--hard", f"{branch_name}"],
+                check=True,
+                capture_output=True
+            )
+            subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
+
+
 @invoke.task
 def env(c, environment=None):
     """Load config and chdir to NF_DIR."""
@@ -42,17 +55,12 @@ def env(c, environment=None):
         raise invoke.exceptions.Exit("Invalid directory: {}")
 
 
-def reset_submodule(path, branch_name):
-    """git fetch + reset --hard + clean."""
-    with build_utils.chdir(path):
-        with terminal_style.step(f"Reset {path} to {branch_name}"):
-            subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
-            subprocess.run(
-                ["git", "reset", "--hard", f"{branch_name}"],
-                check=True,
-                capture_output=True
-            )
-            subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
+@invoke.task
+def nenv(c):
+    """Create virtualenv and install neuro."""
+    with terminal_style.step("Installing neuro"):
+        subprocess.run(["python3", "-m", "venv", "nenv"], check=True, capture_output=True)
+        subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True, capture_output=True)
 
 
 @invoke.task(pre=[env], iterable="components")
@@ -91,10 +99,3 @@ def branch(c, branch_name, components):
         components = SUBMODULES
     for component in components:
         reset_submodule(component, branch_name)
-
-
-@invoke.task
-def nenv(c):
-    """Create virtualenv and install neuro."""
-    subprocess.run(["python3", "-m", "venv", "nenv"], check=True)
-    subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True)
