@@ -30,8 +30,12 @@ SUBMODULES = [
 def reset_submodule(path, branch_name):
     """git fetch + reset --hard + clean."""
     with build_utils.chdir(path):
-        with terminal_style.step(f"Reset {path} to {branch_name}"):
-            subprocess.run(["git", "fetch", "origin"], check=True, capture_output=True)
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", f"{branch_name}"],
+            check=True, capture_output=True, text=True
+        )
+        commit = result.stdout.strip()
+        with terminal_style.step(f"Reset {path} to {branch_name} ({commit})"):
             subprocess.run(
                 ["git", "reset", "--hard", f"{branch_name}"],
                 check=True,
