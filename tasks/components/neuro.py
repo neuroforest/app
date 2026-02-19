@@ -3,8 +3,8 @@ import subprocess
 
 import invoke
 
-from ..actions import setup
-from . import tw5
+from tasks.actions import setup
+from tasks.components import tw5
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
