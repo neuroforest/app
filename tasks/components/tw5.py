@@ -124,7 +124,6 @@ def bundle(c):
 def test(c):
     """Copy editions/plugins, run tw5/bin/test.sh."""
     bundle(c)
-    terminal_style.header("TW5 Test")
     tw5_path = internal_utils.get_path("tw5")
     result = subprocess.run(["bin/test.sh"], cwd=tw5_path)
     if result.returncode != 0:

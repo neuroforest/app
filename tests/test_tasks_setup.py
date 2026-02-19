@@ -125,6 +125,24 @@ class TestEnv:
 
 
 # ---------------------------------------------------------------------------
+# Task: nenv
+# ---------------------------------------------------------------------------
+
+class TestNenvTask:
+    def test_creates_venv_and_installs(self, ctx, subprocess_recorder):
+        setup_mod.nenv.__wrapped__(ctx)
+        assert subprocess_recorder.call_count == 2
+        cmds = [c[0][0] for c in subprocess_recorder.calls]
+        assert cmds[0] == ["python3", "-m", "venv", "nenv"]
+        assert cmds[1] == ["nenv/bin/pip", "install", "./neuro"]
+
+    def test_passes_check_true(self, ctx, subprocess_recorder):
+        setup_mod.nenv.__wrapped__(ctx)
+        for call in subprocess_recorder.calls:
+            assert call[1].get("check") is True
+
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -137,21 +155,6 @@ class TestConstants:
 
     def test_submodules_contains_tw5(self):
         assert "tw5" in setup_mod.SUBMODULES
-
-
-# ---------------------------------------------------------------------------
-# reset_submodule
-# ---------------------------------------------------------------------------
-
-class TestResetSubmodule:
-    def test_runs_git_commands(self, monkeypatch, tmp_path, subprocess_recorder):
-        monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.reset_submodule(str(tmp_path), "main")
-        assert subprocess_recorder.call_count == 3
-        cmds = [c[0][0] for c in subprocess_recorder.calls]
-        assert cmds[0] == ["git", "fetch", "origin"]
-        assert cmds[1] == ["git", "reset", "--hard", "main"]
-        assert cmds[2] == ["git", "clean", "-fdx"]
 
 
 # ---------------------------------------------------------------------------
@@ -171,27 +174,18 @@ class TestRsyncTask:
 
 
 # ---------------------------------------------------------------------------
-# Task: master / develop
+# reset_submodule
 # ---------------------------------------------------------------------------
 
-class TestMasterTask:
-    def test_resets_all_submodules(self, ctx, monkeypatch, subprocess_recorder):
+class TestResetSubmodule:
+    def test_runs_git_commands(self, monkeypatch, tmp_path, subprocess_recorder):
         monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.master.__wrapped__(ctx, components=[])
-        assert subprocess_recorder.call_count == 3 * len(setup_mod.SUBMODULES)
-
-    def test_specific_submodule(self, ctx, monkeypatch, subprocess_recorder):
-        monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.master.__wrapped__(ctx, components=["neuro"])
+        setup_mod.reset_submodule(str(tmp_path), "main")
         assert subprocess_recorder.call_count == 3
-
-
-class TestDevelopTask:
-    def test_resets_to_develop(self, ctx, monkeypatch, subprocess_recorder):
-        monkeypatch.setattr(setup_mod.build_utils, "chdir", _noop_chdir)
-        setup_mod.develop.__wrapped__(ctx, components=["neuro"])
-        reset_cmd = subprocess_recorder.calls[1][0][0]
-        assert "develop" in reset_cmd
+        cmds = [c[0][0] for c in subprocess_recorder.calls]
+        assert cmds[0] == ["git", "rev-parse", "--short", "main"]
+        assert cmds[1] == ["git", "reset", "--hard", "main"]
+        assert cmds[2] == ["git", "clean", "-fdx"]
 
 
 class TestBranchTask:
@@ -200,21 +194,3 @@ class TestBranchTask:
         setup_mod.branch.__wrapped__(ctx, branch_name="feat/x", components=["neuro"])
         reset_cmd = subprocess_recorder.calls[1][0][0]
         assert "feat/x" in reset_cmd
-
-
-# ---------------------------------------------------------------------------
-# Task: nenv
-# ---------------------------------------------------------------------------
-
-class TestNenvTask:
-    def test_creates_venv_and_installs(self, ctx, subprocess_recorder):
-        setup_mod.nenv.__wrapped__(ctx)
-        assert subprocess_recorder.call_count == 2
-        cmds = [c[0][0] for c in subprocess_recorder.calls]
-        assert cmds[0] == ["python3", "-m", "venv", "nenv"]
-        assert cmds[1] == ["nenv/bin/pip", "install", "./neuro"]
-
-    def test_passes_check_true(self, ctx, subprocess_recorder):
-        setup_mod.nenv.__wrapped__(ctx)
-        for call in subprocess_recorder.calls:
-            assert call[1].get("check") is True
