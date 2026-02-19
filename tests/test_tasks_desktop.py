@@ -5,6 +5,7 @@ Tests for tasks.components.desktop (build, run, close).
 import json
 import os
 import signal
+from pathlib import Path
 
 import pytest
 
@@ -69,8 +70,8 @@ class TestSavePid:
 class TestGetAppDir:
     def test_returns_absolute(self, monkeypatch):
         monkeypatch.setattr(desktop_mod.internal_utils, "get_path",
-                            lambda k: "/absolute/app")
-        assert desktop_mod.get_app_dir() == "/absolute/app"
+                            lambda k: Path("/absolute/app"))
+        assert desktop_mod.get_app_dir() == Path("/absolute/app")
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +118,7 @@ class TestBuild:
         """Common setup: stub get_path, env vars."""
         nf = tmp_path / "nf"
         nf.mkdir()
-        monkeypatch.setattr(desktop_mod.internal_utils, "get_path", lambda k: str(nf))
+        monkeypatch.setattr(desktop_mod.internal_utils, "get_path", lambda k: nf)
         monkeypatch.setenv("NWJS_VERSION", "0.80.0")
         monkeypatch.setenv("APP_NAME", "TestApp")
         return nf

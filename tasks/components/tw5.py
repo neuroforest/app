@@ -56,7 +56,7 @@ def validate_tw5_plugin(info_path):
 
 
 def discover_tw5_plugins():
-    plugins_dir = os.path.join(internal_utils.get_path("nf"), "tw5-plugins")
+    plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
     results = []
     for root, _dirs, files in os.walk(plugins_dir):
         if "plugin.info" in files:
@@ -69,7 +69,7 @@ def discover_tw5_plugins():
 
 def copy_tw5_editions():
     tw5_path = internal_utils.get_path("tw5")
-    editions_source = os.path.join(internal_utils.get_path("nf"), "tw5-editions")
+    editions_source = internal_utils.get_path("nf") / "tw5-editions"
 
     if not os.path.isdir(editions_source):
         print(f"No editions directory found at {editions_source}")
@@ -81,7 +81,7 @@ def copy_tw5_editions():
             continue
         if not validate_tw5_edition(source):
             continue
-        target = os.path.join(tw5_path, "editions", edition)
+        target = tw5_path / "editions" / edition
         with terminal_style.step(f"Copy edition {edition}"):
             shutil.rmtree(target, ignore_errors=True)
             shutil.copytree(source, target)
@@ -89,7 +89,7 @@ def copy_tw5_editions():
 
 def copy_tw5_plugins():
     tw5_path = internal_utils.get_path("tw5")
-    plugins_dir = os.path.join(internal_utils.get_path("nf"), "tw5-plugins")
+    plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
 
     if not os.path.isdir(plugins_dir):
         print(f"No plugins directory found at {plugins_dir}")
@@ -107,7 +107,7 @@ def copy_tw5_plugins():
             target_base = "plugins"
 
         source_dir = os.path.dirname(info_path)
-        target = os.path.join(tw5_path, target_base, relative)
+        target = tw5_path / target_base / relative
         shutil.rmtree(target, ignore_errors=True)
         shutil.copytree(source_dir, target)
 
@@ -124,10 +124,10 @@ def bundle(c):
 def build(c, build_dir=None):
     """Bundle tw5 and copy it to the app build directory."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") + "/app"
+        build_dir = internal_utils.get_path("nf") / "app"
     if not os.path.isdir(build_dir):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
-    tw5_source = os.path.join(internal_utils.get_path("nf"), "tw5")
+    tw5_source = internal_utils.get_path("nf") / "tw5"
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
 
 

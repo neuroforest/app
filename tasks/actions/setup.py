@@ -76,8 +76,8 @@ def rsync(c, components):
     if not components:
         components = LOCAL_SUBMODULES
     for component in components:
-        source = internal_utils.get_path(component) + "/"
-        dest = internal_utils.get_path("nf") + "/" + component
+        source = str(internal_utils.get_path(component)) + "/"
+        dest = internal_utils.get_path("nf") / component
         build_utils.rsync_local(source, dest, component)
 
     if "neuro" in components:

@@ -99,7 +99,7 @@ class TestBuild:
             app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
 
     def test_default_build_dir(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setattr(app_mod.internal_utils, "get_path", lambda k: str(tmp_path))
+        monkeypatch.setattr(app_mod.internal_utils, "get_path", lambda k: tmp_path)
         monkeypatch.setattr(app_mod.tw5, "build", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
 

@@ -37,7 +37,7 @@ def patch_paths(monkeypatch, tmp_path):
     """Patch get_path and NWJS_URL so _nwjs_paths works."""
     nf = tmp_path / "nf"
     nf.mkdir()
-    monkeypatch.setattr(nwjs_mod.internal_utils, "get_path", lambda k: str(nf))
+    monkeypatch.setattr(nwjs_mod.internal_utils, "get_path", lambda k: nf)
     monkeypatch.setenv("NWJS_URL", "https://example.com")
     return str(nf)
 
@@ -62,9 +62,9 @@ class TestResolveVersion:
 class TestNwjsPaths:
     def test_paths(self, patch_paths):
         p = nwjs_mod._nwjs_paths("0.80.0")
-        assert "v0.80.0.tar.gz" in p["tarfile_local"]
+        assert p["tarfile_local"].name == "v0.80.0.tar.gz"
         assert "nwjs-sdk-v0.80.0-linux-x64.tar.gz" in p["tarfile_remote"]
-        assert p["extract_final"].endswith("v0.80.0")
+        assert p["extract_final"].name == "v0.80.0"
 
 
 # ---------------------------------------------------------------------------

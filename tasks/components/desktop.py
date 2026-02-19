@@ -45,8 +45,8 @@ def save_pid(build_dir, pid):
 
 def get_app_dir():
     app_dir = internal_utils.get_path("app")
-    if app_dir and not os.path.isabs(app_dir):
-        app_dir = os.path.abspath(app_dir)
+    if app_dir and not app_dir.is_absolute():
+        app_dir = app_dir.resolve()
     return app_dir
 
 
@@ -58,17 +58,17 @@ def get_app_dir():
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") + "/app"
+        build_dir = internal_utils.get_path("nf") / "app"
     if not os.path.isdir(build_dir):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
 
     # NWjs
     nwjs_version = os.getenv("NWJS_VERSION")
-    nwjs_source = os.path.join(internal_utils.get_path("nf"), "nwjs", f"v{nwjs_version}") + "/"
+    nwjs_source = str(internal_utils.get_path("nf") / "nwjs" / f"v{nwjs_version}") + "/"
     build_utils.rsync_local(nwjs_source, build_dir, f"NW.js v{nwjs_version}")
 
     # Desktop
-    desktop_source = os.path.join(internal_utils.get_path("nf"), "desktop", "source")
+    desktop_source = internal_utils.get_path("nf") / "desktop" / "source"
     build_utils.rsync_local(desktop_source, build_dir, "desktop source")
     source_pkg = os.path.join(build_dir, "source", "package.json")
     with open(source_pkg) as f:
