@@ -50,9 +50,8 @@ def env(c, environment=None):
     nf_dir = internal_utils.get_path("nf")
     if environment:
         os.environ["ENVIRONMENT"] = environment
-    terminal_style.header(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
-
     config.main()
+    terminal_style.header(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
     try:
         os.chdir(nf_dir)
     except FileNotFoundError:
