@@ -2,7 +2,7 @@
 
 NeuroForest is an open-source knowledge engineering platform focused on improving the capacity and efficiency of the human mind.
 
-It applies the object-oriented philosophy to knowledge. 
+It applies the object-oriented philosophy to knowledge.
 
 ## Components
 
@@ -46,16 +46,25 @@ invoke setup.env
 invoke setup.master
 
 # 3. Build and launch
-invoke desktop.build    # assembles NW.js + TW5 + source + starts NeuroBase
-invoke desktop.run      # launches the desktop app
+invoke app.build     # creates neurobase, builds tw5 and desktop
+invoke app.run       # starts neurobase and launches desktop
 
 # 4. Close
-invoke desktop.close
+invoke app.stop      # closes desktop and stops neurobase
 ```
 
 ## Tasks
 
     invoke --list
+
+### App
+
+| Task | Description |
+|------|-------------|
+| `app.build` | Create neurobase, build tw5 and desktop |
+| `app.run` | Start neurobase and launch desktop |
+| `app.stop` | Close desktop and stop neurobase |
+| `app.test` | Run app tests (pytest tests/) |
 
 ### Actions
 
@@ -66,7 +75,6 @@ invoke desktop.close
 | `setup.master` | Reset all submodules to master |
 | `setup.develop` | Reset submodules to develop |
 | `setup.branch` | Reset submodules to a specific branch |
-| `test.app` | Run app tests |
 | `test.local` | Run all local component tests (app, neuro, tw5) |
 | `test.production` | Run production tests (stub) |
 
@@ -78,8 +86,11 @@ invoke desktop.close
 | `neuro.test-branch` | Set neuro branch and run tests |
 | `neuro.test` | Run neuro tests |
 | `tw5.bundle` | Copy editions and plugins into the TW5 tree |
+| `tw5.build` | Bundle and copy TW5 tree to app build directory |
 | `tw5.test` | Bundle and run TW5 tests |
-| `neurobase.start` | Start or create the Neo4j container |
+| `neurobase.create` | Create the Neo4j container |
+| `neurobase.start` | Start the Neo4j container and wait for Bolt |
+| `neurobase.stop` | Stop the Neo4j container |
 | `nwjs.download` | Download NW.js SDK |
 | `nwjs.extract` | Extract NW.js SDK |
 | `nwjs.get` | Download and extract NW.js SDK |
@@ -91,6 +102,7 @@ invoke desktop.close
 
     invoke test.local                   # run all (app, neuro, tw5)
     invoke test.local -c app -c neuro   # run specific components
+    invoke app.test                     # run app tests only
 
 All test tasks set `ENVIRONMENT=TESTING`, which loads `.env.testing` instead of `.env`.
 

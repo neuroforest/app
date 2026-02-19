@@ -11,6 +11,8 @@ Source lives at `NeuroForest/neuro/`. The copy at `app/neuro/` is synced via rsy
 | `neuro.test-local` | Rsync neuro and run tests |
 | `neuro.test-branch` | Set neuro branch and run tests |
 | `neuro.test` | Run neuro tests |
+| `neuro.test-integration` | Bundle tw5, then run neuro tests |
+| `neuro.ruff` | Run ruff linter on neuro |
 
 ## Test
 
@@ -24,7 +26,14 @@ Source lives at `NeuroForest/neuro/`. The copy at `app/neuro/` is synced via rsy
 
 `neuro.test` runs `pytest neuro/tests/` directly.
 
-All accept an optional `--pytest-args` string that is split and passed to pytest.
+All test tasks accept an optional `--pytest-args` string that is split and passed to pytest.
+
+## Ruff
+
+    invoke neuro.ruff
+    invoke neuro.ruff --ruff-args "--fix --select E"
+
+Runs `ruff check` on the neuro package. Accepts optional `--ruff-args`.
 
 ## Tests
 

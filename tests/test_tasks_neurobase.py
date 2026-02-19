@@ -188,6 +188,11 @@ class FakeContainer:
 
 
 class TestBackup:
+    @pytest.fixture(autouse=True)
+    def _patch_get_path(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(neurobase_mod.internal_utils, "get_path",
+                            lambda k, **kw: tmp_path)
+
     def test_calls_backup_and_clean(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
         container = FakeContainer()

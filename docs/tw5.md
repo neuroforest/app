@@ -7,6 +7,7 @@ TiddlyWiki5 tree assembly: copy custom editions and plugins, then run TW5 tests.
 | Task | Description |
 |------|-------------|
 | `tw5.bundle` | Copy editions and plugins into the TW5 tree |
+| `tw5.build` | Bundle and copy the TW5 tree into the app build directory |
 | `tw5.test` | Bundle and run `tw5/bin/test.sh` |
 
 ## Bundle
@@ -90,6 +91,13 @@ tw5-plugins/
     "version": "2.9.0"
 }
 ```
+
+## Build
+
+    invoke tw5.build
+    invoke tw5.build --build-dir /tmp/mybuild
+
+Runs `tw5.bundle` as a pre-task, then rsyncs the TW5 tree into the app build directory (defaults to `{NF_DIR}/app`).
 
 ## Test
 

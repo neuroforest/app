@@ -35,6 +35,8 @@ All other tasks depend on `setup.env` as a pre-task.
 
 Rsyncs local development copies into the app submodule directories. Source paths are resolved from environment variables (`NEURO`, `DESKTOP`).
 
+When `neuro` is included, also runs `setup.nenv` to reinstall the package.
+
 Local submodules: `neuro`, `desktop`.
 
 ## master / develop / branch
@@ -47,7 +49,7 @@ Local submodules: `neuro`, `desktop`.
 
 For each submodule runs:
 
-1. `git fetch origin`
+1. `git rev-parse --short <branch>` (resolve commit)
 2. `git reset --hard <branch>`
 3. `git clean -fdx`
 
@@ -62,6 +64,7 @@ All submodules:
 
 1. Creates a virtualenv at `nenv/` via `python3 -m venv nenv`
 2. Installs the local neuro package via `nenv/bin/pip install ./neuro`
+3. Adds `nenv/bin` to `PATH` if not already present
 
 ## Tests
 
