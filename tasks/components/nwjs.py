@@ -6,7 +6,7 @@ import invoke
 
 from neuro.utils import internal_utils, terminal_style
 
-from ..actions import setup
+from tasks.actions import setup
 
 
 def _resolve_version(version):

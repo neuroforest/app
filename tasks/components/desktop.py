@@ -17,8 +17,8 @@ import invoke
 from neuro.tools.tw5api import tw_get, tw_actions
 from neuro.utils import internal_utils, terminal_style, build_utils, network_utils, terminal_components
 
-from ..actions import setup
-from . import neurobase, nwjs, tw5
+from tasks.actions import setup
+from tasks.components import neurobase, nwjs, tw5
 
 
 # ---------------------------------------------------------------------------

@@ -10,8 +10,8 @@ import invoke
 
 from neuro.utils import terminal_style
 
-from . import setup
-from ..components import neuro, tw5
+from tasks.actions import setup
+from tasks.components import neuro, tw5
 
 
 COMPONENTS = ["app", "neuro", "tw5"]
