@@ -56,7 +56,7 @@ def local(c, components):
         raise SystemExit(1)
 
 
-@invoke.task
+@invoke.task(pre=[setup.env])
 def ruff(c, ruff_args=""):
     """Run ruff check on neuro/ and app (tasks/, tests/)."""
     neuro.ruff(c, ruff_args=ruff_args)

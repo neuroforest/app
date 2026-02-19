@@ -3,6 +3,8 @@ import subprocess
 
 import invoke
 
+from neuro.utils import internal_utils
+
 from tasks.actions import setup
 from tasks.components import tw5
 
@@ -28,14 +30,14 @@ def test_branch(c, branch_name, location="neuro/tests", pytest_args="", integrat
         test(c, location, pytest_args)
 
 
-@invoke.task
+@invoke.task(pre=[setup.env])
 def ruff(c, ruff_args=""):
     """Run ruff check on neuro/."""
     if not ruff_args:
         ruff_args = []
     else:
         ruff_args = shlex.split(ruff_args)
-    result = subprocess.run(["nenv/bin/ruff", "check", "neuro/"] + ruff_args)
+    result = subprocess.run(["nenv/bin/ruff", "check", internal_utils.get_path("neuro")] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
