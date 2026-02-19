@@ -120,7 +120,7 @@ class TestBuild:
         nf.mkdir()
         monkeypatch.setattr(desktop_mod.internal_utils, "get_path", lambda k: nf)
         monkeypatch.setenv("NWJS_VERSION", "0.80.0")
-        monkeypatch.setenv("APP_NAME", "TestApp")
+        monkeypatch.setenv("DESKTOP_NAME", "TestApp")
         return nf
 
     def _make_source_pkg(self, build_dir, content=None):
