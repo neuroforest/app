@@ -8,6 +8,6 @@ nenv
 nwjs
 
 # Files
-.env
+.env.local
 .env.testing
 *.egg-info
