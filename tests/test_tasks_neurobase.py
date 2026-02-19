@@ -73,12 +73,15 @@ class TestCreate:
 # ---------------------------------------------------------------------------
 
 class TestStart:
-    def test_already_running(self, ctx, monkeypatch, patch_wait, capsys):
+    @pytest.fixture(autouse=True)
+    def _container_exists(self, monkeypatch):
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
+
+    def test_already_running(self, ctx, monkeypatch, patch_wait, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "nb")
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: True)
         neurobase_mod.start.__wrapped__(ctx)
-        out = capsys.readouterr().out
-        assert "is running" in out
+        assert subprocess_recorder.call_count == 0
         assert patch_wait.call_count == 1
 
     def test_not_running_starts_container(self, ctx, monkeypatch, subprocess_recorder, patch_wait):
@@ -102,6 +105,14 @@ class TestStart:
         neurobase_mod.start.__wrapped__(ctx, name="custom")
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "start", "custom"]
+
+    def test_container_not_exists_fails(self, ctx, monkeypatch, capsys):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: False)
+        with pytest.raises(SystemExit):
+            neurobase_mod.start.__wrapped__(ctx)
+        out = capsys.readouterr().out
+        assert "does not exist" in out
 
 
 # ---------------------------------------------------------------------------

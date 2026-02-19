@@ -6,7 +6,7 @@ import invoke
 from neuro.utils import internal_utils, build_utils
 
 from tasks.actions import setup
-from tasks.components import tw5
+from tasks.components import tw5, neurobase
 
 
 MODES = {
@@ -23,6 +23,8 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
         raise SystemExit(f"Unknown mode: {mode}. Choose from {', '.join(MODES)}")
     if mode in ("integration", "e2e"):
         tw5.bundle(c)
+        neurobase.create(c)
+        neurobase.start(c)
     extra = shlex.split(pytest_args) if pytest_args else []
     result = subprocess.run(["nenv/bin/pytest", location] + MODES[mode] + extra)
     if result.returncode != 0:
