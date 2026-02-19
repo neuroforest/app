@@ -9,24 +9,38 @@ from tasks.actions import setup
 from tasks.components import tw5
 
 
+MODES = {
+    "unit": ["-m", "not (integration or e2e)"],
+    "integration": ["-m", "not e2e"],
+    "e2e": [],
+}
+
+
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test_local(c, location="neuro/tests", pytest_args="", integration=True):
-    """Rsync neuro and run tests."""
+def test(c, mode="integration", location="neuro/tests", pytest_args=""):
+    """Run neuro tests. Modes: unit, integration (default), e2e."""
+    if mode not in MODES:
+        raise SystemExit(f"Unknown mode: {mode}. Choose from {', '.join(MODES)}")
+    if mode in ("integration", "e2e"):
+        tw5.bundle(c)
+    extra = shlex.split(pytest_args) if pytest_args else []
+    result = subprocess.run(["nenv/bin/pytest", location] + MODES[mode] + extra)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
+def test_local(c, mode="e2e", location="neuro/tests", pytest_args=""):
+    """Rsync neuro and run tests. Modes: unit, integration, e2e (default)."""
     setup.rsync(c, components=["neuro"])
-    if integration:
-        test_integration(c, location, pytest_args)
-    else:
-        test(c, location, pytest_args)
+    test(c, mode, location, pytest_args)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test_branch(c, branch_name, location="neuro/tests", pytest_args="", integration=True):
-    """Set neuro branch and run tests."""
+def test_branch(c, branch_name, mode="e2e", location="neuro/tests", pytest_args=""):
+    """Set neuro branch and run tests. Modes: unit, integration, e2e (default)."""
     setup.branch(c, branch_name, components=["neuro"])
-    if integration:
-        test_integration(c, location, pytest_args)
-    else:
-        test(c, location, pytest_args)
+    test(c, mode, location, pytest_args)
 
 
 @invoke.task(pre=[setup.env])
@@ -37,15 +51,6 @@ def ruff(c, ruff_args=""):
     else:
         ruff_args = shlex.split(ruff_args)
     result = subprocess.run(["nenv/bin/ruff", "check", internal_utils.get_path("neuro")] + ruff_args)
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
-
-
-@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test(c, location="neuro/tests", pytest_args=""):
-    """Run neuro tests."""
-    extra = shlex.split(pytest_args) if pytest_args else []
-    result = subprocess.run(["nenv/bin/pytest", location] + extra)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
@@ -62,13 +67,3 @@ def update(c):
             subprocess.run(["git", "merge", "origin/develop"], check=True)
     except subprocess.CalledProcessError as e:
         raise SystemExit(e.returncode)
-
-
-@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test_integration(c, location="neuro/tests", pytest_args=""):
-    """Run neuro tests."""
-    extra = shlex.split(pytest_args) if pytest_args else []
-    tw5.bundle(c)
-    result = subprocess.run(["nenv/bin/pytest", location] + extra)
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
