@@ -73,7 +73,7 @@ def build(c, build_dir=None):
     source_pkg = os.path.join(build_dir, "source", "package.json")
     with open(source_pkg) as f:
         package = json.load(f)
-    package["name"] = os.getenv("APP_NAME", "NeuroDesktop")
+    package["name"] = os.environ["DESKTOP_NAME"]
     with open(os.path.join(build_dir, "package.json"), "w") as f:
         json.dump(package, f, indent=2)
 
