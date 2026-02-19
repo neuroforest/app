@@ -168,3 +168,111 @@ class TestVerifyNeo4j:
                             lambda uri, auth: driver)
         with pytest.raises(SystemExit):
             neurobase_mod.verify_neo4j(timeout=0)
+
+
+# ---------------------------------------------------------------------------
+# backup
+# ---------------------------------------------------------------------------
+
+class FakeContainer:
+    def __init__(self, **kwargs):
+        self.init_kwargs = kwargs
+        self.backup_called = False
+        self.clean_called = False
+
+    def backup(self):
+        self.backup_called = True
+
+    def clean(self):
+        self.clean_called = True
+
+
+class TestBackup:
+    def test_calls_backup_and_clean(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        container = FakeContainer()
+        monkeypatch.setattr(neurobase_mod.docker_tools, "Container",
+                            lambda **kw: container)
+        neurobase_mod.backup.__wrapped__(ctx)
+        assert container.backup_called
+        assert container.clean_called
+
+    def test_passes_name_to_container(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "ignored")
+        captured = {}
+        def fake_container(**kwargs):
+            captured.update(kwargs)
+            return FakeContainer()
+        monkeypatch.setattr(neurobase_mod.docker_tools, "Container", fake_container)
+        neurobase_mod.backup.__wrapped__(ctx, name="custom")
+        assert captured["name"] == "custom"
+
+    def test_uses_env_default(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        captured = {}
+        def fake_container(**kwargs):
+            captured.update(kwargs)
+            return FakeContainer()
+        monkeypatch.setattr(neurobase_mod.docker_tools, "Container", fake_container)
+        neurobase_mod.backup.__wrapped__(ctx)
+        assert captured["name"] == "nb"
+
+    def test_pre_includes_stop(self):
+        pre_names = [t.name for t in neurobase_mod.backup.pre]
+        assert "stop" in pre_names
+
+
+# ---------------------------------------------------------------------------
+# delete
+# ---------------------------------------------------------------------------
+
+class TestDelete:
+    @pytest.fixture(autouse=True)
+    def _confirm(self, monkeypatch):
+        monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
+                            lambda msg: True)
+
+    def test_not_exists(self, ctx, monkeypatch, capsys):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: False)
+        neurobase_mod.delete.__wrapped__(ctx)
+        out = capsys.readouterr().out
+        assert "not found" in out
+
+    def test_removes_container_and_volumes(self, ctx, monkeypatch, subprocess_recorder):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
+        monkeypatch.setattr(neurobase_mod.docker_tools, "get_container_volumes", lambda n: ["vol1", "vol2"])
+        neurobase_mod.delete.__wrapped__(ctx)
+        cmds = [c[0][0] for c in subprocess_recorder.calls]
+        assert ["docker", "rm", "nb"] in cmds
+        assert ["docker", "volume", "rm", "vol1"] in cmds
+        assert ["docker", "volume", "rm", "vol2"] in cmds
+
+    def test_name_param(self, ctx, monkeypatch, subprocess_recorder):
+        monkeypatch.setenv("BASE_NAME", "ignored")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
+        monkeypatch.setattr(neurobase_mod.docker_tools, "get_container_volumes", lambda n: [])
+        neurobase_mod.delete.__wrapped__(ctx, name="custom")
+        cmd = subprocess_recorder.calls[0][0][0]
+        assert cmd == ["docker", "rm", "custom"]
+
+    def test_no_volumes(self, ctx, monkeypatch, subprocess_recorder):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
+        monkeypatch.setattr(neurobase_mod.docker_tools, "get_container_volumes", lambda n: [])
+        neurobase_mod.delete.__wrapped__(ctx)
+        assert subprocess_recorder.call_count == 1
+        assert subprocess_recorder.calls[0][0][0] == ["docker", "rm", "nb"]
+
+    def test_aborts_on_decline(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
+        monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
+                            lambda msg: False)
+        with pytest.raises(SystemExit):
+            neurobase_mod.delete.__wrapped__(ctx)
+
+    def test_pre_includes_stop(self):
+        pre_names = [t.name for t in neurobase_mod.delete.pre]
+        assert "stop" in pre_names
