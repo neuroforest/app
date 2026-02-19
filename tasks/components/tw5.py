@@ -5,7 +5,7 @@ import subprocess
 
 import invoke
 
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import build_utils, internal_utils, terminal_style
 
 from tasks.actions import setup
 
@@ -118,6 +118,17 @@ def bundle(c):
     with terminal_style.step("Bundle tw5"):
         copy_tw5_editions()
         copy_tw5_plugins()
+
+
+@invoke.task(pre=[setup.env, bundle])
+def build(c, build_dir=None):
+    """Bundle tw5 and copy it to the app build directory."""
+    if not build_dir:
+        build_dir = internal_utils.get_path("nf") + "/app"
+    if not os.path.isdir(build_dir):
+        raise SystemExit(f"Build directory does not exist: {build_dir}")
+    tw5_source = os.path.join(internal_utils.get_path("nf"), "tw5")
+    build_utils.rsync_local(tw5_source, build_dir, "tw5")
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

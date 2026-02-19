@@ -37,17 +37,22 @@ def patch_wait(monkeypatch):
     return rec
 
 
+@pytest.fixture(autouse=True)
+def patch_verify_neo4j(monkeypatch, request):
+    if request.node.cls and request.node.cls.__name__ != "TestVerifyNeo4j":
+        monkeypatch.setattr(neurobase_mod, "verify_neo4j", lambda *a, **kw: None)
+
+
 # ---------------------------------------------------------------------------
 # create
 # ---------------------------------------------------------------------------
 
 class TestCreate:
-    def test_already_exists(self, ctx, monkeypatch, capsys):
+    def test_already_exists(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "nb")
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
         neurobase_mod.create.__wrapped__(ctx)
-        out = capsys.readouterr().out
-        assert "exists" in out
+        assert subprocess_recorder.call_count == 0
 
     def test_does_not_exist(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -56,12 +61,11 @@ class TestCreate:
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "compose", "up", "-d"]
 
-    def test_base_name_param(self, ctx, monkeypatch, capsys):
+    def test_base_name_param(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "ignored")
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: n == "custom")
         neurobase_mod.create.__wrapped__(ctx, name="custom")
-        out = capsys.readouterr().out
-        assert "custom" in out
+        assert subprocess_recorder.call_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -125,3 +129,44 @@ class TestStop:
         neurobase_mod.stop.__wrapped__(ctx, name="custom")
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "stop", "custom"]
+
+
+# ---------------------------------------------------------------------------
+# verify_neo4j
+# ---------------------------------------------------------------------------
+
+class FakeDriver:
+    def __init__(self, connectable=True):
+        self.connectable = connectable
+        self.closed = False
+
+    def verify_connectivity(self):
+        if not self.connectable:
+            raise Exception("unavailable")
+
+    def close(self):
+        self.closed = True
+
+
+class TestVerifyNeo4j:
+    def test_success(self, monkeypatch, capsys):
+        monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
+        monkeypatch.setenv("NEO4J_USER", "neo4j")
+        monkeypatch.setenv("NEO4J_PASSWORD", "pass")
+        driver = FakeDriver(connectable=True)
+        monkeypatch.setattr(neurobase_mod.neo4j.GraphDatabase, "driver",
+                            lambda uri, auth: driver)
+        neurobase_mod.verify_neo4j()
+        out = capsys.readouterr().out
+        assert "connected" in out
+        assert driver.closed
+
+    def test_failure_exits(self, monkeypatch):
+        monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
+        monkeypatch.setenv("NEO4J_USER", "neo4j")
+        monkeypatch.setenv("NEO4J_PASSWORD", "pass")
+        driver = FakeDriver(connectable=False)
+        monkeypatch.setattr(neurobase_mod.neo4j.GraphDatabase, "driver",
+                            lambda uri, auth: driver)
+        with pytest.raises(SystemExit):
+            neurobase_mod.verify_neo4j(timeout=0)

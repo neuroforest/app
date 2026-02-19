@@ -3,47 +3,24 @@ Build, run and close NeuroForest desktop application.
 """
 
 import json
-import logging
 import os
-import shutil
 import signal
 import subprocess
 import sys
 import time
 
-import neo4j
 import invoke
 
 from neuro.tools.tw5api import tw_get, tw_actions
-from neuro.utils import internal_utils, terminal_style, build_utils, network_utils, terminal_components
+from neuro.utils import internal_utils, terminal_style, build_utils, network_utils
 
 from tasks.actions import setup
-from tasks.components import neurobase, nwjs, tw5
+from tasks.components import nwjs, tw5
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def verify_neo4j():
-    logging.getLogger("neo4j").setLevel(logging.ERROR)
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    password = os.getenv("NEO4J_PASSWORD")
-    driver = neo4j.GraphDatabase.driver(uri, auth=(user, password))
-
-    try:
-        driver.verify_connectivity()
-        print(f"{terminal_style.SUCCESS} Neo4j connected ({uri})")
-    except neo4j.exceptions.ServiceUnavailable:
-        print(f"Neo4j inaccessible: {uri}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Neo4j inaccessible: {e}")
-        sys.exit(1)
-    finally:
-        driver.close()
-
 
 def register_protocol(url):
     uuid = url.removeprefix("neuro://")
@@ -77,16 +54,13 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.create])
+@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
         build_dir = internal_utils.get_path("nf") + "/app"
-    if os.path.exists(build_dir):
-        if terminal_components.bool_prompt(f"Rewrite {build_dir}?"):
-            shutil.rmtree(build_dir, ignore_errors=True)
-        else:
-            invoke.exceptions.Exit("Aborting...")
+    if not os.path.isdir(build_dir):
+        raise SystemExit(f"Build directory does not exist: {build_dir}")
 
     # NWjs
     nwjs_version = os.getenv("NWJS_VERSION")
@@ -112,7 +86,7 @@ def build(c, build_dir=None):
         subprocess.run(["npm", "install"], cwd=build_dir, check=True, capture_output=True)
 
 
-@invoke.task(pre=[setup.env, neurobase.start])
+@invoke.task(pre=[setup.env])
 def run(c):
     """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
     app_dir = get_app_dir()
@@ -122,7 +96,6 @@ def run(c):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
         sys.exit(1)
 
-    verify_neo4j()
     process = subprocess.Popen(
         [nw_binary],
         cwd=app_dir,
@@ -137,7 +110,7 @@ def run(c):
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
-@invoke.task(pre=[setup.env], post=[neurobase.stop])
+@invoke.task(pre=[setup.env])
 def close(c):
     """Close NW.js desktop app by reading PID file."""
     app_dir = get_app_dir()

@@ -11,19 +11,10 @@ import invoke
 from neuro.utils import terminal_style
 
 from tasks.actions import setup
-from tasks.components import neuro, tw5
+from tasks.components import app as app_tasks, neuro, tw5
 
 
 COMPONENTS = ["app", "neuro", "tw5"]
-
-
-@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def app(c, pytest_args=""):
-    """Run app tests (pytest tests/)."""
-    extra = shlex.split(pytest_args) if pytest_args else []
-    result = subprocess.run(["nenv/bin/pytest", "tests/"] + extra)
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], iterable="components")
@@ -36,7 +27,7 @@ def local(c, components):
     if "app" in components:
         terminal_style.header("Testing APP")
         try:
-            app(c)
+            app_tasks.test(c)
         except SystemExit:
             failed.append("app")
 

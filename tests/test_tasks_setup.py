@@ -162,6 +162,10 @@ class TestConstants:
 # ---------------------------------------------------------------------------
 
 class TestRsyncTask:
+    @pytest.fixture(autouse=True)
+    def _patch_nenv(self, monkeypatch):
+        monkeypatch.setattr(setup_mod, "nenv", Recorder())
+
     def test_defaults_to_local_submodules(self, ctx, patch_get_path, rsync_recorder):
         setup_mod.rsync.__wrapped__(ctx, components=[])
         assert rsync_recorder.call_count == len(setup_mod.LOCAL_SUBMODULES)
