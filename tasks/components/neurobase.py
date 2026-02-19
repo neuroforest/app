@@ -8,7 +8,7 @@ import invoke
 import neo4j
 
 from neuro.base import docker_tools
-from neuro.utils import network_utils, terminal_style
+from neuro.utils import internal_utils, network_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 
@@ -83,3 +83,42 @@ def stop(c, name=None):
 
     with terminal_style.step(f"Stop NeuroBase instance: {base_name}"):
         subprocess.run(["docker", "stop", base_name], capture_output=True)
+
+
+@invoke.task(pre=[setup.env, stop])
+def backup(c, name=None):
+    """Backup the neurobase docker container and clean up temporary artifacts."""
+    if name:
+        base_name = name
+    else:
+        base_name = os.getenv("BASE_NAME")
+
+    container = docker_tools.Container(name=base_name)
+    with terminal_style.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
+        container.backup()
+        container.clean()
+
+
+@invoke.task(pre=[setup.env, stop])
+def delete(c, name=None):
+    """Remove the neurobase container and its associated volumes."""
+    if name:
+        base_name = name
+    else:
+        base_name = os.getenv("BASE_NAME")
+
+    if not docker_tools.container_exists(base_name):
+        print(f"{terminal_style.FAIL} NeuroBase '{base_name}' not found")
+        return
+
+    if not terminal_components.bool_prompt(f"Delete '{base_name}' and its volumes?"):
+        raise SystemExit("Aborting delete.")
+
+    volumes = docker_tools.get_container_volumes(base_name)
+
+    with terminal_style.step(f"Remove container: {base_name}"):
+        subprocess.run(["docker", "rm", base_name], capture_output=True)
+
+    for vol in volumes:
+        with terminal_style.step(f"Remove volume: {vol}"):
+            subprocess.run(["docker", "volume", "rm", vol], capture_output=True)

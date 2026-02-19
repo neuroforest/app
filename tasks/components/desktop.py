@@ -100,7 +100,7 @@ def run(c):
     )
     time.sleep(1)
     if process.poll() is not None:
-        print(f"{terminal_style.FAIL} Already running.")
+        print(f"{terminal_style.SUCCESS} Already running.")
         return
     save_pid(app_dir, process.pid)
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
@@ -123,6 +123,6 @@ def close(c):
         os.kill(pid, signal.SIGTERM)
         print(f"{terminal_style.SUCCESS} Closed NeuroDesktop (PID {pid})")
     except ProcessLookupError:
-        print(f"{terminal_style} NeuroDesktop already closed (no process)")
+        print(f"{terminal_style.SUCCESS} NeuroDesktop already closed (no process)")
     finally:
         os.remove(pid_path)
