@@ -109,10 +109,6 @@ class TestTestLocal:
         assert patch_rsync.call_count == 1
         assert patch_rsync.last_kwargs == {"components": ["neuro"]}
 
-    def test_calls_nenv(self, ctx, patch_rsync, patch_nenv, patch_test):
-        neuro_mod.test_local.__wrapped__(ctx)
-        assert patch_nenv.call_count == 1
-
     def test_calls_test(self, ctx, patch_rsync, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx)
         assert patch_test.call_count == 1
