@@ -44,30 +44,8 @@ def patch_neuro_test_local(monkeypatch):
 @pytest.fixture
 def patch_app(monkeypatch):
     rec = Recorder()
-    monkeypatch.setattr(test_mod, "app", rec)
+    monkeypatch.setattr(test_mod.app_tasks, "test", rec)
     return rec
-
-
-# ---------------------------------------------------------------------------
-# app
-# ---------------------------------------------------------------------------
-
-class TestApp:
-    def test_default_args(self, ctx, patch_subprocess):
-        test_mod.app.__wrapped__(ctx)
-        assert patch_subprocess.last_args == (["nenv/bin/pytest", "tests/"],)
-
-    def test_custom_args(self, ctx, patch_subprocess):
-        test_mod.app.__wrapped__(ctx, pytest_args="-m 'not integration'")
-        assert patch_subprocess.last_args == (["nenv/bin/pytest", "tests/", "-m", "not integration"],)
-
-    def test_exit_code_zero(self, ctx, patch_subprocess):
-        test_mod.app.__wrapped__(ctx)  # should not raise
-
-    def test_nonzero_exit_raises(self, ctx, monkeypatch):
-        monkeypatch.setattr(test_mod.subprocess, "run", lambda args: SubprocessResult(1))
-        with pytest.raises(SystemExit):
-            test_mod.app.__wrapped__(ctx)
 
 
 # ---------------------------------------------------------------------------

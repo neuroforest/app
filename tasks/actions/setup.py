@@ -80,6 +80,9 @@ def rsync(c, components):
         dest = internal_utils.get_path("nf") + "/" + component
         build_utils.rsync_local(source, dest, component)
 
+    if "neuro" in components:
+        nenv(c)
+
 
 @invoke.task(pre=[env], iterable="components")
 def master(c, components):

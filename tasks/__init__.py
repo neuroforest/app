@@ -1,10 +1,11 @@
 import invoke
 from tasks.actions import setup, test
-from tasks.components import desktop, neuro, neurobase, nwjs, tw5
+from tasks.components import app, desktop, neuro, neurobase, nwjs, tw5
 
 ns = invoke.Collection()
 ns.add_collection(setup)
 ns.add_collection(test)
+ns.add_collection(app)
 ns.add_collection(desktop)
 ns.add_collection(neuro)
 ns.add_collection(neurobase)

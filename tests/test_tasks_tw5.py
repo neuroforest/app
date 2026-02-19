@@ -210,6 +210,47 @@ class TestBundle:
 
 
 # ---------------------------------------------------------------------------
+# build task
+# ---------------------------------------------------------------------------
+
+class TestBuild:
+    def test_rsyncs_tw5_to_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
+        rsync_rec = Recorder()
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
+        nf = tmp_path / "nf"
+        nf.mkdir()
+        app_dir = nf / "app"
+        app_dir.mkdir()
+        (nf / "tw5").mkdir()
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
+                            lambda k: {"nf": str(nf), "tw5": str(nf / "tw5")}[k])
+        tw5_mod.build.__wrapped__(ctx)
+        args = rsync_rec.calls[0][0]
+        assert args == (str(nf / "tw5"), str(app_dir), "tw5")
+
+    def test_custom_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
+        rsync_rec = Recorder()
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
+        build_dir = tmp_path / "custom"
+        build_dir.mkdir()
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
+                            lambda k: {"nf": str(tmp_path), "tw5": str(tmp_path / "tw5")}[k])
+        tw5_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
+        args = rsync_rec.calls[0][0]
+        assert args == (str(tmp_path / "tw5"), str(build_dir), "tw5")
+
+    def test_exits_if_dir_missing(self, ctx, monkeypatch, tmp_path, patch_bundle):
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
+                            lambda k: str(tmp_path))
+        with pytest.raises(SystemExit):
+            tw5_mod.build.__wrapped__(ctx, build_dir=str(tmp_path / "nope"))
+
+    def test_pre_includes_bundle(self):
+        pre_names = [t.name for t in tw5_mod.build.pre]
+        assert "bundle" in pre_names
+
+
+# ---------------------------------------------------------------------------
 # test task
 # ---------------------------------------------------------------------------
 
