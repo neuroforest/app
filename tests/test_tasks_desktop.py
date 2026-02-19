@@ -80,7 +80,7 @@ class TestGetAppDir:
 
 class TestRegisterProtocol:
     def test_not_running(self, monkeypatch, capsys):
-        monkeypatch.setenv("ND_PORT", "8080")
+        monkeypatch.setenv("PORT", "8080")
         monkeypatch.setattr(desktop_mod.network_utils, "is_port_in_use",
                             lambda p: False)
         desktop_mod.register_protocol("neuro://abc-123")
@@ -88,7 +88,7 @@ class TestRegisterProtocol:
         assert "not running" in out
 
     def test_found(self, monkeypatch):
-        monkeypatch.setenv("ND_PORT", "8080")
+        monkeypatch.setenv("PORT", "8080")
         monkeypatch.setattr(desktop_mod.network_utils, "is_port_in_use",
                             lambda p: True)
         opened = []
@@ -100,7 +100,7 @@ class TestRegisterProtocol:
         assert opened == ["MyTiddler"]
 
     def test_not_found(self, monkeypatch, capsys):
-        monkeypatch.setenv("ND_PORT", "8080")
+        monkeypatch.setenv("PORT", "8080")
         monkeypatch.setattr(desktop_mod.network_utils, "is_port_in_use",
                             lambda p: True)
         monkeypatch.setattr(desktop_mod.tw_get, "filter_output", lambda q: [])

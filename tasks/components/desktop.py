@@ -24,7 +24,7 @@ from tasks.components import nwjs
 
 def register_protocol(url):
     uuid = url.removeprefix("neuro://")
-    nd_port = os.getenv("ND_PORT")
+    nd_port = os.getenv("PORT")
 
     if not network_utils.is_port_in_use(nd_port):
         print("NeuroDesktop not running")
