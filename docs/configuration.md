@@ -54,7 +54,6 @@ In `.env`, these are typically set to absolute paths. In `.env.defaults`, they a
 |----------|---------|-------------|
 | `NWJS_URL` | `https://dl.node-webkit.org` | NW.js download URL |
 | `NWJS_VERSION` | `0.91.0` | NW.js version |
-| `ND_PORT` | `8080` | NeuroDesktop port |
 
 ### NeuroBase
 
