@@ -52,10 +52,10 @@ def patch_get_path(monkeypatch, tmp_path):
     for d in (nf, tw5, neuro, desktop):
         d.mkdir()
     paths = {
-        "nf": str(nf),
-        "tw5": str(tw5),
-        "neuro": str(neuro),
-        "desktop": str(desktop),
+        "nf": nf,
+        "tw5": tw5,
+        "neuro": neuro,
+        "desktop": desktop,
     }
     monkeypatch.setattr(setup_mod.internal_utils, "get_path", lambda k: paths[k])
     return paths

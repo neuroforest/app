@@ -15,14 +15,14 @@ def _resolve_version(version):
 
 def _nwjs_paths(version):
     app_path = internal_utils.get_path("nf")
-    nwjs_dir = os.path.join(app_path, "nwjs")
+    nwjs_dir = app_path / "nwjs"
     url = os.getenv("NWJS_URL")
     return {
         "nwjs_dir": nwjs_dir,
-        "tarfile_local": os.path.join(nwjs_dir, f"v{version}.tar.gz"),
+        "tarfile_local": nwjs_dir / f"v{version}.tar.gz",
         "tarfile_remote": f"{url}/v{version}/nwjs-sdk-v{version}-linux-x64.tar.gz",
-        "extract_temp": os.path.join(nwjs_dir, f"nwjs-sdk-v{version}-linux-x64"),
-        "extract_final": os.path.join(nwjs_dir, f"v{version}"),
+        "extract_temp": nwjs_dir / f"nwjs-sdk-v{version}-linux-x64",
+        "extract_final": nwjs_dir / f"v{version}",
     }
 
 

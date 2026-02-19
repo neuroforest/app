@@ -2,6 +2,8 @@
 Tests for tasks.components.neuro.
 """
 
+from pathlib import Path
+
 import pytest
 
 from neuro.utils.test_utils import FakeContext, Recorder, SubprocessResult
@@ -59,13 +61,15 @@ def patch_test(monkeypatch):
 # ---------------------------------------------------------------------------
 
 class TestRuff:
-    def test_runs_ruff_on_neuro(self, ctx, patch_subprocess):
+    def test_runs_ruff_on_neuro(self, ctx, patch_subprocess, monkeypatch):
+        monkeypatch.setattr(neuro_mod.internal_utils, "get_path", lambda k: Path("/neuro"))
         neuro_mod.ruff.__wrapped__(ctx)
-        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "neuro/"],)
+        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", Path("/neuro")],)
 
-    def test_custom_args(self, ctx, patch_subprocess):
+    def test_custom_args(self, ctx, patch_subprocess, monkeypatch):
+        monkeypatch.setattr(neuro_mod.internal_utils, "get_path", lambda k: Path("/neuro"))
         neuro_mod.ruff.__wrapped__(ctx, ruff_args="--fix --select E")
-        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "neuro/", "--fix", "--select", "E"],)
+        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", Path("/neuro"), "--fix", "--select", "E"],)
 
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
         monkeypatch.setattr(neuro_mod.subprocess, "run", lambda args: SubprocessResult(1))

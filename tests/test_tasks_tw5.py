@@ -3,6 +3,7 @@ Tests for tasks.components.tw5.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -37,7 +38,7 @@ def nf_tree(monkeypatch, tmp_path):
     tw5 = tmp_path / "tw5"
     nf.mkdir()
     tw5.mkdir()
-    paths = {"nf": str(nf), "tw5": str(tw5)}
+    paths = {"nf": nf, "tw5": tw5}
     monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: paths[k])
     return paths
 
@@ -223,10 +224,10 @@ class TestBuild:
         app_dir.mkdir()
         (nf / "tw5").mkdir()
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": str(nf), "tw5": str(nf / "tw5")}[k])
+                            lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
         tw5_mod.build.__wrapped__(ctx)
         args = rsync_rec.calls[0][0]
-        assert args == (str(nf / "tw5"), str(app_dir), "tw5")
+        assert args == (nf / "tw5", nf / "app", "tw5")
 
     def test_custom_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
         rsync_rec = Recorder()
@@ -234,14 +235,14 @@ class TestBuild:
         build_dir = tmp_path / "custom"
         build_dir.mkdir()
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": str(tmp_path), "tw5": str(tmp_path / "tw5")}[k])
+                            lambda k: {"nf": tmp_path, "tw5": tmp_path / "tw5"}[k])
         tw5_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
         args = rsync_rec.calls[0][0]
-        assert args == (str(tmp_path / "tw5"), str(build_dir), "tw5")
+        assert args == (tmp_path / "tw5", str(build_dir), "tw5")
 
     def test_exits_if_dir_missing(self, ctx, monkeypatch, tmp_path, patch_bundle):
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: str(tmp_path))
+                            lambda k: tmp_path)
         with pytest.raises(SystemExit):
             tw5_mod.build.__wrapped__(ctx, build_dir=str(tmp_path / "nope"))
 
@@ -256,24 +257,24 @@ class TestBuild:
 
 class TestTestTask:
     def test_calls_bundle(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: "/app/tw5")
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
         tw5_mod.test.__wrapped__(ctx)
         assert patch_bundle.call_count == 1
 
     def test_runs_test_sh(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: "/app/tw5")
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
         tw5_mod.test.__wrapped__(ctx)
         args, kwargs = subprocess_recorder.calls[0]
         assert args[0] == ["bin/test.sh"]
-        assert kwargs["cwd"] == "/app/tw5"
+        assert kwargs["cwd"] == Path("/app/tw5")
 
     def test_nonzero_exit_raises(self, ctx, patch_bundle, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: "/app/tw5")
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
         monkeypatch.setattr(tw5_mod.subprocess, "run",
                             Recorder(return_value=SubprocessResult(1)))
         with pytest.raises(SystemExit):
             tw5_mod.test.__wrapped__(ctx)
 
     def test_zero_exit_ok(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: "/app/tw5")
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
         tw5_mod.test.__wrapped__(ctx)  # should not raise

@@ -19,7 +19,7 @@ from tasks.components import desktop, neurobase, tw5
 def build(c, build_dir=None):
     """Build tw5, desktop and create neurobase."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") + "/app"
+        build_dir = internal_utils.get_path("nf") / "app"
     if os.path.exists(build_dir):
         if terminal_components.bool_prompt(f"Rewrite {build_dir}?"):
             with terminal_style.step(f"Removing {build_dir}"):
