@@ -36,12 +36,16 @@ jobs:
         with:
           python-version: "3.14"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
         run: |
           python -m venv nenv
           nenv/bin/pip install neuro/
-          SITE_DIR=$(nenv/bin/python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
-          printf 'from neuro.utils import config\nconfig.main()\n' > "$SITE_DIR/sitecustomize.py"
 
       - name: Run tests
-        run: nenv/bin/pytest tests/ -v
+        run: nenv/bin/invoke test.local
+        env:
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}

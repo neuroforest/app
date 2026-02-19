@@ -8,6 +8,8 @@ import subprocess
 
 import invoke
 
+from neuro.utils import terminal_style
+
 from . import setup
 from ..components import neuro, tw5
 
@@ -29,14 +31,38 @@ def local(c, components):
     if not components:
         components = COMPONENTS
 
-    if "tw5" in components:
-        tw5.test(c)
-
-    if "neuro" in components:
-        neuro.test_local(c)
+    failed = []
 
     if "app" in components:
-        app(c)
+        terminal_style.header("Testing APP")
+        try:
+            app(c)
+        except SystemExit:
+            failed.append("app")
+
+    if "neuro" in components:
+        terminal_style.header("Testing NEURO")
+        try:
+            neuro.test_local(c)
+        except SystemExit:
+            failed.append("neuro")
+
+    if "tw5" in components:
+        terminal_style.header("Testing TW5")
+        try:
+            tw5.test(c)
+        except SystemExit:
+            failed.append("tw5")
+
+    terminal_style.header("Results")
+    for component in components:
+        if component in failed:
+            print(f"  {terminal_style.FAIL} {component}")
+        else:
+            print(f"  {terminal_style.SUCCESS} {component}")
+
+    if failed:
+        raise SystemExit(1)
 
 
 @invoke.task

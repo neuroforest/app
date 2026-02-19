@@ -50,6 +50,7 @@ def patch_nenv(monkeypatch):
 def patch_test(monkeypatch):
     rec = Recorder()
     monkeypatch.setattr(neuro_mod, "test", rec)
+    monkeypatch.setattr(neuro_mod, "test_integration", rec)
     return rec
 
 
@@ -114,7 +115,7 @@ class TestTestLocal:
 
     def test_passes_pytest_args(self, ctx, patch_rsync, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx, pytest_args="-k foo")
-        assert patch_test.last_args[1] == "-k foo"
+        assert patch_test.last_args[2] == "-k foo"
 
 
 # ---------------------------------------------------------------------------
@@ -134,4 +135,4 @@ class TestTestBranch:
 
     def test_passes_pytest_args(self, ctx, patch_branch, patch_test):
         neuro_mod.test_branch.__wrapped__(ctx, branch_name="dev", pytest_args="-v")
-        assert patch_test.last_args[1] == "-v"
+        assert patch_test.last_args[2] == "-v"

@@ -50,7 +50,7 @@ def env(c, environment=None):
     nf_dir = internal_utils.get_path("nf")
     if environment:
         os.environ["ENVIRONMENT"] = environment
-    print(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
+    terminal_style.header(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
 
     config.main()
     try:
@@ -59,12 +59,15 @@ def env(c, environment=None):
         raise invoke.exceptions.Exit("Invalid directory: {}")
 
 
-@invoke.task
+@invoke.task(pre=[env])
 def nenv(c):
     """Create virtualenv and install neuro."""
     with terminal_style.step("Installing neuro"):
         subprocess.run(["python3", "-m", "venv", "nenv"], check=True, capture_output=True)
         subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True, capture_output=True)
+    nenv_bin = os.path.abspath("nenv/bin")
+    if nenv_bin not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = nenv_bin + os.pathsep + os.environ.get("PATH", "")
 
 
 @invoke.task(pre=[env], iterable="components")
