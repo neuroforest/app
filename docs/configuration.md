@@ -6,11 +6,11 @@ Environment variables are managed through dotenv files in the `app/` directory.
 
 | File | Purpose |
 |------|---------|
-| `.env.defaults` | Default values, committed to the repository |
-| `.env` | Local overrides, not committed (machine-specific paths, ports, API keys) |
+| `.env` | Default values, committed to the repository |
+| `.env.local` | Local overrides, not committed (machine-specific paths, ports, API keys) |
 | `.env.testing` | Overrides applied when `ENVIRONMENT=TESTING` |
 
-Loading order: `.env.defaults` first, then `.env` (or `.env.testing`) with override. This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
+Loading order: `.env` first, then `.env.local` (or `.env.testing`) with override. This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
 
 ## Setup
 
@@ -46,7 +46,7 @@ All tasks depend on `setup.env` as a pre-task. It loads config and changes to `N
 | `STORAGE` | `storage` | Storage directory |
 | `TW5` | `tw5` | TiddlyWiki5 submodule |
 
-In `.env`, these are typically set to absolute paths. In `.env.defaults`, they are relative to the app root.
+In `.env.local`, these are typically set to absolute paths. In `.env`, they are relative to the app root.
 
 ### NeuroDesktop
 
