@@ -13,7 +13,6 @@ from tasks.components import tw5
 def test_local(c, location="neuro/tests", pytest_args="", integration=True):
     """Rsync neuro and run tests."""
     setup.rsync(c, components=["neuro"])
-    setup.nenv(c)
     if integration:
         test_integration(c, location, pytest_args)
     else:
