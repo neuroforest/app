@@ -77,7 +77,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.start])
+@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get, neurobase.create])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
@@ -112,7 +112,7 @@ def build(c, build_dir=None):
         subprocess.run(["npm", "install"], cwd=build_dir, check=True, capture_output=True)
 
 
-@invoke.task(pre=[setup.env])
+@invoke.task(pre=[setup.env, neurobase.start])
 def run(c):
     """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
     app_dir = get_app_dir()
@@ -137,7 +137,7 @@ def run(c):
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
-@invoke.task(pre=[setup.env])
+@invoke.task(pre=[setup.env], post=[neurobase.stop])
 def close(c):
     """Close NW.js desktop app by reading PID file."""
     app_dir = get_app_dir()
