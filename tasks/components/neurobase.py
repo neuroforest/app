@@ -24,7 +24,6 @@ def verify_neo4j(timeout=30):
         driver = neo4j.GraphDatabase.driver(uri, auth=(user, password))
         try:
             driver.verify_connectivity()
-            print(f"{terminal_style.SUCCESS} Neo4j connected ({uri})")
             return
         except (neo4j.exceptions.ServiceUnavailable, Exception):
             if time.monotonic() >= deadline:
@@ -79,7 +78,7 @@ def stop(c, name=None):
         base_name = os.getenv("BASE_NAME")
 
     if not docker_tools.container_running(base_name):
-        print(f"{terminal_style.SUCCESS} {base_name} is not running")
+        print(f"{terminal_style.SUCCESS} Already stopped: {base_name}")
         return
 
     with terminal_style.step(f"Stop NeuroBase instance: {base_name}"):

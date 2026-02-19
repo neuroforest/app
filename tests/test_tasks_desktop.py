@@ -130,7 +130,7 @@ class TestBuild:
         with open(os.path.join(source_dir, "package.json"), "w") as f:
             json.dump(content, f)
 
-    def test_rsyncs_nwjs_tw5_desktop(self, ctx, monkeypatch, tmp_path,
+    def test_rsyncs_nwjs_and_desktop(self, ctx, monkeypatch, tmp_path,
                                       rsync_recorder, subprocess_recorder):
         self._setup_build(monkeypatch, tmp_path)
         build_dir = tmp_path / "build"
@@ -139,10 +139,9 @@ class TestBuild:
 
         desktop_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
 
-        assert rsync_recorder.call_count == 3
+        assert rsync_recorder.call_count == 2
         names = [c[0][2] for c in rsync_recorder.calls]
         assert "NW.js v0.80.0" in names
-        assert "tw5" in names
         assert "desktop source" in names
 
     def test_writes_package_json_with_app_name(self, ctx, monkeypatch, tmp_path,
@@ -186,7 +185,7 @@ class TestBuild:
         self._make_source_pkg(build_dir)
 
         desktop_mod.build.__wrapped__(ctx, build_dir=None)
-        assert rsync_recorder.call_count == 3
+        assert rsync_recorder.call_count == 2
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +237,7 @@ class TestCloseTask:
         monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(tmp_path))
         desktop_mod.close.__wrapped__(ctx)
         out = capsys.readouterr().out
-        assert "No PID file" in out
+        assert "already closed" in out
 
     def test_kills_process(self, ctx, monkeypatch, tmp_path, capsys):
         pid_path = tmp_path / "nw.pid"
@@ -265,5 +264,5 @@ class TestCloseTask:
         desktop_mod.close.__wrapped__(ctx)
 
         out = capsys.readouterr().out
-        assert "not found" in out
+        assert "already closed" in out
         assert not pid_path.exists()
