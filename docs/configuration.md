@@ -52,6 +52,7 @@ In `.env`, these are typically set to absolute paths. In `.env.defaults`, they a
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DESKTOP_ARGS` | | Extra args passed to TiddlyWiki `--listen` |
 | `NWJS_URL` | `https://dl.node-webkit.org` | NW.js download URL |
 | `NWJS_VERSION` | `0.91.0` | NW.js version |
 

@@ -6,17 +6,39 @@ NeuroBase is a containerized Neo4j graph database that serves as the persistent 
 
 | Task | Description |
 |------|-------------|
-| `neurobase.start` | Start or create the Neo4j container |
+| `neurobase.create` | Create the Neo4j container if it doesn't exist |
+| `neurobase.start` | Start the Neo4j container and wait for Bolt readiness |
+| `neurobase.stop` | Stop the Neo4j container |
+| `neurobase.backup` | Stop and backup the container and data |
+| `neurobase.delete` | Stop and remove the container and its volumes |
 
-## Usage
+All tasks accept an optional `--name` parameter that overrides `BASE_NAME`.
+
+## Create
+
+    invoke neurobase.create
+    invoke neurobase.create --name base-name
+
+1. If the container already exists, prints a message and exits
+2. Otherwise creates it with `docker compose up -d`
+
+## Start
 
     invoke neurobase.start
 
-1. If the container is already running, prints a message and exits
-2. If the container exists but is stopped, starts it with `docker start`
-3. If the container does not exist, creates it with `docker compose up -d`
+## Backup
 
-The container name is read from the `BASE_NAME` environment variable.
+    invoke neurobase.backup
+    invoke neurobase.backup --name base-name
+
+Stops the container (pre-task), then backs up the container image and `/data` volume to the archive directory.
+
+## Delete
+
+    invoke neurobase.delete
+    invoke neurobase.delete --name base-name
+
+Stops the container (pre-task), then prompts for confirmation before removing the container and its associated volumes.
 
 ## Docker Compose
 
