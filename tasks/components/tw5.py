@@ -82,9 +82,8 @@ def copy_tw5_editions():
         if not validate_tw5_edition(source):
             continue
         target = tw5_path / "editions" / edition
-        with terminal_style.step(f"Copy edition {edition}"):
-            shutil.rmtree(target, ignore_errors=True)
-            shutil.copytree(source, target)
+        shutil.rmtree(target, ignore_errors=True)
+        shutil.copytree(source, target)
 
 
 def copy_tw5_plugins():

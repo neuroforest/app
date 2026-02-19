@@ -45,7 +45,7 @@ def create(c, name=None):
     if docker_tools.container_exists(base_name):
         return
 
-    with terminal_style.step(f"Create NeuroBase instance: {base_name}"):
+    with terminal_style.step(f"Compose NeuroBase instance: {base_name}"):
         subprocess.run(["docker", "compose", "up", "-d"], capture_output=True)
 
 
@@ -58,15 +58,15 @@ def start(c, name=None):
         base_name = os.getenv("BASE_NAME")
     bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
 
-    if not docker_tools.container_running(base_name):
-        with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
-            subprocess.run(["docker", "start", base_name], capture_output=True)
+    if not docker_tools.container_exists(base_name):
+        print(f"{terminal_style.FAIL} NeuroBase container does not exist: {base_name}")
+        raise SystemExit(1)
 
-    with terminal_style.step(f"Waiting for Neo4j on port {bolt_port}", display=False):
+    with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
+        if not docker_tools.container_running(base_name):
+            subprocess.run(["docker", "start", base_name], capture_output=True)
         network_utils.wait_for_socket("127.0.0.1", bolt_port)
         verify_neo4j()
-
-    print(f"{terminal_style.SUCCESS} NeuroBase instance is running: {base_name}")
 
 
 @invoke.task(pre=[setup.env])
