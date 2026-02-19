@@ -27,8 +27,8 @@ def build(c, build_dir=None):
         else:
             raise SystemExit("Aborting build.")
     os.makedirs(build_dir)
-    tw5.build(c, build_dir=build_dir)
     desktop.build(c, build_dir=build_dir)
+    tw5.build(c, build_dir=build_dir)
 
 
 @invoke.task(pre=[setup.env, neurobase.start, desktop.run])

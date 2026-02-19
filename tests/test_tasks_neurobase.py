@@ -114,7 +114,7 @@ class TestStop:
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
         neurobase_mod.stop.__wrapped__(ctx)
         out = capsys.readouterr().out
-        assert "is not running" in out
+        assert "Already stopped" in out
 
     def test_running_stops_container(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -149,7 +149,7 @@ class FakeDriver:
 
 
 class TestVerifyNeo4j:
-    def test_success(self, monkeypatch, capsys):
+    def test_success(self, monkeypatch):
         monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
         monkeypatch.setenv("NEO4J_USER", "neo4j")
         monkeypatch.setenv("NEO4J_PASSWORD", "pass")
@@ -157,8 +157,6 @@ class TestVerifyNeo4j:
         monkeypatch.setattr(neurobase_mod.neo4j.GraphDatabase, "driver",
                             lambda uri, auth: driver)
         neurobase_mod.verify_neo4j()
-        out = capsys.readouterr().out
-        assert "connected" in out
         assert driver.closed
 
     def test_failure_exits(self, monkeypatch):

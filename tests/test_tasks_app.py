@@ -2,7 +2,6 @@
 Tests for tasks.components.app.
 """
 
-import os
 
 import pytest
 

@@ -15,7 +15,7 @@ from neuro.tools.tw5api import tw_get, tw_actions
 from neuro.utils import internal_utils, terminal_style, build_utils, network_utils
 
 from tasks.actions import setup
-from tasks.components import nwjs, tw5
+from tasks.components import nwjs
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), tw5.bundle, nwjs.get])
+@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), nwjs.get])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
@@ -66,10 +66,6 @@ def build(c, build_dir=None):
     nwjs_version = os.getenv("NWJS_VERSION")
     nwjs_source = os.path.join(internal_utils.get_path("nf"), "nwjs", f"v{nwjs_version}") + "/"
     build_utils.rsync_local(nwjs_source, build_dir, f"NW.js v{nwjs_version}")
-
-    # TiddlyWiki5
-    tw5_source = os.path.join(internal_utils.get_path("nf"), "tw5")
-    build_utils.rsync_local(tw5_source, build_dir, "tw5")
 
     # Desktop
     desktop_source = os.path.join(internal_utils.get_path("nf"), "desktop", "source")
@@ -117,7 +113,7 @@ def close(c):
     pid_path = os.path.join(app_dir, "nw.pid")
 
     if not os.path.isfile(pid_path):
-        print("No PID file found. NeuroDesktop is not running.")
+        print(f"{terminal_style.SUCCESS} NeuroDesktop already closed (no file)")
         return
 
     with open(pid_path) as f:
@@ -127,6 +123,6 @@ def close(c):
         os.kill(pid, signal.SIGTERM)
         print(f"{terminal_style.SUCCESS} Closed NeuroDesktop (PID {pid})")
     except ProcessLookupError:
-        print(f"Process {pid} not found. Already closed.")
+        print(f"{terminal_style} NeuroDesktop already closed (no process)")
     finally:
         os.remove(pid_path)
