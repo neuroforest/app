@@ -49,3 +49,4 @@ jobs:
         run: nenv/bin/invoke test.local
         env:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+          NEO4J_PASSWORD: testpass
