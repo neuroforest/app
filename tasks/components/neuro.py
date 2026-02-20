@@ -65,7 +65,7 @@ def update(c):
             subprocess.run(["git", "push"], check=True)
         with build_utils.chdir("neuro"):
             subprocess.run(["git", "fetch"], check=True)
-            subprocess.run(["git", "checkout", "devlop"], check=True)
+            subprocess.run(["git", "checkout", "develop"], check=True)
             subprocess.run(["git", "merge", "origin/develop"], check=True)
     except subprocess.CalledProcessError as e:
         raise SystemExit(e.returncode)
