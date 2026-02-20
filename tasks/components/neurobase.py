@@ -28,6 +28,13 @@ def verify_neo4j(timeout=60):
         except (neo4j.exceptions.ServiceUnavailable, Exception):
             if time.monotonic() >= deadline:
                 print(f"Neo4j inaccessible: {uri}")
+                base_name = os.getenv("BASE_NAME")
+                logs = subprocess.run(
+                    ["docker", "logs", "--tail", "50", base_name],
+                    capture_output=True, text=True,
+                )
+                print(logs.stdout)
+                print(logs.stderr)
                 sys.exit(1)
             time.sleep(0.5)
         finally:
