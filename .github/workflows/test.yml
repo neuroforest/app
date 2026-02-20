@@ -22,10 +22,14 @@ jobs:
           args: "check"
           src: "tasks tests"
 
-  tests:
+  test:
     runs-on: ubuntu-latest
     env:
       NF_DIR: ${{ github.workspace }}
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [app, neuro, tw5]
 
     steps:
       - uses: actions/checkout@v4
@@ -45,8 +49,8 @@ jobs:
           python -m venv nenv
           nenv/bin/pip install neuro/
 
-      - name: Run tests
-        run: nenv/bin/invoke test.local
+      - name: Run ${{ matrix.component }} tests
+        run: nenv/bin/invoke test.local -c ${{ matrix.component }}
         env:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           NEO4J_PASSWORD: testpass
