@@ -7,7 +7,7 @@ import time
 import invoke
 import neo4j
 
-from neuro.base import docker_tools
+from neuro.utils import docker_tools
 from neuro.utils import internal_utils, network_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
