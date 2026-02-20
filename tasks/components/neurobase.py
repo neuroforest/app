@@ -13,7 +13,7 @@ from neuro.utils import internal_utils, network_utils, terminal_components, term
 from tasks.actions import setup
 
 
-def verify_neo4j(timeout=30):
+def verify_neo4j(timeout=60):
     logging.getLogger("neo4j").setLevel(logging.ERROR)
     uri = os.getenv("NEO4J_URI")
     user = os.getenv("NEO4J_USER")
@@ -45,8 +45,11 @@ def create(c, name=None):
     if docker_tools.container_exists(base_name):
         return
 
-    with terminal_style.step(f"Compose NeuroBase instance: {base_name}"):
-        subprocess.run(["docker", "compose", "up", "-d"], capture_output=True)
+    with terminal_style.step(f"Compose NeuroBase: {base_name}"):
+        result = subprocess.run(["docker", "compose", "up", "-d"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(result.stderr)
+            raise SystemExit(1)
 
 
 @invoke.task(pre=[setup.env, create])
@@ -65,7 +68,7 @@ def start(c, name=None):
     with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
         if not docker_tools.container_running(base_name):
             subprocess.run(["docker", "start", base_name], capture_output=True)
-        network_utils.wait_for_socket("127.0.0.1", bolt_port)
+        network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=60)
         verify_neo4j()
 
 
