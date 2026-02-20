@@ -27,20 +27,19 @@ SUBMODULES = [
 ]
 
 
-def reset_submodule(path, branch_name):
-    """git fetch + reset --hard + clean."""
+def reset_submodule(path, branch_name, remote=None):
+    """Reset submodule to a branch. If remote is given, fetch first and reset to remote/branch."""
     with build_utils.chdir(path):
+        if remote:
+            subprocess.run(["git", "fetch", remote], check=True, capture_output=True)
+        target = f"{remote}/{branch_name}" if remote else branch_name
         result = subprocess.run(
-            ["git", "rev-parse", "--short", f"{branch_name}"],
+            ["git", "rev-parse", "--short", target],
             check=True, capture_output=True, text=True
         )
         commit = result.stdout.strip()
-        with terminal_style.step(f"Reset {path} to {branch_name} ({commit})"):
-            subprocess.run(
-                ["git", "reset", "--hard", f"{branch_name}"],
-                check=True,
-                capture_output=True
-            )
+        with terminal_style.step(f"Reset {path} to {target} ({commit})"):
+            subprocess.run(["git", "reset", "--hard", target], check=True, capture_output=True)
             subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
 
 
@@ -94,11 +93,11 @@ def master(c, components):
 
 @invoke.task(pre=[env], iterable="components")
 def develop(c, components):
-    """Reset NF submodules to develop."""
+    """Fetch and reset NF submodules to origin/develop."""
     if not components:
         components = SUBMODULES
     for component in components:
-        reset_submodule(component, "develop")
+        reset_submodule(component, "develop", remote="origin")
 
 
 @invoke.task(pre=[env], iterable="components")
