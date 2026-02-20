@@ -59,13 +59,10 @@ def ruff(c, ruff_args=""):
 
 @invoke.task(pre=[setup.env])
 def update(c):
-    """Push local neuro commits, then fetch and merge origin/develop."""
+    """Push local neuro commits, then reset submodule to origin/develop."""
     try:
         with build_utils.chdir(internal_utils.get_path("neuro")):
             subprocess.run(["git", "push"], check=True)
-        with build_utils.chdir("neuro"):
-            subprocess.run(["git", "fetch"], check=True)
-            subprocess.run(["git", "checkout", "develop"], check=True)
-            subprocess.run(["git", "merge", "origin/develop"], check=True)
     except subprocess.CalledProcessError as e:
         raise SystemExit(e.returncode)
+    setup.develop(c, components=["neuro"])
