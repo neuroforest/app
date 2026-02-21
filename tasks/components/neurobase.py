@@ -7,6 +7,7 @@ import time
 import invoke
 import neo4j
 
+from neuro.base.api import NeuroBase
 from neuro.utils import docker_tools
 from neuro.utils import internal_utils, network_utils, terminal_components, terminal_style
 
@@ -44,10 +45,7 @@ def verify_neo4j(timeout=60):
 @invoke.task(pre=[setup.env])
 def create(c, name=None):
     """Create the neurobase docker container if it doesn't exist."""
-    if name:
-        base_name = name
-    else:
-        base_name = os.getenv("BASE_NAME")
+    base_name = name or os.getenv("BASE_NAME")
 
     if docker_tools.container_exists(base_name):
         return
@@ -59,13 +57,11 @@ def create(c, name=None):
             raise SystemExit(1)
 
 
-@invoke.task(pre=[setup.env, create])
+@invoke.task(pre=[setup.env])
 def start(c, name=None):
     """Start the neurobase docker container and wait for Neo4j."""
-    if name:
-        base_name = name
-    else:
-        base_name = os.getenv("BASE_NAME")
+    base_name = name or os.getenv("BASE_NAME")
+    create(c, name=base_name)
     bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
 
     if not docker_tools.container_exists(base_name):
@@ -77,6 +73,24 @@ def start(c, name=None):
             subprocess.run(["docker", "start", base_name], capture_output=True)
         network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=60)
         verify_neo4j()
+
+
+@invoke.task(pre=[setup.env])
+def reset(c, name=None):
+    """Clear all data from the test database after confirmation."""
+    base_name = name or os.getenv("BASE_NAME")
+    start(c, name=base_name)
+    nb = NeuroBase()
+    node_count = nb.count()
+    if node_count == 0:
+        nb.close()
+        return
+    if not terminal_components.bool_prompt(f"Clean '{base_name}'? ({node_count} nodes will be deleted)"):
+        nb.close()
+        raise SystemExit("Aborting clean.")
+    with terminal_style.step(f"Clean test database: {base_name}"):
+        nb.clear(confirm=True)
+    nb.close()
 
 
 @invoke.task(pre=[setup.env])

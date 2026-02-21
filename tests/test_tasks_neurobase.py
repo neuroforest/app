@@ -74,6 +74,11 @@ class TestCreate:
 
 class TestStart:
     @pytest.fixture(autouse=True)
+    def _patch_create(self, monkeypatch):
+        self.create_rec = Recorder()
+        monkeypatch.setattr(neurobase_mod, "create", self.create_rec)
+
+    @pytest.fixture(autouse=True)
     def _container_exists(self, monkeypatch):
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
 
@@ -105,6 +110,12 @@ class TestStart:
         neurobase_mod.start.__wrapped__(ctx, name="custom")
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "start", "custom"]
+
+    def test_base_name_param_propagates_to_create(self, ctx, monkeypatch, subprocess_recorder, patch_wait):
+        monkeypatch.setenv("BASE_NAME", "ignored")
+        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
+        neurobase_mod.start.__wrapped__(ctx, name="custom")
+        assert self.create_rec.last_kwargs == {"name": "custom"}
 
     def test_container_not_exists_fails(self, ctx, monkeypatch, capsys):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -140,6 +151,77 @@ class TestStop:
         neurobase_mod.stop.__wrapped__(ctx, name="custom")
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "stop", "custom"]
+
+
+# ---------------------------------------------------------------------------
+# reset
+# ---------------------------------------------------------------------------
+
+class FakeNeuroBase:
+    def __init__(self, node_count=0):
+        self._count = node_count
+        self.cleared = False
+        self.closed = False
+
+    def count(self):
+        return self._count
+
+    def clear(self, confirm=False):
+        self.cleared = confirm
+
+    def close(self):
+        self.closed = True
+
+
+class TestReset:
+    @pytest.fixture(autouse=True)
+    def _patch_start(self, monkeypatch):
+        self.start_rec = Recorder()
+        monkeypatch.setattr(neurobase_mod, "start", self.start_rec)
+
+    def test_empty_db_skips(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        nb = FakeNeuroBase(node_count=0)
+        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
+        neurobase_mod.reset.__wrapped__(ctx)
+        assert not nb.cleared
+        assert nb.closed
+
+    def test_clears_on_confirm(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        nb = FakeNeuroBase(node_count=5)
+        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
+        monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: True)
+        neurobase_mod.reset.__wrapped__(ctx)
+        assert nb.cleared
+        assert nb.closed
+
+    def test_aborts_on_decline(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        nb = FakeNeuroBase(node_count=5)
+        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
+        monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: False)
+        with pytest.raises(SystemExit):
+            neurobase_mod.reset.__wrapped__(ctx)
+        assert nb.closed
+
+    def test_name_propagates_to_start(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "ignored")
+        nb = FakeNeuroBase(node_count=0)
+        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
+        neurobase_mod.reset.__wrapped__(ctx, name="custom")
+        assert self.start_rec.last_kwargs == {"name": "custom"}
+
+    def test_prompt_includes_name(self, ctx, monkeypatch):
+        monkeypatch.setenv("BASE_NAME", "nb")
+        nb = FakeNeuroBase(node_count=3)
+        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
+        prompts = []
+        monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
+                            lambda msg: (prompts.append(msg), True)[1])
+        neurobase_mod.reset.__wrapped__(ctx)
+        assert "nb" in prompts[0]
+        assert "3" in prompts[0]
 
 
 # ---------------------------------------------------------------------------
