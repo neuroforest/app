@@ -76,21 +76,19 @@ def start(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def reset(c, name=None):
+def reset(c, name=None, confirmed=False):
     """Clear all data from the test database after confirmation."""
     base_name = name or os.getenv("BASE_NAME")
     start(c, name=base_name)
-    nb = NeuroBase()
-    node_count = nb.count()
-    if node_count == 0:
-        nb.close()
-        return
-    if not terminal_components.bool_prompt(f"Clean '{base_name}'? ({node_count} nodes will be deleted)"):
-        nb.close()
-        raise SystemExit("Aborting clean.")
-    with terminal_style.step(f"Clean test database: {base_name}"):
-        nb.clear(confirm=True)
-    nb.close()
+    with NeuroBase() as nb:
+        node_count = nb.count()
+        if node_count == 0:
+            return
+        if not confirmed:
+            if not terminal_components.bool_prompt(f"Reset '{base_name}'? ({node_count} nodes will be deleted)"):
+                raise SystemExit("Aborting reset.")
+        with terminal_style.step(f"Reset test database: {base_name}"):
+            nb.clear(confirm=True)
 
 
 @invoke.task(pre=[setup.env])

@@ -161,16 +161,18 @@ class FakeNeuroBase:
     def __init__(self, node_count=0):
         self._count = node_count
         self.cleared = False
-        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
 
     def count(self):
         return self._count
 
     def clear(self, confirm=False):
         self.cleared = confirm
-
-    def close(self):
-        self.closed = True
 
 
 class TestReset:
@@ -185,7 +187,6 @@ class TestReset:
         monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
         neurobase_mod.reset.__wrapped__(ctx)
         assert not nb.cleared
-        assert nb.closed
 
     def test_clears_on_confirm(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -194,7 +195,6 @@ class TestReset:
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: True)
         neurobase_mod.reset.__wrapped__(ctx)
         assert nb.cleared
-        assert nb.closed
 
     def test_aborts_on_decline(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -203,7 +203,6 @@ class TestReset:
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: False)
         with pytest.raises(SystemExit):
             neurobase_mod.reset.__wrapped__(ctx)
-        assert nb.closed
 
     def test_name_propagates_to_start(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "ignored")
