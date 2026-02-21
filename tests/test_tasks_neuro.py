@@ -82,10 +82,9 @@ class TestRuff:
 
 class TestTest:
     @pytest.fixture(autouse=True)
-    def _patch_bundle(self, monkeypatch):
+    def _patch_deps(self, monkeypatch):
         monkeypatch.setattr(neuro_mod.tw5, "bundle", Recorder())
-        monkeypatch.setattr(neuro_mod.neurobase, "create", Recorder())
-        monkeypatch.setattr(neuro_mod.neurobase, "start", Recorder())
+        monkeypatch.setattr(neuro_mod.neurobase, "reset", Recorder())
 
     def test_unit_mode(self, ctx, patch_subprocess):
         neuro_mod.test.__wrapped__(ctx, mode="unit")
@@ -121,32 +120,23 @@ class TestTest:
         neuro_mod.test.__wrapped__(ctx, mode="unit")
         assert bundle_rec.call_count == 0
 
-    def test_integration_creates_neurobase(self, ctx, patch_subprocess, monkeypatch):
-        create_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "create", create_rec)
+    def test_integration_cleans_neurobase(self, ctx, patch_subprocess, monkeypatch):
+        reset_rec = Recorder()
+        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="integration")
-        assert create_rec.call_count == 1
+        assert reset_rec.call_count == 1
 
-    def test_integration_starts_neurobase(self, ctx, patch_subprocess, monkeypatch):
-        start_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "start", start_rec)
-        neuro_mod.test.__wrapped__(ctx, mode="integration")
-        assert start_rec.call_count == 1
-
-    def test_e2e_starts_neurobase(self, ctx, patch_subprocess, monkeypatch):
-        start_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "start", start_rec)
+    def test_e2e_cleans_neurobase(self, ctx, patch_subprocess, monkeypatch):
+        reset_rec = Recorder()
+        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="e2e")
-        assert start_rec.call_count == 1
+        assert reset_rec.call_count == 1
 
     def test_unit_skips_neurobase(self, ctx, patch_subprocess, monkeypatch):
-        create_rec = Recorder()
-        start_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "create", create_rec)
-        monkeypatch.setattr(neuro_mod.neurobase, "start", start_rec)
+        reset_rec = Recorder()
+        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="unit")
-        assert create_rec.call_count == 0
-        assert start_rec.call_count == 0
+        assert reset_rec.call_count == 0
 
     def test_unknown_mode(self, ctx):
         with pytest.raises(SystemExit):
