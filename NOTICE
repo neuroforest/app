@@ -1,0 +1,24 @@
+NOTICE
+
+## Proprietary Assets
+
+The following assets are © 2018-2026 Urban Alič, All Rights Reserved:
+
+  assets/neuroforest.svg
+
+These assets are licensed for use exclusively within the NeuroForest
+platform. Any use, reproduction, modification, or distribution outside of
+NeuroForest requires explicit written permission.
+
+## Trademark Notice
+
+"NeuroForest", "NeuroWiki", and the NeuroForest logo are trademarks of
+Urban Alič. The MIT License does not grant permission to use any trade
+names, trademarks, service marks, or product names of the licensor,
+except when referring to the origin of the software.
+
+## Submodules and Dependencies
+
+Git submodules and third-party dependencies included in this repository are
+governed by their own respective licenses. Refer to each submodule's or
+package's LICENSE file for details.
