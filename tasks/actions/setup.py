@@ -37,8 +37,10 @@ def reset_submodule(path, branch_name, remote=None):
         target = f"{remote}/{branch_name}" if remote else branch_name
         result = subprocess.run(
             ["git", "rev-parse", "--short", target],
-            check=True, capture_output=True, text=True
+            capture_output=True, text=True
         )
+        if result.returncode != 0:
+            return
         commit = result.stdout.strip()
         with terminal_style.step(f"Reset {path} to {target} ({commit})"):
             subprocess.run(["git", "reset", "--hard", target], check=True, capture_output=True)
