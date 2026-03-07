@@ -105,7 +105,7 @@ class TestBuild:
 
         app_mod.build.__wrapped__(ctx)
 
-        assert (tmp_path / "app").is_dir()
+        assert (tmp_path / "build").is_dir()
 
 
 # ---------------------------------------------------------------------------
