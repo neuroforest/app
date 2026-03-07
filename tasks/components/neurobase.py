@@ -107,13 +107,11 @@ def stop(c, name=None):
         subprocess.run(["docker", "stop", base_name], capture_output=True)
 
 
-@invoke.task(pre=[setup.env, stop])
+@invoke.task(pre=[setup.env])
 def backup(c, name=None):
     """Backup the neurobase docker container and clean up temporary artifacts."""
-    if name:
-        base_name = name
-    else:
-        base_name = os.getenv("BASE_NAME")
+    base_name = name or os.getenv("BASE_NAME")
+    stop.__wrapped__(c, name=base_name)
 
     container = docker_tools.Container(name=base_name)
     with terminal_style.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
@@ -121,13 +119,11 @@ def backup(c, name=None):
         container.clean()
 
 
-@invoke.task(pre=[setup.env, stop])
+@invoke.task(pre=[setup.env])
 def delete(c, name=None):
     """Remove the neurobase container and its associated volumes."""
-    if name:
-        base_name = name
-    else:
-        base_name = os.getenv("BASE_NAME")
+    base_name = name or os.getenv("BASE_NAME")
+    stop.__wrapped__(c, name=base_name)
 
     if not docker_tools.container_exists(base_name):
         print(f"{terminal_style.FAIL} NeuroBase '{base_name}' not found")
