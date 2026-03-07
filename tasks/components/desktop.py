@@ -44,7 +44,7 @@ def save_pid(build_dir, pid):
 
 
 def get_app_dir():
-    app_dir = internal_utils.get_path("app")
+    app_dir = internal_utils.get_path("build")
     if app_dir and not app_dir.is_absolute():
         app_dir = app_dir.resolve()
     return app_dir
@@ -58,7 +58,7 @@ def get_app_dir():
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") / "app"
+        build_dir = internal_utils.get_path("nf") / "build"
     if not os.path.isdir(build_dir):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
 
