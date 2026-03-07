@@ -74,6 +74,10 @@ class TestCreate:
 
 class TestStart:
     @pytest.fixture(autouse=True)
+    def _patch_verify_access(self, monkeypatch):
+        monkeypatch.setattr(neurobase_mod.docker_tools, "verify_access", lambda: None)
+
+    @pytest.fixture(autouse=True)
     def _patch_create(self, monkeypatch):
         self.create_rec = Recorder()
         monkeypatch.setattr(neurobase_mod, "create", self.create_rec)

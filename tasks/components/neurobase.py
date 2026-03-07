@@ -60,6 +60,7 @@ def create(c, name=None):
 @invoke.task(pre=[setup.env])
 def start(c, name=None):
     """Start the neurobase docker container and wait for Neo4j."""
+    docker_tools.verify_access()
     base_name = name or os.getenv("BASE_NAME")
     create(c, name=base_name)
     bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
