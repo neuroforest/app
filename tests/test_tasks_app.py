@@ -43,6 +43,7 @@ class TestPreTasks:
     def test_run_pre(self):
         pre_names = [t.name for t in app_mod.run.pre]
         assert "env" in pre_names
+        assert "init" in pre_names
         assert "start" in pre_names
         assert "run" in pre_names
 
