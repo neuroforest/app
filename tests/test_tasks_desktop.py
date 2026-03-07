@@ -60,9 +60,10 @@ class FakePopen:
 # ---------------------------------------------------------------------------
 
 class TestSavePid:
-    def test_writes_pid_file(self, tmp_path):
-        desktop_mod.save_pid(str(tmp_path), 42)
+    def test_writes_pid_file(self, tmp_path, monkeypatch):
         pid_path = tmp_path / "nw.pid"
+        monkeypatch.setattr(desktop_mod, "get_pid_path", lambda: str(pid_path))
+        desktop_mod.save_pid(42)
         assert pid_path.exists()
         assert pid_path.read_text() == "42"
 
@@ -204,15 +205,17 @@ class TestRunTask:
         app_dir.mkdir()
         nw = app_dir / "nw"
         nw.write_text("fake")
+        pid_path = tmp_path / "nw.pid"
 
         monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(app_dir))
+        monkeypatch.setattr(desktop_mod, "get_pid_path", lambda: str(pid_path))
         monkeypatch.setattr(desktop_mod.time, "sleep", lambda s: None)
         monkeypatch.setattr(desktop_mod.subprocess, "Popen",
                             lambda *a, **kw: FakePopen(pid=999))
         desktop_mod.run.__wrapped__(ctx)
         out = capsys.readouterr().out
         assert "999" in out
-        assert (app_dir / "nw.pid").exists()
+        assert pid_path.exists()
 
     def test_already_running(self, ctx, monkeypatch, tmp_path, capsys):
         app_dir = tmp_path / "app"
@@ -235,7 +238,7 @@ class TestRunTask:
 
 class TestCloseTask:
     def test_no_pid_file(self, ctx, monkeypatch, tmp_path, capsys):
-        monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(tmp_path))
+        monkeypatch.setattr(desktop_mod, "get_pid_path", lambda: str(tmp_path / "nw.pid"))
         desktop_mod.close.__wrapped__(ctx)
         out = capsys.readouterr().out
         assert "already closed" in out
@@ -243,7 +246,7 @@ class TestCloseTask:
     def test_kills_process(self, ctx, monkeypatch, tmp_path, capsys):
         pid_path = tmp_path / "nw.pid"
         pid_path.write_text("12345")
-        monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(tmp_path))
+        monkeypatch.setattr(desktop_mod, "get_pid_path", lambda: str(pid_path))
 
         killed = []
         monkeypatch.setattr(os, "kill", lambda pid, sig: killed.append((pid, sig)))
@@ -257,7 +260,7 @@ class TestCloseTask:
     def test_process_already_gone(self, ctx, monkeypatch, tmp_path, capsys):
         pid_path = tmp_path / "nw.pid"
         pid_path.write_text("99999")
-        monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(tmp_path))
+        monkeypatch.setattr(desktop_mod, "get_pid_path", lambda: str(pid_path))
 
         def fake_kill(pid, sig):
             raise ProcessLookupError()
