@@ -2,12 +2,14 @@
 Load environment config, chdir to NF_DIR, and prepare submodules.
 """
 
+import getpass
 import os
+import secrets
 import subprocess
 
 import invoke
 
-from neuro.utils import build_utils, config, internal_utils, terminal_style
+from neuro.utils import build_utils, config, internal_utils, network_utils, terminal_style
 
 
 LOCAL_SUBMODULES = [
@@ -107,3 +109,57 @@ def branch(c, branch_name, components):
         components = SUBMODULES
     for component in components:
         reset_submodule(component, branch_name)
+
+
+@invoke.task(pre=[env])
+def init(c):
+    """Initialize per-user XDG directories and config for system-mode installs."""
+    username = getpass.getuser()
+    nf_config = os.environ.get("NF_CONFIG", "")
+    nf_data = os.environ.get("NF_DATA", "")
+    nf_state = os.environ.get("NF_STATE", "")
+    nf_cache = os.environ.get("NF_CACHE", "")
+
+    # Create XDG directory structure
+    dirs = [
+        nf_config,
+        os.path.join(nf_data, "storage"),
+        os.path.join(nf_data, "archive"),
+        os.path.join(nf_state, "logs"),
+        nf_cache,
+    ]
+    with terminal_style.step("Creating XDG directories"):
+        for d in dirs:
+            os.makedirs(d, exist_ok=True)
+
+    # Generate per-user .env.local
+    env_local_path = os.path.join(nf_config, ".env.local")
+    if os.path.exists(env_local_path):
+        terminal_style.header(f"User config already exists: {env_local_path}")
+        return
+
+    password = secrets.token_urlsafe(16)
+    container_name = f"neurobase-{username}"
+    default_http = int(os.environ["NEO4J_PORT_HTTP"])
+    default_bolt = int(os.environ["NEO4J_PORT_BOLT"])
+    http_port = default_http if not network_utils.is_port_in_use(default_http) else network_utils.get_free_port(start=8000, end=8999)
+    bolt_port = default_bolt if not network_utils.is_port_in_use(default_bolt) else network_utils.get_free_port(start=8000, end=8999)
+
+    env_content = (
+        f"ENVIRONMENT=PRODUCTION\n"
+        f"NEO4J_PASSWORD={password}\n"
+        f"\n"
+        f"# Per-user NeuroBase container\n"
+        f"BASE_NAME={container_name}\n"
+        f"NEO4J_PORT_HTTP={http_port}\n"
+        f"NEO4J_PORT_BOLT={bolt_port}\n"
+        f"NEO4J_URI=bolt://127.0.0.1:{bolt_port}\n"
+    )
+
+    with terminal_style.step(f"Generating {env_local_path}"):
+        with open(env_local_path, "w") as f:
+            f.write(env_content)
+
+    # Reload config with the new .env.local
+    config.CONFIG_INITIALIZED = False
+    config.main()
