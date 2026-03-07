@@ -31,9 +31,9 @@ def build(c, build_dir=None):
     tw5.build(c, build_dir=build_dir)
 
 
-@invoke.task(pre=[setup.env, neurobase.start, desktop.run])
+@invoke.task(pre=[setup.env, setup.init, neurobase.start, desktop.run])
 def run(c):
-    """Start neurobase and launch desktop."""
+    """Initialize (if needed), start neurobase and launch desktop."""
     pass
 
 
