@@ -41,7 +41,7 @@ def download(c, version=None, overwrite=False):
 
     with terminal_style.step(f"Download NW.js v{version}"):
         subprocess.run([
-            "wget", "-c", "--show-progress", "-q",
+            "wget", "-c", "-q",
             "-O", p["tarfile_local"],
             p["tarfile_remote"],
         ], check=True)
