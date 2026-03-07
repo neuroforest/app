@@ -12,10 +12,10 @@ import invoke
 from neuro.utils import internal_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import desktop, neurobase, tw5
+from tasks.components import desktop, neurobase, nwjs, tw5
 
 
-@invoke.task(pre=[setup.env])
+@invoke.task(pre=[setup.env, nwjs.get])
 def build(c, build_dir=None):
     """Build tw5 and desktop into build_dir."""
     if not build_dir:
