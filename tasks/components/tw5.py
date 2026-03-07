@@ -123,7 +123,7 @@ def bundle(c):
 def build(c, build_dir=None):
     """Bundle tw5 and copy it to the app build directory."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") / "app"
+        build_dir = internal_utils.get_path("nf") / "build"
     if not os.path.isdir(build_dir):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
     tw5_source = internal_utils.get_path("nf") / "tw5"

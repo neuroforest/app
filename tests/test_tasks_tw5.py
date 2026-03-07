@@ -220,14 +220,14 @@ class TestBuild:
         monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
         nf = tmp_path / "nf"
         nf.mkdir()
-        app_dir = nf / "app"
-        app_dir.mkdir()
+        build_dir = nf / "build"
+        build_dir.mkdir()
         (nf / "tw5").mkdir()
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
                             lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
         tw5_mod.build.__wrapped__(ctx)
         args = rsync_rec.calls[0][0]
-        assert args == (nf / "tw5", nf / "app", "tw5")
+        assert args == (nf / "tw5", nf / "build", "tw5")
 
     def test_custom_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
         rsync_rec = Recorder()

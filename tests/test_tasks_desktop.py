@@ -181,7 +181,7 @@ class TestBuild:
     def test_default_build_dir(self, ctx, monkeypatch, tmp_path,
                                 rsync_recorder, subprocess_recorder):
         nf = self._setup_build(monkeypatch, tmp_path)
-        build_dir = os.path.join(str(nf), "app")
+        build_dir = os.path.join(str(nf), "build")
         os.makedirs(build_dir, exist_ok=True)
         self._make_source_pkg(build_dir)
 
