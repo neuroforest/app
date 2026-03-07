@@ -15,9 +15,9 @@ from tasks.actions import setup
 from tasks.components import desktop, neurobase, tw5
 
 
-@invoke.task(pre=[setup.env, neurobase.create])
+@invoke.task(pre=[setup.env])
 def build(c, build_dir=None):
-    """Build tw5, desktop and create neurobase."""
+    """Build tw5 and desktop into build_dir."""
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"
     if os.path.exists(build_dir):
