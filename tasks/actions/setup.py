@@ -132,15 +132,16 @@ def init(c):
         os.path.join(nf_state, "logs"),
         nf_cache,
     ]
-    with terminal_style.step("Creating XDG directories"):
-        for d in dirs:
-            os.makedirs(d, exist_ok=True)
 
     # Generate per-user .env.local
     env_local_path = os.path.join(nf_config, ".env.local")
     if os.path.exists(env_local_path):
-        terminal_style.header(f"User config already exists: {env_local_path}")
+        print(f"{terminal_style.SUCCESS} User config already exists: {env_local_path}")
         return
+
+    with terminal_style.step("Creating XDG directories"):
+        for d in dirs:
+            os.makedirs(d, exist_ok=True)
 
     password = secrets.token_urlsafe(16)
     container_name = f"neurobase-{username}"
