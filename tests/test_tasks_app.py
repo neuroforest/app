@@ -38,7 +38,7 @@ def patch_step(monkeypatch):
 class TestPreTasks:
     def test_build_pre(self):
         pre_names = [t.name for t in app_mod.build.pre]
-        assert pre_names == ["env"]
+        assert pre_names == ["env", "get"]
 
     def test_run_pre(self):
         pre_names = [t.name for t in app_mod.run.pre]
