@@ -142,8 +142,14 @@ def init(c):
     container_name = f"neurobase-{username}"
     default_http = int(os.environ["NEO4J_PORT_HTTP"])
     default_bolt = int(os.environ["NEO4J_PORT_BOLT"])
-    http_port = default_http if not network_utils.is_port_in_use(default_http) else network_utils.get_free_port(start=8000, end=8999)
-    bolt_port = default_bolt if not network_utils.is_port_in_use(default_bolt) else network_utils.get_free_port(start=8000, end=8999)
+    defaults_free = (
+        not network_utils.is_port_in_use(default_http)
+        and not network_utils.is_port_in_use(default_bolt)
+    )
+    if defaults_free:
+        http_port, bolt_port = default_http, default_bolt
+    else:
+        http_port, bolt_port = network_utils.get_free_ports(2)
 
     env_content = (
         f"ENVIRONMENT=PRODUCTION\n"
