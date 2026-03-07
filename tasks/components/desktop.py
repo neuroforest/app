@@ -60,7 +60,7 @@ def get_app_dir():
 # Tasks
 # ---------------------------------------------------------------------------
 
-@invoke.task(pre=[setup.env, invoke.call(setup.rsync, components=["desktop"]), nwjs.get])
+@invoke.task(pre=[setup.env, nwjs.get])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     if not build_dir:
