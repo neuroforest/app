@@ -37,9 +37,15 @@ def register_protocol(url):
         print(f"Not found: {uuid}")
 
 
-def save_pid(build_dir, pid):
-    pid_path = os.path.join(build_dir, "nw.pid")
-    with open(pid_path, "w") as f:
+def get_pid_path():
+    state_dir = os.environ.get("NF_STATE", "")
+    if state_dir:
+        return os.path.join(state_dir, "nw.pid")
+    return os.path.join(internal_utils.get_path("nf"), "nw.pid")
+
+
+def save_pid(pid):
+    with open(get_pid_path(), "w") as f:
         f.write(str(pid))
 
 
@@ -102,15 +108,14 @@ def run(c):
     if process.poll() is not None:
         print(f"{terminal_style.SUCCESS} Already running.")
         return
-    save_pid(app_dir, process.pid)
+    save_pid(process.pid)
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
 
 
 @invoke.task(pre=[setup.env])
 def close(c):
     """Close NW.js desktop app by reading PID file."""
-    app_dir = get_app_dir()
-    pid_path = os.path.join(app_dir, "nw.pid")
+    pid_path = get_pid_path()
 
     if not os.path.isfile(pid_path):
         print(f"{terminal_style.SUCCESS} NeuroDesktop already closed (no file)")
