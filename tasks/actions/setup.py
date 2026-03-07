@@ -54,7 +54,9 @@ def env(c, environment=None):
     if environment:
         os.environ["ENVIRONMENT"] = environment
     config.main()
-    terminal_style.header(f"Environment [{os.environ['ENVIRONMENT']}] {nf_dir}")
+    env_name = os.environ["ENVIRONMENT"]
+    if env_name not in ("BUILD", "PRODUCTION"):
+        terminal_style.header(f"Environment [{env_name}] {nf_dir}")
     try:
         os.chdir(nf_dir)
     except FileNotFoundError:
