@@ -63,6 +63,9 @@ def get_app_dir():
 @invoke.task(pre=[setup.env, nwjs.get])
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
+    if os.environ.get("ENVIRONMENT") == "DEVELOP":
+        setup.rsync(c, components=["desktop"])
+
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"
     if not os.path.isdir(build_dir):
@@ -98,8 +101,9 @@ def run(c):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
         sys.exit(1)
 
+    user_data_dir = os.path.join(app_dir, "user-data")
     process = subprocess.Popen(
-        [nw_binary],
+        [nw_binary, f"--user-data-dir={user_data_dir}"],
         cwd=app_dir,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
