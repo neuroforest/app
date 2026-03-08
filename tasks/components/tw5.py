@@ -114,14 +114,18 @@ def copy_tw5_plugins():
 @invoke.task(pre=[setup.env])
 def bundle(c):
     """Copy TW5 editions and plugins into the TW5 tree."""
+    if os.environ.get("ENVIRONMENT") == "DEVELOP":
+        plugins = [p for p in setup.get_submodules() if p.startswith("tw5-plugins/")]
+        setup.rsync(c, components=plugins)
     with terminal_style.step("Bundle tw5"):
         copy_tw5_editions()
         copy_tw5_plugins()
 
 
-@invoke.task(pre=[setup.env, bundle])
+@invoke.task(pre=[setup.env])
 def build(c, build_dir=None):
     """Bundle tw5 and copy it to the app build directory."""
+    bundle(c)
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"
     if not os.path.isdir(build_dir):
