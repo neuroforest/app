@@ -42,6 +42,13 @@ def get_app_git_info():
     return commit, short, count
 
 
+def makepkg(package, args="-sf"):
+    """Run makepkg in a package directory."""
+    pkg_dir = internal_utils.get_path("pkg") / package
+    with build_utils.chdir(pkg_dir):
+        subprocess.run(["makepkg"] + args.split(), check=True)
+
+
 def update_file(path, replacements):
     """Apply regex replacements to a file. Each replacement is (pattern, repl)."""
     text = path.read_text()
@@ -51,22 +58,28 @@ def update_file(path, replacements):
 
 
 @invoke.task(pre=[setup.env])
-def arch(c):
-    """Update all PKGBUILD packages in PKG with current app commit and version."""
+def arch(c, package=""):
+    """Update PKGBUILD packages in PKG with current app commit and version."""
     version = os.environ["APP_VERSION"]
     commit, short, count = get_app_git_info()
     pkgver = f"{version}.r{count}.{short}"
 
-    packages = find_packages()
-    if not packages:
-        print(f"{terminal_style.FAIL} No packages found in PKG directory")
-        return
+    if package:
+        pkg_path = internal_utils.get_path("pkg") / package
+        if not (pkg_path / "PKGBUILD").exists():
+            raise SystemExit(f"No PKGBUILD found in {pkg_path}")
+        packages = [pkg_path]
+    else:
+        packages = find_packages()
+        if not packages:
+            print(f"{terminal_style.FAIL} No packages found in PKG directory")
+            return
 
     for pkg_dir in packages:
         name = pkg_dir.name
         pkgbuild = pkg_dir / "PKGBUILD"
         text = pkgbuild.read_text()
-        if f"pkgver={pkgver}" in text:
+        if not package and f"pkgver={pkgver}" in text:
             print(f"{terminal_style.SKIP} {name} already at {pkgver}")
             continue
 
@@ -79,4 +92,6 @@ def arch(c):
             if (pkg_dir / ".SRCINFO").exists():
                 with build_utils.chdir(pkg_dir):
                     subprocess.run("makepkg --printsrcinfo > .SRCINFO", shell=True, check=True)
+
+        makepkg(name)
 
