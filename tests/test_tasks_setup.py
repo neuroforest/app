@@ -146,15 +146,14 @@ class TestNenvTask:
 # Constants
 # ---------------------------------------------------------------------------
 
-class TestConstants:
-    def test_local_submodules(self):
-        assert setup_mod.LOCAL_SUBMODULES == ["neuro", "desktop"]
+class TestGetSubmodules:
+    def test_parses_env(self, monkeypatch):
+        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro"}')
+        assert setup_mod.get_submodules() == {"neuro": "/src/neuro"}
 
-    def test_submodules_contains_neuro(self):
-        assert "neuro" in setup_mod.SUBMODULES
-
-    def test_submodules_contains_tw5(self):
-        assert "tw5" in setup_mod.SUBMODULES
+    def test_defaults_to_empty(self, monkeypatch):
+        monkeypatch.delenv("SUBMODULES", raising=False)
+        assert setup_mod.get_submodules() == {}
 
 
 # ---------------------------------------------------------------------------
@@ -166,9 +165,10 @@ class TestRsyncTask:
     def _patch_nenv(self, monkeypatch):
         monkeypatch.setattr(setup_mod, "nenv", Recorder())
 
-    def test_defaults_to_local_submodules(self, ctx, patch_get_path, rsync_recorder):
+    def test_defaults_to_all_submodules(self, ctx, patch_get_path, rsync_recorder, monkeypatch):
+        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro", "desktop": "/src/desktop"}')
         setup_mod.rsync.__wrapped__(ctx, components=[])
-        assert rsync_recorder.call_count == len(setup_mod.LOCAL_SUBMODULES)
+        assert rsync_recorder.call_count == 2
 
     def test_specific_module(self, ctx, patch_get_path, rsync_recorder):
         setup_mod.rsync.__wrapped__(ctx, components=["neuro"])

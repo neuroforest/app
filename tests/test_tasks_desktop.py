@@ -50,6 +50,7 @@ class FakePopen:
     def __init__(self, pid=12345, poll_result=None):
         self.pid = pid
         self._poll_result = poll_result
+        self.returncode = poll_result
 
     def poll(self):
         return self._poll_result
@@ -226,7 +227,7 @@ class TestRunTask:
         monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(app_dir))
         monkeypatch.setattr(desktop_mod.time, "sleep", lambda s: None)
         monkeypatch.setattr(desktop_mod.subprocess, "Popen",
-                            lambda *a, **kw: FakePopen(poll_result=1))
+                            lambda *a, **kw: FakePopen(poll_result=0))
         desktop_mod.run.__wrapped__(ctx)
         out = capsys.readouterr().out
         assert "Already running" in out
