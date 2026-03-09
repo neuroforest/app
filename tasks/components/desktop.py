@@ -96,6 +96,18 @@ def run(c):
     """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
     app_dir = get_app_dir()
 
+    # Check if already running
+    pid_path = get_pid_path()
+    if os.path.isfile(pid_path):
+        with open(pid_path) as f:
+            pid = int(f.read().strip())
+        try:
+            os.kill(pid, 0)
+            print(f"{terminal_style.SKIP} Already running (PID {pid})")
+            return
+        except ProcessLookupError:
+            os.remove(pid_path)
+
     nw_binary = os.path.join(app_dir, "nw")
     if not os.path.isfile(nw_binary):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
@@ -110,7 +122,7 @@ def run(c):
     )
     time.sleep(1)
     if process.poll() is not None:
-        print(f"{terminal_style.SUCCESS} Already running.")
+        print(f"{terminal_style.FAIL} Failed to start NW.js (exit code {process.returncode})")
         return
     save_pid(process.pid)
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
