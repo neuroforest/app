@@ -120,11 +120,10 @@ def init(c):
 
     # Create XDG directory structure
     dirs = [
-        nf_config,
-        os.path.join(nf_data, "storage"),
-        os.path.join(nf_data, "archive"),
-        os.path.join(nf_state, "logs"),
         nf_cache,
+        nf_config,
+        nf_data,
+        nf_state
     ]
 
     # Generate per-user .env.local
