@@ -83,6 +83,7 @@ def build(c, build_dir=None):
     with open(source_pkg) as f:
         package = json.load(f)
     package["name"] = os.environ["DESKTOP_NAME"]
+    package["main"] = "source/index.html"
     with open(os.path.join(build_dir, "package.json"), "w") as f:
         json.dump(package, f, indent=2)
 
