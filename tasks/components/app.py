@@ -30,6 +30,13 @@ def build(c, build_dir=None):
     desktop.build(c, build_dir=build_dir)
     tw5.build(c, build_dir=build_dir)
 
+    nenv_dir = os.path.join(build_dir, "nenv")
+    neuro_dir = str(internal_utils.get_path("neuro"))
+    with terminal_style.step("Creating package nenv"):
+        subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=True)
+        subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", neuro_dir],
+                       check=True, capture_output=True)
+
 
 @invoke.task(pre=[setup.env, setup.init, neurobase.start, desktop.run])
 def run(c):
