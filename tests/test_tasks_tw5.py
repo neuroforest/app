@@ -246,9 +246,9 @@ class TestBuild:
         with pytest.raises(SystemExit):
             tw5_mod.build.__wrapped__(ctx, build_dir=str(tmp_path / "nope"))
 
-    def test_pre_includes_bundle(self):
+    def test_pre_includes_env(self):
         pre_names = [t.name for t in tw5_mod.build.pre]
-        assert "bundle" in pre_names
+        assert "env" in pre_names
 
 
 # ---------------------------------------------------------------------------
