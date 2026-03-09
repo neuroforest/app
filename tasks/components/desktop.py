@@ -123,7 +123,10 @@ def run(c):
     )
     time.sleep(1)
     if process.poll() is not None:
-        print(f"{terminal_style.FAIL} Failed to start NW.js (exit code {process.returncode})")
+        if process.returncode == 0:
+            print(f"{terminal_style.SKIP} Already running")
+        else:
+            print(f"{terminal_style.FAIL} Failed to start NW.js (exit code {process.returncode})")
         return
     save_pid(process.pid)
     print(f"{terminal_style.SUCCESS} Running NW.js (PID {process.pid})")
