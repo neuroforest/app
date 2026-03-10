@@ -28,6 +28,11 @@ def _patch_step(monkeypatch):
     monkeypatch.setattr(desktop_mod.terminal_style, "step", noop_step)
 
 
+@pytest.fixture(autouse=True)
+def _patch_setup_rsync(monkeypatch):
+    monkeypatch.setattr(desktop_mod.setup, "rsync", lambda c, **kw: None)
+
+
 @pytest.fixture
 def rsync_recorder(monkeypatch):
     rec = Recorder()
