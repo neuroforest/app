@@ -170,7 +170,8 @@ class TestRsyncTask:
         setup_mod.rsync.__wrapped__(ctx, components=[])
         assert rsync_recorder.call_count == 2
 
-    def test_specific_module(self, ctx, patch_get_path, rsync_recorder):
+    def test_specific_module(self, ctx, patch_get_path, rsync_recorder, monkeypatch):
+        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro", "desktop": "/src/desktop"}')
         setup_mod.rsync.__wrapped__(ctx, components=["neuro"])
         assert rsync_recorder.call_count == 1
         args = rsync_recorder.last_args
