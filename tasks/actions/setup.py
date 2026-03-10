@@ -43,7 +43,7 @@ def env(c, environment=None):
     if environment:
         os.environ["ENVIRONMENT"] = environment
     config.main()
-    env_name = os.environ["ENVIRONMENT"]
+    env_name = os.environ.get("ENVIRONMENT", "DEVELOP")
     if env_name not in ("BUILD", "PRODUCTION"):
         terminal_style.header(f"Environment [{env_name}] {nf_dir}")
     try:
