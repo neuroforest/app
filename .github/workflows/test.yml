@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m venv nenv
-          nenv/bin/pip install neuro/
+          nenv/bin/pip install "neuro/[dev]"
 
       - name: Run ${{ matrix.component }} tests
         run: nenv/bin/invoke test.local -c ${{ matrix.component }}
