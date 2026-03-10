@@ -58,7 +58,8 @@ class TestPreTasks:
 # ---------------------------------------------------------------------------
 
 class TestBuild:
-    def test_creates_dir_and_delegates(self, ctx, monkeypatch, tmp_path):
+    def test_creates_dir_and_delegates(self, ctx, monkeypatch, tmp_path,
+                                       subprocess_recorder):
         build_dir = tmp_path / "app"
         tw5_rec = Recorder()
         desktop_rec = Recorder()
@@ -73,7 +74,8 @@ class TestBuild:
         assert desktop_rec.call_count == 1
         assert desktop_rec.calls[0][1] == {"build_dir": str(build_dir)}
 
-    def test_prompts_on_existing_dir(self, ctx, monkeypatch, tmp_path):
+    def test_prompts_on_existing_dir(self, ctx, monkeypatch, tmp_path,
+                                     subprocess_recorder):
         build_dir = tmp_path / "app"
         build_dir.mkdir()
         (build_dir / "old_file").write_text("data")
