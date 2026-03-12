@@ -55,15 +55,25 @@ def validate_tw5_plugin(info_path):
     return info
 
 
-def discover_tw5_plugins():
-    plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
+def discover_tw5_plugins(search_dir=None):
+    """Find and validate plugin.info files within a directory tree.
+    If search_dir is given, return the first match as (info_path, info).
+    Otherwise, search all tw5-plugins and return a sorted list of (info_path, info).
+    """
+    single = search_dir is not None
+    if not single:
+        search_dir = internal_utils.get_path("nf") / "tw5-plugins"
     results = []
-    for root, _dirs, files in os.walk(plugins_dir):
+    for root, _dirs, files in os.walk(search_dir):
         if "plugin.info" in files:
             info_path = os.path.join(root, "plugin.info")
             info = validate_tw5_plugin(info_path)
             if info:
+                if single:
+                    return info_path, info
                 results.append((info_path, info))
+    if single:
+        return None, None
     return sorted(results, key=lambda x: x[1]["title"])
 
 
