@@ -74,42 +74,30 @@ class TestBuild:
         assert desktop_rec.call_count == 1
         assert desktop_rec.calls[0][1] == {"build_dir": str(build_dir)}
 
-    def test_prompts_on_existing_dir(self, ctx, monkeypatch, tmp_path,
-                                     subprocess_recorder):
+    def test_removes_existing_dir(self, ctx, monkeypatch, tmp_path,
+                                   subprocess_recorder):
         build_dir = tmp_path / "app"
         build_dir.mkdir()
         (build_dir / "old_file").write_text("data")
 
-        prompted = []
-        monkeypatch.setattr(app_mod.terminal_components, "bool_prompt",
-                            lambda msg: (prompted.append(msg), True)[1])
         monkeypatch.setattr(app_mod.tw5, "build", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
 
         app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
 
-        assert len(prompted) == 1
-        assert "Rewrite" in prompted[0]
         assert build_dir.is_dir()
         assert not (build_dir / "old_file").exists()
 
-    def test_aborts_on_decline(self, ctx, monkeypatch, tmp_path):
-        build_dir = tmp_path / "app"
-        build_dir.mkdir()
-        monkeypatch.setattr(app_mod.terminal_components, "bool_prompt", lambda msg: False)
-
-        with pytest.raises(SystemExit):
-            app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
-
     def test_default_build_dir(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setattr(app_mod.internal_utils, "get_path", lambda k: tmp_path)
+        build_dir = tmp_path / "build"
+        monkeypatch.setenv("BUILD", str(build_dir))
         monkeypatch.setattr(app_mod.tw5, "build", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
         monkeypatch.setattr(app_mod.subprocess, "run", lambda *a, **kw: None)
 
         app_mod.build.__wrapped__(ctx)
 
-        assert (tmp_path / "build").is_dir()
+        assert build_dir.is_dir()
 
 
 # ---------------------------------------------------------------------------
