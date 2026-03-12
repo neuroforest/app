@@ -114,7 +114,9 @@ def run(c):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
         sys.exit(1)
 
-    user_data_dir = os.path.join(app_dir, "user-data")
+    data_dir = os.environ.get("NF_DATA", "")
+    user_data_dir = os.path.join(data_dir, "neurodesktop") if data_dir else os.path.join(app_dir, "user-data")
+    os.makedirs(user_data_dir, exist_ok=True)
     process = subprocess.Popen(
         [nw_binary, f"--user-data-dir={user_data_dir}"],
         cwd=app_dir,
