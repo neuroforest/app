@@ -33,6 +33,11 @@ def _patch_setup_rsync(monkeypatch):
     monkeypatch.setattr(desktop_mod.setup, "rsync", lambda c, **kw: None)
 
 
+@pytest.fixture(autouse=True)
+def _patch_nwjs_get(monkeypatch):
+    monkeypatch.setattr(desktop_mod.nwjs, "get", lambda c: None)
+
+
 @pytest.fixture
 def rsync_recorder(monkeypatch):
     rec = Recorder()
