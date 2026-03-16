@@ -80,13 +80,24 @@ def build(c, build_dir=None):
     # Desktop
     desktop_source = internal_utils.get_path("nf") / "desktop" / "source"
     build_utils.rsync_local(desktop_source, build_dir, "desktop source")
+    desktop_name = os.environ["DESKTOP_NAME"]
     source_pkg = os.path.join(build_dir, "source", "package.json")
     with open(source_pkg) as f:
         package = json.load(f)
-    package["name"] = os.environ["DESKTOP_NAME"]
+    package["name"] = desktop_name
+    with open(source_pkg, "w") as f:
+        json.dump(package, f, indent=2)
     package["main"] = "source/index.html"
     with open(os.path.join(build_dir, "package.json"), "w") as f:
         json.dump(package, f, indent=2)
+
+    # Window title
+    index_html = os.path.join(build_dir, "source", "index.html")
+    with open(index_html) as f:
+        html = f.read()
+    html = html.replace("<title>NeuroDesktop</title>", f"<title>{desktop_name}</title>")
+    with open(index_html, "w") as f:
+        f.write(html)
 
     # Install node modules
     with terminal_style.step("npm install"):
@@ -116,7 +127,8 @@ def run(c):
         sys.exit(1)
 
     data_dir = os.environ.get("NF_DATA", "")
-    user_data_dir = os.path.join(data_dir, "neurodesktop") if data_dir else os.path.join(app_dir, "user-data")
+    desktop_name = os.environ["DESKTOP_NAME"].lower()
+    user_data_dir = os.path.join(data_dir, desktop_name) if data_dir else os.path.join(app_dir, "user-data")
     os.makedirs(user_data_dir, exist_ok=True)
     process = subprocess.Popen(
         [nw_binary, f"--user-data-dir={user_data_dir}"],
