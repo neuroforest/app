@@ -126,8 +126,8 @@ def init(c):
         nf_state
     ]
 
-    # Generate per-user .env.local
-    env_local_path = os.path.join(nf_config, ".env.local")
+    # Generate per-user env
+    env_local_path = os.path.join(nf_config, "env")
     if os.path.exists(env_local_path):
         print(f"{terminal_style.SUCCESS} User config already exists: {env_local_path}")
         return
@@ -164,6 +164,6 @@ def init(c):
         with open(env_local_path, "w") as f:
             f.write(env_content)
 
-    # Reload config with the new .env.local
+    # Reload config with the new env
     config.CONFIG_INITIALIZED = False
     config.main()
