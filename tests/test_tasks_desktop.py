@@ -142,6 +142,8 @@ class TestBuild:
         os.makedirs(source_dir, exist_ok=True)
         with open(os.path.join(source_dir, "package.json"), "w") as f:
             json.dump(content, f)
+        with open(os.path.join(source_dir, "index.html"), "w") as f:
+            f.write("<html><head><title>NeuroDesktop</title></head><body></body></html>")
 
     def test_rsyncs_nwjs_and_desktop(self, ctx, monkeypatch, tmp_path,
                                       rsync_recorder, subprocess_recorder):
