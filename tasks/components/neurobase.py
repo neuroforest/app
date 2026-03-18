@@ -130,7 +130,7 @@ def delete(c, name=None):
         print(f"{terminal_style.FAIL} NeuroBase '{base_name}' not found")
         return
 
-    if not terminal_components.bool_prompt(f"Delete '{base_name}' and its volumes?"):
+    if not terminal_components.bool_prompt(f"Delete '{base_name}' and its volumes?", default=True):
         raise SystemExit("Aborting delete.")
 
     volumes = docker_tools.get_container_volumes(base_name)
