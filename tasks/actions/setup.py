@@ -112,6 +112,9 @@ def branch(c, branch_name, components):
 @invoke.task(pre=[env])
 def init(c):
     """Initialize per-user XDG directories and config for system-mode installs."""
+    if os.environ.get("NF_MODE") != "system":
+        return
+
     username = getpass.getuser()
     nf_config = os.environ.get("NF_CONFIG", "")
     nf_data = os.environ.get("NF_DATA", "")
