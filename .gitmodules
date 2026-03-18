@@ -10,6 +10,9 @@
 	path = tw5
 	url = https://github.com/TiddlyWiki/TiddlyWiki5.git
 	branch = master
+[submodule "tw5-plugins/felixhayashi/TW5-HotZone"]
+	path = tw5-plugins/felixhayashi/TW5-HotZone
+	url = https://github.com/felixhayashi/TW5-HotZone
 [submodule "tw5-plugins/hoelzro/tw-progress-bar"]
 	path = tw5-plugins/hoelzro/tw-progress-bar
 	url = https://github.com/hoelzro/tw-progress-bar
