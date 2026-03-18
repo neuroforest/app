@@ -1,9 +1,0 @@
-tags: $:/tags/Todolist/Macro
-title: $:/plugins/kookma/todolist/macros/nondraggable-list
-type: text/vnd.tiddlywiki
-
-\define disp-list-in-edit-mode()
-<$list filter="[list<taskTiddler>]" variable="item">
- <$transclude tiddler="$:/plugins/kookma/todolist/template/undone-task" field="text"/>
-</$list>
-\end

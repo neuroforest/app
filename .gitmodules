@@ -36,3 +36,6 @@
 [submodule "tw5-plugins/kookma/TW-Shiraz"]
 	path = tw5-plugins/kookma/TW-Shiraz
 	url = https://github.com/kookma/TW-Shiraz
+[submodule "tw5-plugins/kookma/TW-Todolist"]
+	path = tw5-plugins/kookma/TW-Todolist
+	url = https://github.com/kookma/TW-Todolist
