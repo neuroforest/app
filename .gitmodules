@@ -42,3 +42,6 @@
 [submodule "tw5-plugins/hoelzro/tw-progress-bar"]
 	path = tw5-plugins/hoelzro/tw-progress-bar
 	url = https://github.com/hoelzro/tw-progress-bar
+[submodule "tw5-plugins/tobibeer/tw5-appear"]
+	path = tw5-plugins/tobibeer/tw5-appear
+	url = https://github.com/tobibeer/tw5-appear
