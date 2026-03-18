@@ -1,5 +1,0 @@
-title: $:/plugins/tobibeer/preview/template
-
-{{||$:/core/ui/ViewTemplate/tags}}
-
-<$transclude mode="block"/>

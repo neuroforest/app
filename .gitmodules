@@ -45,3 +45,6 @@
 [submodule "tw5-plugins/tobibeer/tw5-appear"]
 	path = tw5-plugins/tobibeer/tw5-appear
 	url = https://github.com/tobibeer/tw5-appear
+[submodule "tw5-plugins/tobibeer/tw5-preview"]
+	path = tw5-plugins/tobibeer/tw5-preview
+	url = https://github.com/tobibeer/tw5-preview
