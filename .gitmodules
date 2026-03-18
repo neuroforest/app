@@ -30,3 +30,6 @@
 	path = tw5-plugins/neuroforest/mobile
 	url = https://github.com/neuroforest/tt-mobile.git
 	branch = master
+[submodule "tw5-plugins/kookma/TW-Commander"]
+	path = tw5-plugins/kookma/TW-Commander
+	url = https://github.com/kookma/TW-Commander
