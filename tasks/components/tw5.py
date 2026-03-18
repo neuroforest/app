@@ -98,6 +98,35 @@ def copy_tw5_editions():
         shutil.copytree(source, target)
 
 
+def ensure_plugin_fields(info_path, info):
+    """Deduce and write missing standard fields to plugin.info."""
+    changed = False
+    title = info["title"]
+
+    if "name" not in info:
+        # Derive name from last segment of title, e.g. "$:/plugins/tobibeer/preview" -> "Preview"
+        info["name"] = title.rsplit("/", 1)[-1].replace("-", " ").title()
+        changed = True
+
+    if "stability" not in info:
+        info["stability"] = "STABILITY_2_STABLE"
+        changed = True
+
+    if "list" not in info:
+        # Scan sibling .tid files for common candidates
+        plugin_dir = os.path.dirname(info_path)
+        candidates = ["readme", "license", "history"]
+        found = [c for c in candidates if os.path.isfile(os.path.join(plugin_dir, f"{c}.tid"))]
+        if found:
+            info["list"] = " ".join(found)
+            changed = True
+
+    if changed:
+        with open(info_path, "w") as f:
+            json.dump(info, f, indent=4)
+            f.write("\n")
+
+
 def copy_tw5_plugins():
     tw5_path = internal_utils.get_path("tw5")
     plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
@@ -121,6 +150,9 @@ def copy_tw5_plugins():
         target = tw5_path / target_base / relative
         shutil.rmtree(target, ignore_errors=True)
         shutil.copytree(source_dir, target)
+
+        target_info_path = target / "plugin.info"
+        ensure_plugin_fields(target_info_path, info)
 
 
 @invoke.task(pre=[setup.env])
