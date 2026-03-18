@@ -63,7 +63,7 @@ def discover_tw5_plugins(search_dir=None):
     single = search_dir is not None
     if not single:
         search_dir = internal_utils.get_path("nf") / "tw5-plugins"
-    results = []
+    seen = {}
     for root, _dirs, files in os.walk(search_dir):
         if "plugin.info" in files:
             info_path = os.path.join(root, "plugin.info")
@@ -71,10 +71,12 @@ def discover_tw5_plugins(search_dir=None):
             if info:
                 if single:
                     return info_path, info
-                results.append((info_path, info))
+                title = info["title"]
+                if title not in seen:
+                    seen[title] = (info_path, info)
     if single:
         return None, None
-    return sorted(results, key=lambda x: x[1]["title"])
+    return sorted(seen.values(), key=lambda x: x[1]["title"])
 
 
 def copy_tw5_editions():
