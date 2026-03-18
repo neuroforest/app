@@ -1,7 +1,7 @@
 {
     "description": "TiddlyWiki5 on NeuroForest platform with Neo4j knowledge base",
     "plugins": [
-    	"hoelzro/tw-progress-bar",
+    	  "hoelzro/progress-bar",
         "kookma/shiraz",
         "kookma/todolist",
         "kookma/commander",
