@@ -39,3 +39,6 @@
 [submodule "tw5-plugins/kookma/TW-Todolist"]
 	path = tw5-plugins/kookma/TW-Todolist
 	url = https://github.com/kookma/TW-Todolist
+[submodule "tw5-plugins/hoelzro/tw-progress-bar"]
+	path = tw5-plugins/hoelzro/tw-progress-bar
+	url = https://github.com/hoelzro/tw-progress-bar
