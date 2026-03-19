@@ -2,10 +2,11 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 import invoke
 
-from neuro.utils import build_utils, internal_utils, terminal_style
+from neuro.utils import build_utils, internal_utils, network_utils, terminal_style
 
 from tasks.actions import setup
 
@@ -176,6 +177,24 @@ def build(c, build_dir=None):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
     tw5_source = internal_utils.get_path("nf") / "tw5"
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
+
+
+@invoke.task(pre=[setup.env])
+def run(c, edition="neuro-bare", port=0):
+    """Launch TW5 edition with auto-restart on browser refresh."""
+    tw5_path = internal_utils.get_path("tw5")
+    editions_source = internal_utils.get_path("nf") / "tw5-editions"
+    edition_path = editions_source / edition
+
+    if not os.path.isdir(edition_path):
+        print(f"{terminal_style.FAIL} Edition not found: {edition_path}")
+        sys.exit(1)
+
+    cmd = [
+        "node", str(tw5_path / "tiddlywiki.js"), str(edition_path),
+        "--listen", "port={port}", "host=127.0.0.1",
+    ]
+    network_utils.RestartProxy.serve(cmd, port=port)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
