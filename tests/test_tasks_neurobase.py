@@ -339,7 +339,7 @@ class TestDelete:
     @pytest.fixture(autouse=True)
     def _confirm(self, monkeypatch):
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
-                            lambda msg: True)
+                            lambda msg, **kw: True)
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
 
     def test_not_exists(self, ctx, monkeypatch, capsys):
@@ -379,7 +379,7 @@ class TestDelete:
         monkeypatch.setenv("BASE_NAME", "nb")
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
-                            lambda msg: False)
+                            lambda msg, **kw: False)
         with pytest.raises(SystemExit):
             neurobase_mod.delete.__wrapped__(ctx)
 
