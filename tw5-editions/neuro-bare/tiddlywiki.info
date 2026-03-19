@@ -1,0 +1,10 @@
+{
+    "description": "Bare fileserver edition for testing",
+    "plugins": [
+        "tiddlywiki/tiddlyweb",
+        "tiddlywiki/filesystem"
+    ],
+    "themes": [
+        "tiddlywiki/vanilla"
+    ]
+}
