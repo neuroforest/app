@@ -6,11 +6,19 @@ Environment variables are managed through dotenv files in the `app/` directory.
 
 | File | Purpose |
 |------|---------|
-| `.env` | Default values, committed to the repository |
-| `.env.local` | Local overrides, not committed (machine-specific paths, ports, API keys) |
-| `.env.testing` | Overrides applied when `ENVIRONMENT=TESTING` |
+| `.env` | Default values in `NF_DIR`, committed to the repository |
+| `$NF_CONFIG/env.develop` | Overrides for DEVELOP environment |
+| `$NF_CONFIG/env.testing` | Overrides for TESTING environment |
+| `$NF_CONFIG/env.production` | Overrides for PRODUCTION environment |
 
-Loading order: `.env` first, then `.env.local` (or `.env.testing`) with override. This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
+Loading order:
+
+1. `.env` — repo defaults from `NF_DIR`.
+2. XDG paths resolved — `NF_CONFIG` is shared; `NF_DATA` is namespaced for develop/testing only (production at root); `NF_STATE` and `NF_CACHE` are always namespaced per environment.
+3. `$NF_CONFIG/env.{environment}` — environment-specific overrides (if file exists).
+4. In system mode, relative user paths (e.g. `STORAGE`) are remapped to XDG locations.
+
+This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
 
 ## Setup
 
@@ -31,7 +39,7 @@ All tasks depend on `setup.env` as a pre-task. It loads config and changes to `N
 | `TEST_PORT` | `8069` | Test server port |
 | `LOGGING` | `WARNING` | Log level |
 | `LOGGING_FORMAT` | `%(levelname)s %(name)s: %(message)s` | Log format string |
-| `ENVIRONMENT` | `DEVELOP` | Active environment (`DEVELOP`, `TESTING`) |
+| `ENVIRONMENT` | `DEVELOP` | Active environment (`DEVELOP`, `TESTING`, `PRODUCTION`) |
 
 ### Paths
 
@@ -46,7 +54,7 @@ All tasks depend on `setup.env` as a pre-task. It loads config and changes to `N
 | `STORAGE` | `storage` | Storage directory |
 | `TW5` | `tw5` | TiddlyWiki5 submodule |
 
-In `.env.local`, these are typically set to absolute paths. In `.env`, they are relative to the app root.
+In environment override files, these are typically set to absolute paths. In `.env`, they are relative to the app root. In system mode, relative paths are automatically remapped to XDG locations.
 
 ### NeuroDesktop
 

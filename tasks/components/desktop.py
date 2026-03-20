@@ -38,14 +38,16 @@ def register_protocol(url):
 
 
 def get_pid_path():
-    state_dir = os.environ.get("NF_STATE", "")
-    if state_dir:
-        return os.path.join(state_dir, "nw.pid")
-    return os.path.join(internal_utils.get_path("nf"), "nw.pid")
+    try:
+        return os.path.join(os.environ["NF_STATE"], "nw.pid")
+    except KeyError:
+        raise invoke.exceptions.Exit("NF_STATE is not set — run setup.env first")
 
 
 def save_pid(pid):
-    with open(get_pid_path(), "w") as f:
+    pid_path = get_pid_path()
+    os.makedirs(os.path.dirname(pid_path), exist_ok=True)
+    with open(pid_path, "w") as f:
         f.write(str(pid))
 
 
@@ -126,9 +128,9 @@ def run(c):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
         sys.exit(1)
 
-    data_dir = os.environ.get("NF_DATA", "")
+    state_dir = os.environ.get("NF_STATE", "")
     desktop_name = os.environ["DESKTOP_NAME"].lower()
-    user_data_dir = os.path.join(data_dir, desktop_name) if data_dir else os.path.join(app_dir, "user-data")
+    user_data_dir = os.path.join(state_dir, desktop_name) if state_dir else os.path.join(app_dir, "user-data")
     os.makedirs(user_data_dir, exist_ok=True)
     process = subprocess.Popen(
         [nw_binary, f"--user-data-dir={user_data_dir}"],

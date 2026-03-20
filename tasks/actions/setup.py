@@ -44,7 +44,7 @@ def env(c, environment=None):
         os.environ["ENVIRONMENT"] = environment
     config.main()
     env_name = os.environ.get("ENVIRONMENT", "DEVELOP")
-    if env_name not in ("BUILD", "PRODUCTION"):
+    if env_name != "PRODUCTION":
         terminal_style.header(f"Environment [{env_name}] {nf_dir}")
     try:
         os.chdir(nf_dir)
@@ -111,8 +111,8 @@ def branch(c, branch_name, components):
 
 @invoke.task(pre=[env])
 def init(c):
-    """Initialize per-user XDG directories and config for system-mode installs."""
-    if os.environ.get("NF_MODE") != "system":
+    """Initialize per-user XDG directories and config for production installs."""
+    if os.environ.get("ENVIRONMENT") != "PRODUCTION":
         return
 
     username = getpass.getuser()
@@ -130,7 +130,7 @@ def init(c):
     ]
 
     # Generate per-user env
-    env_local_path = os.path.join(nf_config, "env")
+    env_local_path = os.path.join(nf_config, "env.production")
     if os.path.exists(env_local_path):
         print(f"{terminal_style.SUCCESS} User config already exists: {env_local_path}")
         return
