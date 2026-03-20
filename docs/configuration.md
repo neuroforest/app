@@ -60,6 +60,7 @@ In environment override files, these are typically set to absolute paths. In `.e
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `TW5_EDITION` | `neuro-neo4j` | TW5 edition loaded by NeuroDesktop |
 | `DESKTOP_ARGS` | | Extra args passed to TiddlyWiki `--listen` |
 | `NWJS_URL` | `https://dl.node-webkit.org` | NW.js download URL |
 | `NWJS_VERSION` | `0.91.0` | NW.js version |

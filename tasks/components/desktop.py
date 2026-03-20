@@ -128,6 +128,12 @@ def run(c):
         print(f"NW.js binary not found at {nw_binary}. Run build.desktop first.")
         sys.exit(1)
 
+    edition = os.environ["TW5_EDITION"]
+    edition_path = os.path.join(app_dir, "tw5", "editions", edition)
+    if not os.path.isdir(edition_path):
+        print(f"{terminal_style.FAIL} Edition not found: {edition}")
+        sys.exit(1)
+
     state_dir = os.environ.get("NF_STATE", "")
     desktop_name = os.environ["DESKTOP_NAME"].lower()
     user_data_dir = os.path.join(state_dir, desktop_name) if state_dir else os.path.join(app_dir, "user-data")
