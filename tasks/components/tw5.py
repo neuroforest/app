@@ -11,7 +11,7 @@ from neuro.utils import build_utils, internal_utils, network_utils, terminal_sty
 from tasks.actions import setup
 
 
-REQUIRED_EDITION_FIELDS = ["description", "plugins", "themes", "build"]
+REQUIRED_EDITION_FIELDS = ["description", "plugins", "themes"]
 REQUIRED_PLUGIN_FIELDS = ["title", "description"]
 
 
