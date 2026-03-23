@@ -6,8 +6,3 @@ __pycache__/
 /build
 nenv
 nwjs
-
-# Files
-.env.local
-.env.testing
-*.egg-info
