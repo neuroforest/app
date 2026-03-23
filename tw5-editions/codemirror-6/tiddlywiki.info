@@ -2,6 +2,10 @@
     "description": "TiddlyWiki5 with CodeMirror 6 editor",
     "plugins": [
         "oeyoews/tiddlywiki-codemirror-6",
+        "oeyoews/tiddlywiki-cmp",
+        "oeyoews/tiddlywiki-cmp-emoji",
+        "oeyoews/tiddlywiki-cmp-icons",
+        "oeyoews/tiddlywiki-snippets",
         "tiddlywiki/filesystem",
         "tiddlywiki/tiddlyweb",
         "tiddlywiki/highlight",
