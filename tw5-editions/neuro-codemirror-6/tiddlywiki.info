@@ -1,0 +1,85 @@
+{
+    "description": "NeuroWiki with Neo4j knowledge base and CodeMirror 6 text editor",
+    "plugins": [
+        "hoelzro/progress-bar",
+        "kookma/shiraz",
+        "kookma/todolist",
+        "kookma/commander",
+        "neuroforest/core",
+        "neuroforest/front",
+        "neuroforest/neo4j-syncadaptor",
+        "oeyoews/tiddlywiki-codemirror-6",
+        "oeyoews/tiddlywiki-cmp",
+        "oeyoews/tiddlywiki-cmp-emoji",
+        "oeyoews/tiddlywiki-cmp-icons",
+        "oeyoews/tiddlywiki-snippets",
+        "tiddlywiki/filesystem",
+        "tiddlywiki/highlight",
+        "tiddlywiki/katex",
+        "tiddlywiki/railroad",
+        "tobibeer/appear",
+        "tobibeer/preview"
+    ],
+    "themes": [
+        "neuroforest/basic",
+        "neuroforest/mobile",
+        "tiddlywiki/vanilla",
+        "tiddlywiki/snowwhite"
+    ],
+    "build": {
+        "index": [
+            "--rendertiddler",
+            "$:/core/save/all",
+            "index.html",
+            "text/plain"
+        ],
+        "empty": [
+            "--rendertiddler",
+            "$:/core/save/all",
+            "empty.html",
+            "text/plain",
+            "--rendertiddler",
+            "$:/core/save/all",
+            "empty.hta",
+            "text/plain"
+        ],
+        "externalimages": [
+            "--savetiddlers",
+            "[is[image]]",
+            "images",
+            "--setfield",
+            "[is[image]]",
+            "_canonical_uri",
+            "$:/core/templates/canonical-uri-external-image",
+            "text/plain",
+            "--setfield",
+            "[is[image]]",
+            "text",
+            "",
+            "text/plain",
+            "--rendertiddler",
+            "$:/core/save/all",
+            "externalimages.html",
+            "text/plain"
+        ],
+        "static": [
+            "--rendertiddler",
+            "$:/core/templates/static.template.html",
+            "static.html",
+            "text/plain",
+            "--rendertiddler",
+            "$:/core/templates/alltiddlers.template.html",
+            "alltiddlers.html",
+            "text/plain",
+            "--rendertiddlers",
+            "[!is[system]]",
+            "$:/core/templates/static.tiddler.html",
+            "static",
+            "text/plain",
+            "--rendertiddler",
+            "$:/core/templates/static.template.css",
+            "static/static.css",
+            "text/plain"
+        ]
+    }
+}
