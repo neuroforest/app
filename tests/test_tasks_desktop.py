@@ -218,6 +218,8 @@ class TestRunTask:
         app_dir.mkdir()
         nw = app_dir / "nw"
         nw.write_text("fake")
+        edition = os.environ.get("TW5_EDITION", "test-edition")
+        (app_dir / "tw5" / "editions" / edition).mkdir(parents=True)
         pid_path = tmp_path / "nw.pid"
 
         monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(app_dir))
@@ -235,6 +237,8 @@ class TestRunTask:
         app_dir.mkdir()
         nw = app_dir / "nw"
         nw.write_text("fake")
+        edition = os.environ.get("TW5_EDITION", "test-edition")
+        (app_dir / "tw5" / "editions" / edition).mkdir(parents=True)
 
         monkeypatch.setattr(desktop_mod, "get_app_dir", lambda: str(app_dir))
         monkeypatch.setattr(desktop_mod.time, "sleep", lambda s: None)
