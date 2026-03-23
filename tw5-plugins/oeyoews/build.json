@@ -1,0 +1,10 @@
+{
+    "submodules": ["tiddlywiki-codemirror6"],
+    "outputs": [
+        "tiddlywiki-codemirror6/dist/$__plugins_oeyoews_tiddlywiki-codemirror-6.json",
+        "tiddlywiki-codemirror6/dist/$__plugins_oeyoews_tiddlywiki-cmp.json",
+        "tiddlywiki-codemirror6/dist/$__plugins_oeyoews_tiddlywiki-cmp-emoji.json",
+        "tiddlywiki-codemirror6/dist/$__plugins_oeyoews_tiddlywiki-cmp-icons.json",
+        "tiddlywiki-codemirror6/dist/$__plugins_oeyoews_tiddlywiki-snippets.json"
+    ]
+}

@@ -45,8 +45,8 @@
 	path = tw5-plugins/neuroforest/neo4j-syncadaptor
 	url = https://github.com/neuroforest/tp-neo4j-syncadaptor.git
 	branch = master
-[submodule "tw5-plugins/oeyoews/tiddlywiki-codemirror6/repo"]
-	path = tw5-plugins/oeyoews/tiddlywiki-codemirror6/repo
+[submodule "tw5-plugins/oeyoews/tiddlywiki-codemirror6"]
+	path = tw5-plugins/oeyoews/tiddlywiki-codemirror6
 	url = https://github.com/oeyoews/tiddlywiki-codemirror6
 [submodule "tw5-plugins/tobibeer/tw5-appear"]
 	path = tw5-plugins/tobibeer/tw5-appear
