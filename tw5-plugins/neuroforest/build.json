@@ -1,0 +1,3 @@
+{
+    "submodules": ["basic", "core", "front", "mobile", "neo4j-syncadaptor"]
+}
