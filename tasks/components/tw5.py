@@ -101,7 +101,6 @@ def copy_tw5_editions():
         return
 
     builtin = get_builtin_editions()
-    conflicts = []
 
     for edition in sorted(os.listdir(editions_source)):
         source = os.path.join(editions_source, edition)
