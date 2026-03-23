@@ -83,21 +83,21 @@ def rsync(c, components):
 
 
 @invoke.task(pre=[env], iterable="components")
-def master(c, components, remote=False):
+def master(c, components, remote="origin"):
     """Reset all submodules to their configured branches."""
     if not components:
         components = list(get_submodules())
     for component in components:
-        reset_submodule(component, "master", remote="origin" if remote else None)
+        reset_submodule(component, "master", remote=remote)
 
 
 @invoke.task(pre=[env], iterable="components")
-def develop(c, components, remote=False):
+def develop(c, components, remote="origin"):
     """Fetch and reset NF submodules to origin/develop."""
     if not components:
         components = list(get_submodules())
     for component in components:
-        reset_submodule(component, "develop", remote="origin" if remote else None)
+        reset_submodule(component, "develop", remote=remote)
 
 
 @invoke.task(pre=[env], iterable="components")
