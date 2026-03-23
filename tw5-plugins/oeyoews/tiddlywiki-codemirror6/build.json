@@ -1,0 +1,10 @@
+{
+    "submodule": "repo",
+    "outputs": [
+        "repo/dist/$__plugins_oeyoews_tiddlywiki-codemirror-6.json",
+        "repo/dist/$__plugins_oeyoews_tiddlywiki-cmp.json",
+        "repo/dist/$__plugins_oeyoews_tiddlywiki-cmp-emoji.json",
+        "repo/dist/$__plugins_oeyoews_tiddlywiki-cmp-icons.json",
+        "repo/dist/$__plugins_oeyoews_tiddlywiki-snippets.json"
+    ]
+}
