@@ -80,6 +80,18 @@ def discover_tw5_plugins(search_dir=None):
     return sorted(seen.values(), key=lambda x: x[1]["title"])
 
 
+def get_builtin_editions():
+    """Return the set of edition names shipped with TW5 (via git, ignoring bundled copies)."""
+    tw5_path = internal_utils.get_path("tw5")
+    result = subprocess.run(
+        ["git", "ls-tree", "--name-only", "HEAD", "editions/"],
+        cwd=tw5_path, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return set()
+    return {line.removeprefix("editions/") for line in result.stdout.splitlines()}
+
+
 def copy_tw5_editions():
     tw5_path = internal_utils.get_path("tw5")
     editions_source = internal_utils.get_path("nf") / "tw5-editions"
@@ -88,11 +100,17 @@ def copy_tw5_editions():
         print(f"No editions directory found at {editions_source}")
         return
 
+    builtin = get_builtin_editions()
+    conflicts = []
+
     for edition in sorted(os.listdir(editions_source)):
         source = os.path.join(editions_source, edition)
         if not os.path.isdir(source):
             continue
         if not validate_tw5_edition(source):
+            continue
+        if edition in builtin:
+            print(f"  {terminal_style.WARN} TW5 edition conflict: {edition}")
             continue
         target = tw5_path / "editions" / edition
         shutil.rmtree(target, ignore_errors=True)
