@@ -76,8 +76,11 @@ def discover_tw5_plugins(search_dir=None):
 
         if has_build:
             with open(os.path.join(root, "build.json")) as f:
-                submodule = json.load(f).get("submodule", "repo")
-            dirs[:] = [d for d in dirs if d != submodule]
+                cfg = json.load(f)
+            exclude = set(cfg.get("submodules", []))
+            if "submodule" in cfg:
+                exclude.add(cfg["submodule"])
+            dirs[:] = [d for d in dirs if d not in exclude]
 
         if not has_plugin:
             continue
@@ -263,9 +266,11 @@ def copy_tw5_plugins():
 
 
 @invoke.task(pre=[setup.env])
-def compile(c):
+def compile(c, directory=None):
     """Compile TypeScript TW5 plugins into exploded format."""
-    plugins = discover_compiled_plugins()
+    if directory:
+        directory = internal_utils.get_path("nf") / "tw5-plugins" / directory
+    plugins = discover_compiled_plugins(directory)
     if not plugins:
         return
     for wrapper_dir, cfg in plugins:
