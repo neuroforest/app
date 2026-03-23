@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
-cd repo
+cd tiddlywiki-codemirror6
 pnpm install --frozen-lockfile
 pnpm run build
