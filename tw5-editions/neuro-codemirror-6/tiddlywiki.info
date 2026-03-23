@@ -1,0 +1,15 @@
+{
+    "description": "TiddlyWiki5 with CodeMirror 6 editor",
+    "plugins": [
+        "oeyoews/tiddlywiki-codemirror-6",
+        "tiddlywiki/filesystem",
+        "tiddlywiki/tiddlyweb",
+        "tiddlywiki/highlight",
+        "tiddlywiki/katex",
+        "tiddlywiki/railroad"
+    ],
+    "themes": [
+        "tiddlywiki/vanilla",
+        "tiddlywiki/snowwhite"
+    ]
+}
