@@ -5,6 +5,7 @@ Show branch and sync status for all submodules.
 import json
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 import invoke
 
@@ -31,6 +32,14 @@ def parse_gitmodules():
         (fields.get("path", name), fields["branch"])
         for name, fields in entries.items()
     ]
+
+
+def fetch(path):
+    """Fetch origin for a repo."""
+    subprocess.run(
+        ["git", "-C", path, "fetch", "--quiet", "origin"],
+        capture_output=True
+    )
 
 
 def get_branch(path):
@@ -82,6 +91,18 @@ def status(c):
     """Show branch and sync status for all submodules."""
     submodules = parse_gitmodules()
     local_subs = json.loads(os.environ.get("SUBMODULES", "{}"))
+
+    fetch_paths = set()
+    for path, _ in submodules:
+        if os.path.isdir(path):
+            fetch_paths.add(path)
+    for source in local_subs.values():
+        fetch_paths.add(source)
+
+    with terminal_style.step("Fetch"):
+        with ThreadPoolExecutor() as pool:
+            pool.map(fetch, fetch_paths)
+
     max_path = max(len(path) for path, _ in submodules) if submodules else 0
 
     for path, expected in submodules:
