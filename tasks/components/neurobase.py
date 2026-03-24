@@ -14,7 +14,7 @@ from neuro.utils import internal_utils, network_utils, terminal_components, term
 from tasks.actions import setup
 
 
-def verify_neo4j(timeout=60):
+def verify_neo4j(timeout=32):
     logging.getLogger("neo4j").setLevel(logging.ERROR)
     uri = os.getenv("NEO4J_URI")
     user = os.getenv("NEO4J_USER")
@@ -72,7 +72,7 @@ def start(c, name=None):
     with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
         if not docker_tools.container_running(base_name):
             subprocess.run(["docker", "start", base_name], capture_output=True)
-        network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=60)
+        network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=32)
         verify_neo4j()
 
 
