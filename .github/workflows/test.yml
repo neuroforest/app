@@ -49,6 +49,10 @@ jobs:
           python -m venv nenv
           nenv/bin/pip install "neuro/[dev]"
 
+      - name: Compile TW5 plugins
+        if: matrix.component == 'neuro'
+        run: nenv/bin/invoke tw5.compile
+
       - name: Run ${{ matrix.component }} tests
         run: nenv/bin/invoke test.local -c ${{ matrix.component }}
         env:
