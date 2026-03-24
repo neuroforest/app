@@ -1,11 +1,11 @@
 [submodule "desktop"]
 	path = desktop
 	url = https://github.com/neuroforest/desktop.git
-	branch = master
+	branch = develop
 [submodule "neuro"]
 	path = neuro
 	url = https://github.com/neuroforest/neuro
-	branch = master
+	branch = develop
 [submodule "tw5"]
 	path = tw5
 	url = https://github.com/TiddlyWiki/TiddlyWiki5.git
@@ -13,44 +13,52 @@
 [submodule "tw5-plugins/felixhayashi/TW5-HotZone"]
 	path = tw5-plugins/felixhayashi/TW5-HotZone
 	url = https://github.com/felixhayashi/TW5-HotZone
+	branch = master
 [submodule "tw5-plugins/hoelzro/tw-progress-bar"]
 	path = tw5-plugins/hoelzro/tw-progress-bar
 	url = https://github.com/hoelzro/tw-progress-bar
+	branch = master
 [submodule "tw5-plugins/kookma/TW-Commander"]
 	path = tw5-plugins/kookma/TW-Commander
 	url = https://github.com/kookma/TW-Commander
+	branch = master
 [submodule "tw5-plugins/kookma/TW-Shiraz"]
 	path = tw5-plugins/kookma/TW-Shiraz
 	url = https://github.com/kookma/TW-Shiraz
+	branch = master
 [submodule "tw5-plugins/kookma/TW-Todolist"]
 	path = tw5-plugins/kookma/TW-Todolist
 	url = https://github.com/kookma/TW-Todolist
+	branch = master
 [submodule "tw5-plugins/neuroforest/basic"]
 	path = tw5-plugins/neuroforest/basic
 	url = https://github.com/neuroforest/tt-basic.git
-	branch = master
+	branch = develop
 [submodule "tw5-plugins/neuroforest/core"]
 	path = tw5-plugins/neuroforest/core
 	url = https://github.com/neuroforest/tp-core.git
-	branch = master
+	branch = develop
 [submodule "tw5-plugins/neuroforest/front"]
 	path = tw5-plugins/neuroforest/front
 	url = https://github.com/neuroforest/tp-front.git
-	branch = master
+	branch = develop
 [submodule "tw5-plugins/neuroforest/mobile"]
 	path = tw5-plugins/neuroforest/mobile
 	url = https://github.com/neuroforest/tt-mobile.git
-	branch = master
+	branch = develop
 [submodule "tw5-plugins/neuroforest/neo4j-syncadaptor"]
 	path = tw5-plugins/neuroforest/neo4j-syncadaptor
 	url = https://github.com/neuroforest/tp-neo4j-syncadaptor.git
-	branch = master
+	branch = develop
 [submodule "tw5-plugins/oeyoews/tiddlywiki-codemirror6"]
 	path = tw5-plugins/oeyoews/tiddlywiki-codemirror6
 	url = https://github.com/oeyoews/tiddlywiki-codemirror6
+	branch = main
 [submodule "tw5-plugins/tobibeer/tw5-appear"]
 	path = tw5-plugins/tobibeer/tw5-appear
 	url = https://github.com/tobibeer/tw5-appear
+	branch = master
 [submodule "tw5-plugins/tobibeer/tw5-preview"]
 	path = tw5-plugins/tobibeer/tw5-preview
 	url = https://github.com/tobibeer/tw5-preview
+	branch = master
