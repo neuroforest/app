@@ -1,0 +1,7 @@
+tags: $:/tags/Stylesheet
+title: $:/plugins/neuroforest/tweaks/tobibeer/appear/style
+type: text/vnd.tiddlywiki
+
+.appear {
+  border: 1px solid <<color foreground>>;
+}
