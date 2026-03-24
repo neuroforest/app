@@ -45,12 +45,18 @@ def local(c, components):
         except SystemExit:
             failed.append("tw5")
 
+    terminal_style.header("Ruff")
+    try:
+        ruff(c)
+    except SystemExit:
+        failed.append("ruff")
+
     terminal_style.header("Results")
-    for component in components:
-        if component in failed:
-            print(f"  {terminal_style.FAIL} {component}")
+    for name in components + ["ruff"]:
+        if name in failed:
+            print(f"  {terminal_style.FAIL} {name}")
         else:
-            print(f"  {terminal_style.SUCCESS} {component}")
+            print(f"  {terminal_style.SUCCESS} {name}")
 
     if failed:
         raise SystemExit(1)

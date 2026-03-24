@@ -52,34 +52,45 @@ def patch_app(monkeypatch):
 # local
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def patch_ruff(monkeypatch):
+    rec = Recorder()
+    monkeypatch.setattr(test_mod, "ruff", rec)
+    return rec
+
+
 class TestLocal:
     def test_defaults_to_all(self, ctx, patch_tw5_test, patch_neuro_test_local,
-                             patch_app):
+                             patch_app, patch_ruff):
         test_mod.local.__wrapped__(ctx, components=[])
         assert patch_tw5_test.call_count == 1
         assert patch_neuro_test_local.call_count == 1
         assert patch_app.call_count == 1
+        assert patch_ruff.call_count == 1
 
     def test_only_tw5(self, ctx, patch_tw5_test, patch_neuro_test_local,
-                      patch_app):
+                      patch_app, patch_ruff):
         test_mod.local.__wrapped__(ctx, components=["tw5"])
         assert patch_tw5_test.call_count == 1
         assert patch_neuro_test_local.call_count == 0
         assert patch_app.call_count == 0
+        assert patch_ruff.call_count == 1
 
     def test_only_neuro(self, ctx, patch_tw5_test, patch_neuro_test_local,
-                        patch_app):
+                        patch_app, patch_ruff):
         test_mod.local.__wrapped__(ctx, components=["neuro"])
         assert patch_tw5_test.call_count == 0
         assert patch_neuro_test_local.call_count == 1
         assert patch_app.call_count == 0
+        assert patch_ruff.call_count == 1
 
     def test_only_app(self, ctx, patch_tw5_test, patch_neuro_test_local,
-                      patch_app):
+                      patch_app, patch_ruff):
         test_mod.local.__wrapped__(ctx, components=["app"])
         assert patch_tw5_test.call_count == 0
         assert patch_neuro_test_local.call_count == 0
         assert patch_app.call_count == 1
+        assert patch_ruff.call_count == 1
 
 
 # ---------------------------------------------------------------------------

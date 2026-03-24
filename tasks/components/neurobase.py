@@ -112,7 +112,7 @@ def stop(c, name=None):
 def backup(c, name=None):
     """Backup the neurobase docker container and clean up temporary artifacts."""
     base_name = name or os.getenv("BASE_NAME")
-    stop.__wrapped__(c, name=base_name)
+    stop(c, name=base_name)
 
     container = docker_tools.Container(name=base_name)
     with terminal_style.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
@@ -124,7 +124,7 @@ def backup(c, name=None):
 def delete(c, name=None):
     """Remove the neurobase container and its associated volumes."""
     base_name = name or os.getenv("BASE_NAME")
-    stop.__wrapped__(c, name=base_name)
+    stop(c, name=base_name)
 
     if not docker_tools.container_exists(base_name):
         print(f"{terminal_style.FAIL} NeuroBase '{base_name}' not found")

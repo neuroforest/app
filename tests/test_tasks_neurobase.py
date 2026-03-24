@@ -291,7 +291,7 @@ class TestBackup:
 
     @pytest.fixture(autouse=True)
     def _stop_noop(self, monkeypatch):
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
+        monkeypatch.setattr(neurobase_mod, "stop", Recorder())
 
     def test_calls_backup_and_clean(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -322,13 +322,14 @@ class TestBackup:
         neurobase_mod.backup.__wrapped__(ctx)
         assert captured["name"] == "nb"
 
-    def test_stops_before_backup(self, ctx, monkeypatch, capsys):
+    def test_stops_before_backup(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
+        stop_rec = Recorder()
+        monkeypatch.setattr(neurobase_mod, "stop", stop_rec)
         monkeypatch.setattr(neurobase_mod.docker_tools, "Container",
                             lambda **kw: FakeContainer())
         neurobase_mod.backup.__wrapped__(ctx)
-        assert "Already stopped" in capsys.readouterr().out
+        assert stop_rec.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +341,7 @@ class TestDelete:
     def _confirm(self, monkeypatch):
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
                             lambda msg, **kw: True)
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
+        monkeypatch.setattr(neurobase_mod, "stop", Recorder())
 
     def test_not_exists(self, ctx, monkeypatch, capsys):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -383,8 +384,10 @@ class TestDelete:
         with pytest.raises(SystemExit):
             neurobase_mod.delete.__wrapped__(ctx)
 
-    def test_stops_before_delete(self, ctx, monkeypatch, capsys):
+    def test_stops_before_delete(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
+        stop_rec = Recorder()
+        monkeypatch.setattr(neurobase_mod, "stop", stop_rec)
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: False)
         neurobase_mod.delete.__wrapped__(ctx)
-        assert "Already stopped" in capsys.readouterr().out
+        assert stop_rec.call_count == 1
