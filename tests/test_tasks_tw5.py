@@ -51,7 +51,14 @@ def subprocess_recorder(monkeypatch):
 
 
 @pytest.fixture
-def patch_bundle(monkeypatch):
+def patch_compile(monkeypatch):
+    rec = Recorder()
+    monkeypatch.setattr(tw5_mod, "compile", rec)
+    return rec
+
+
+@pytest.fixture
+def patch_bundle(monkeypatch, patch_compile):
     rec = Recorder()
     monkeypatch.setattr(tw5_mod, "bundle", rec)
     return rec
@@ -203,6 +210,7 @@ class TestBundle:
     def test_calls_copy_functions(self, ctx, monkeypatch):
         ed_rec = Recorder()
         pl_rec = Recorder()
+        monkeypatch.setattr(tw5_mod, "compile", Recorder())
         monkeypatch.setattr(tw5_mod, "copy_tw5_editions", ed_rec)
         monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", pl_rec)
         tw5_mod.bundle.__wrapped__(ctx)
