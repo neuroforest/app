@@ -323,7 +323,6 @@ def run(c, edition="neuro-bare", port=0):
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c):
     """Copy editions/plugins, run tw5/bin/test.sh."""
-    compile(c)
     bundle(c)
     tw5_path = internal_utils.get_path("tw5")
     result = subprocess.run(["bin/test.sh"], cwd=tw5_path)
