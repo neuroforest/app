@@ -1,0 +1,10 @@
+tags: $:/tags/Table/BodyTemplate
+tbl-column-list: tbl-title
+title: $:/plugins/neuroforest/front/tweaks/kookma/tbl-title-body
+type: text/vnd.tiddlywiki
+
+<$set name="tiddler-name" filter="[<currentRecord>removeprefix[.mt ]]">
+<$list filter=<<tiddler-name>>>
+<$link to=<<currentRecord>>>{{!!title}}</$link>
+</$list>
+</$set>

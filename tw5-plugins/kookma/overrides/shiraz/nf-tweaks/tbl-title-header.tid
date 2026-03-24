@@ -1,0 +1,6 @@
+tags: $:/tags/Table/HeaderTemplate
+tbl-column-list: tbl-title
+title: $:/plugins/kookma/shiraz/templates/header/tbl-title
+type: text/vnd.tiddlywiki
+
+<th>Title</th>
