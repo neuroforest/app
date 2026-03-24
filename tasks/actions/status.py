@@ -2,6 +2,7 @@
 Show branch and sync status for all submodules.
 """
 
+import json
 import os
 import subprocess
 
@@ -43,6 +44,17 @@ def get_branch(path):
     return result.stdout.strip()
 
 
+def get_head(path):
+    """Get HEAD commit hash."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-parse", "HEAD"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
 def get_behind_count(path, branch):
     """Count commits HEAD is behind origin/{branch}."""
     result = subprocess.run(
@@ -54,10 +66,22 @@ def get_behind_count(path, branch):
     return int(result.stdout.strip())
 
 
+def get_ahead_count(path, ref):
+    """Count commits in HEAD that are not in ref."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-list", f"{ref}..HEAD", "--count"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.strip())
+
+
 @invoke.task(pre=[setup.env])
 def status(c):
     """Show branch and sync status for all submodules."""
     submodules = parse_gitmodules()
+    local_subs = json.loads(os.environ.get("SUBMODULES", "{}"))
     max_path = max(len(path) for path, _ in submodules) if submodules else 0
 
     for path, expected in submodules:
@@ -70,20 +94,31 @@ def status(c):
             print(f"{terminal_style.FAIL} {path:<{max_path}}  (detached HEAD)")
             continue
 
-        wrong_branch = current != expected
+        issues = []
+
+        if current != expected:
+            issues.append(f"expected {expected}")
+
         behind = get_behind_count(path, expected)
-
-        if wrong_branch:
-            symbol = terminal_style.FAIL
-            detail = f"{current} (expected {expected})"
-        elif behind is None:
-            symbol = terminal_style.WARN
-            detail = f"{current} (no remote tracking)"
+        if behind is None:
+            issues.append("no remote tracking")
         elif behind > 0:
-            symbol = terminal_style.WARN
-            detail = f"{current} ({behind} behind)"
-        else:
-            symbol = terminal_style.SUCCESS
-            detail = f"{current} (up to date)"
+            issues.append(f"{behind} behind")
 
-        print(f"{symbol} {path:<{max_path}}  {detail}")
+        source = local_subs.get(path)
+        if source:
+            app_head = get_head(path)
+            if app_head:
+                unsynced = get_ahead_count(source, app_head)
+                if unsynced and unsynced > 0:
+                    issues.append(f"{unsynced} not synced")
+
+            unpushed = get_ahead_count(source, f"origin/{expected}")
+            if unpushed and unpushed > 0:
+                issues.append(f"{unpushed} unpushed")
+
+        if issues:
+            symbol = terminal_style.FAIL if current != expected else terminal_style.WARN
+            print(f"{symbol} {path:<{max_path}}  {current} ({', '.join(issues)})")
+        else:
+            print(f"{terminal_style.SUCCESS} {path:<{max_path}}  {current} (up to date)")
