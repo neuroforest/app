@@ -34,21 +34,7 @@ def build(c, build_dir=None):
     with terminal_style.step("Creating package nenv"):
         subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=True)
         subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", neuro_dir],
-                       check=True, capture_output=True)
-
-    nf_dir = str(internal_utils.get_path("nf"))
-    site_packages = glob.glob(os.path.join(nenv_dir, "lib", "python*", "site-packages"))
-    if site_packages:
-        with terminal_style.step("Writing sitecustomize.py"):
-            sitecustomize = os.path.join(site_packages[0], "sitecustomize.py")
-            with open(sitecustomize, "w") as f:
-                f.write(
-                    "import os\n"
-                    f"os.environ[\"NF_DIR\"] = \"{nf_dir}\"\n"
-                    "\n"
-                    "from neuro.utils import config\n"
-                    "config.main()\n"
-                )
+                       check=True, capture_output=build_utils.quiet())
 
 
 def _patch_rsync(source, dest, name):
