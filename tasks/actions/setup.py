@@ -22,7 +22,7 @@ def reset_submodule(path, branch_name, remote=None):
     """Reset submodule to a branch. If remote is given, fetch first and reset to remote/branch."""
     with build_utils.chdir(path):
         if remote:
-            subprocess.run(["git", "fetch", remote], check=True, capture_output=True)
+            subprocess.run(["git", "fetch", remote], check=True, capture_output=build_utils.quiet())
         target = f"{remote}/{branch_name}" if remote else branch_name
         result = subprocess.run(
             ["git", "rev-parse", "--short", target],
@@ -32,8 +32,8 @@ def reset_submodule(path, branch_name, remote=None):
             return
         commit = result.stdout.strip()
         with terminal_style.step(f"Reset {path} to {target} ({commit})"):
-            subprocess.run(["git", "reset", "--hard", target], check=True, capture_output=True)
-            subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=True)
+            subprocess.run(["git", "reset", "--hard", target], check=True, capture_output=build_utils.quiet())
+            subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=build_utils.quiet())
 
 
 @invoke.task
@@ -44,7 +44,7 @@ def env(c, environment=None):
         os.environ["ENVIRONMENT"] = environment
     config.main()
     env_name = os.environ.get("ENVIRONMENT", "DEVELOP")
-    if env_name != "PRODUCTION":
+    if env_name != "PRODUCTION" and not build_utils.quiet():
         terminal_style.header(f"Environment [{env_name}] {nf_dir}")
     try:
         os.chdir(nf_dir)
@@ -56,8 +56,8 @@ def env(c, environment=None):
 def nenv(c):
     """Create virtualenv and install neuro."""
     with terminal_style.step("Installing neuro"):
-        subprocess.run(["python3", "-m", "venv", "nenv"], check=True, capture_output=True)
-        subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True, capture_output=True)
+        subprocess.run(["python3", "-m", "venv", "nenv"], check=True, capture_output=build_utils.quiet())
+        subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True, capture_output=build_utils.quiet())
     nenv_bin = os.path.abspath("nenv/bin")
     if nenv_bin not in os.environ.get("PATH", ""):
         os.environ["PATH"] = nenv_bin + os.pathsep + os.environ.get("PATH", "")

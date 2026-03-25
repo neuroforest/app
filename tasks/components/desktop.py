@@ -103,7 +103,7 @@ def build(c, build_dir=None):
 
     # Install node modules
     with terminal_style.step("npm install"):
-        subprocess.run(["npm", "install"], cwd=build_dir, check=True, capture_output=True)
+        subprocess.run(["npm", "install"], cwd=build_dir, check=True, capture_output=build_utils.quiet())
 
 
 @invoke.task(pre=[setup.env])

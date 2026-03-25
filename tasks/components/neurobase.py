@@ -9,7 +9,7 @@ import neo4j
 
 from neuro.base.api import NeuroBase
 from neuro.utils import docker_tools
-from neuro.utils import internal_utils, network_utils, terminal_components, terminal_style
+from neuro.utils import build_utils, internal_utils, network_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 
@@ -71,7 +71,7 @@ def start(c, name=None):
 
     with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
         if not docker_tools.container_running(base_name):
-            subprocess.run(["docker", "start", base_name], capture_output=True)
+            subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
         network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=32)
         verify_neo4j()
 
@@ -105,7 +105,7 @@ def stop(c, name=None):
         return
 
     with terminal_style.step(f"Stop NeuroBase instance: {base_name}"):
-        subprocess.run(["docker", "stop", base_name], capture_output=True)
+        subprocess.run(["docker", "stop", base_name], capture_output=build_utils.quiet())
 
 
 @invoke.task(pre=[setup.env])
@@ -136,8 +136,8 @@ def delete(c, name=None):
     volumes = docker_tools.get_container_volumes(base_name)
 
     with terminal_style.step(f"Remove container: {base_name}"):
-        subprocess.run(["docker", "rm", base_name], capture_output=True)
+        subprocess.run(["docker", "rm", base_name], capture_output=build_utils.quiet())
 
     for vol in volumes:
         with terminal_style.step(f"Remove volume: {vol}"):
-            subprocess.run(["docker", "volume", "rm", vol], capture_output=True)
+            subprocess.run(["docker", "volume", "rm", vol], capture_output=build_utils.quiet())
