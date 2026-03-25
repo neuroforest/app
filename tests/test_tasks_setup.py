@@ -82,6 +82,7 @@ def subprocess_recorder(monkeypatch):
 class TestEnv:
     def test_prints_environment_and_dir(self, ctx, monkeypatch, capsys, tmp_path):
         monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("VERBOSE", "1")
         setup_mod.env.__wrapped__(ctx, environment="TESTING")
         out = capsys.readouterr().out
         assert "TESTING" in out
