@@ -11,7 +11,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import build_utils, internal_utils, terminal_style
 
 from tasks.actions import setup
 from tasks.components import desktop, neurobase, tw5
@@ -32,7 +32,7 @@ def build(c, build_dir=None):
     nenv_dir = os.path.join(build_dir, "nenv")
     neuro_dir = str(internal_utils.get_path("neuro"))
     with terminal_style.step("Creating package nenv"):
-        subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=True)
+        subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=build_utils.quiet())
         subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", neuro_dir],
                        check=True, capture_output=build_utils.quiet())
 

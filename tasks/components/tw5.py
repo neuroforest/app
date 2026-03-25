@@ -164,7 +164,7 @@ def build_compiled_plugin(wrapper_dir, cfg, compiled_dir):
     with terminal_style.step(f"Compile {name}"):
         subprocess.run(
             ["bash", "build.sh"],
-            cwd=wrapper_dir, check=True, capture_output=True,
+            cwd=wrapper_dir, check=True, capture_output=build_utils.quiet(),
         )
         for output_path in cfg.get("outputs", []):
             json_path = os.path.join(wrapper_dir, output_path)

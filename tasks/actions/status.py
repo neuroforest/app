@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 import invoke
 
 from tasks.actions import setup
-from neuro.utils import terminal_style
+from neuro.utils import build_utils, terminal_style
 
 
 def parse_gitmodules():
@@ -38,7 +38,7 @@ def fetch(path):
     """Fetch origin for a repo."""
     subprocess.run(
         ["git", "-C", path, "fetch", "--quiet", "origin"],
-        capture_output=True
+        capture_output=build_utils.quiet()
     )
 
 
