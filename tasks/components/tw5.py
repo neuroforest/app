@@ -157,10 +157,9 @@ def discover_compiled_plugins(plugins_dir=None):
     return results
 
 
-def build_compiled_plugin(wrapper_dir, cfg):
+def build_compiled_plugin(wrapper_dir, cfg, compiled_dir):
     """Build a compiled TW5 plugin from its wrapper directory."""
     name = os.path.basename(wrapper_dir)
-    compiled_dir = os.path.join(wrapper_dir, "compiled")
 
     with terminal_style.step(f"Compile {name}"):
         subprocess.run(
@@ -170,6 +169,13 @@ def build_compiled_plugin(wrapper_dir, cfg):
         for output_path in cfg.get("outputs", []):
             json_path = os.path.join(wrapper_dir, output_path)
             unpack_plugin_json(json_path, compiled_dir)
+        overrides_dir = os.path.join(wrapper_dir, "overrides")
+        if os.path.isdir(overrides_dir):
+            for plugin_name in os.listdir(overrides_dir):
+                src = os.path.join(overrides_dir, plugin_name)
+                dst = os.path.join(compiled_dir, plugin_name)
+                if os.path.isdir(src) and os.path.isdir(dst):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
 def get_builtin_editions():
@@ -276,7 +282,7 @@ def compile(c, directory=None):
     for wrapper_dir, cfg in plugins:
         compiled_dir = os.path.join(wrapper_dir, "compiled")
         shutil.rmtree(compiled_dir, ignore_errors=True)
-        build_compiled_plugin(wrapper_dir, cfg)
+        build_compiled_plugin(wrapper_dir, cfg, compiled_dir)
 
 
 @invoke.task(pre=[setup.env])
