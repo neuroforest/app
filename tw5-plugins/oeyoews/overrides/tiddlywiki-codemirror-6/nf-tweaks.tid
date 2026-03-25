@@ -1,0 +1,15 @@
+tags: $:/tags/Stylesheet
+title: $:/plugins/oeyoews/tiddlywiki-codemirror-6/nf-styles
+type: text/css
+
+.btc-list-group small {
+  color: <<color foreground>>;
+}
+
+[data-tiddler-title^="Draft of"] .cm-editor div.cm-content {
+  min-height: 0px;
+}
+
+input.btc-search-input:focus {
+  color: <<color foreground>>;
+}
