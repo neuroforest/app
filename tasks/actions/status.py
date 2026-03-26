@@ -86,6 +86,21 @@ def get_ahead_count(path, ref):
     return int(result.stdout.strip())
 
 
+def get_recorded_commit(path):
+    """Get the commit hash the parent repo has recorded for a submodule."""
+    result = subprocess.run(
+        ["git", "ls-tree", "HEAD", path],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    # format: "<mode> commit <hash>\t<path>"
+    parts = result.stdout.strip().split()
+    if len(parts) >= 3:
+        return parts[2]
+    return None
+
+
 @invoke.task(pre=[setup.env])
 def status(c):
     """Show branch and sync status for all submodules."""
@@ -125,6 +140,11 @@ def status(c):
             issues.append("no remote tracking")
         elif behind > 0:
             issues.append(f"{behind} behind")
+
+        recorded = get_recorded_commit(path)
+        head = get_head(path)
+        if recorded and head and recorded != head:
+            issues.append("pointer not committed")
 
         source = local_subs.get(path)
         if source:
