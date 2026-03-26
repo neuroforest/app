@@ -53,10 +53,10 @@ var focusActionButton = function(target) {
   var isEdit = $tw.utils.hasClass(target, "tc-tiddler-edit-frame");
   if(isEdit) {
     var saveBtn = target.querySelector('button[aria-label="Confirm changes to this tiddler"]');
-    if(saveBtn) saveBtn.focus();
+    if(saveBtn) saveBtn.focus({preventScroll: true});
   } else {
     var closeBtn = target.querySelector('button[aria-label="close"]');
-    if(closeBtn) closeBtn.focus();
+    if(closeBtn) closeBtn.focus({preventScroll: true});
   }
 };
 
@@ -75,12 +75,17 @@ var registerFocusChange = function(tRef, target) {
       $tw.utils.removeClass(prevTarget, "hzone-focus");
     }
     $tw.utils.addClass(target, "hzone-focus");
-    focusActionButton(target);
+    var activeEl = document.activeElement;
+    var activeLost = !activeEl || activeEl === document.body;
+    if(keyboardNav || activeLost) {
+      focusActionButton(target);
+    }
   }
 
 };
 
 var keyboardNav = false;
+var keyboardNavTimeout = null;
 
 var checkForFocusChange = function() {
 
@@ -189,18 +194,27 @@ var getFrames = function() {
   return result;
 };
 
+var pendingIdx = -1;
+
 var moveFocus = function(direction) {
   var frames = getFrames();
   if(!frames.length) return;
 
-  var currentFrame = document.getElementsByClassName("hzone-focus")[0];
-  var idx = currentFrame ? frames.indexOf(currentFrame) : -1;
+  // Use tracked index if available, otherwise find from DOM
+  var idx;
+  if(pendingIdx >= 0 && pendingIdx < frames.length) {
+    idx = pendingIdx;
+  } else {
+    var currentFrame = document.getElementsByClassName("hzone-focus")[0];
+    idx = currentFrame ? frames.indexOf(currentFrame) : -1;
+  }
   var newIdx = idx + direction;
 
   if(newIdx < 0) newIdx = 0;
   if(newIdx >= frames.length) newIdx = frames.length - 1;
   if(newIdx === idx) return;
 
+  pendingIdx = newIdx;
   var target = frames[newIdx];
   var title = extractTitleFromFrame(target);
   console.log("hotzone: keyboard move", direction > 0 ? "down" : "up", "to:", title);
@@ -209,13 +223,18 @@ var moveFocus = function(direction) {
     curRef = title;
     registerFocusChange(curRef, target);
     var rect = target.getBoundingClientRect();
-    window.scrollBy({top: rect.top - focusOffset, behavior: "smooth"});
+    window.scrollTo({top: window.scrollY + rect.top - focusOffset, behavior: "smooth"});
     // Suppress scroll-triggered recalculation during smooth scroll
-    setTimeout(function() { keyboardNav = false; }, 600);
+    if(keyboardNavTimeout) clearTimeout(keyboardNavTimeout);
+    keyboardNavTimeout = setTimeout(function() {
+      keyboardNav = false;
+      pendingIdx = -1;
+    }, 600);
   }
 };
 
 var handleKeyDown = function(event) {
+  if(event.repeat) return;
   if(!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   if(event.key === "ArrowUp") {
     event.preventDefault();
@@ -223,12 +242,18 @@ var handleKeyDown = function(event) {
   } else if(event.key === "ArrowDown") {
     event.preventDefault();
     moveFocus(1);
+  } else if(event.key === "PageUp") {
+    event.preventDefault();
+    moveFocus(-Infinity);
+  } else if(event.key === "PageDown") {
+    event.preventDefault();
+    moveFocus(Infinity);
   }
 };
 
 $tw.wiki.addEventListener("change", handleChangeEvent);
 window.addEventListener("scroll", handleScrollEvent, false);
-window.addEventListener("keydown", handleKeyDown, false);
+window.addEventListener("keydown", handleKeyDown, true);
 
 handleScrollEvent();
 
