@@ -4,5 +4,5 @@ tags: $:/tags/Stylesheet
 .hzone-focus {
     box-shadow: 0 0 0 1px <<colour primary>>, 0 0 8px <<colour primary>>;
     border-radius: 4px;
-    transition: box-shadow 0.3s ease;
+    transition: none;
 }
