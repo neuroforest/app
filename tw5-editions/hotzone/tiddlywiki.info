@@ -1,0 +1,11 @@
+{
+    "description": "Test edition for the HotZone plugin",
+    "plugins": [
+        "felixhayashi/hotzone",
+        "tiddlywiki/filesystem",
+        "tiddlywiki/tiddlyweb"
+    ],
+    "themes": [
+        "tiddlywiki/vanilla"
+    ]
+}

@@ -1,6 +1,7 @@
 {
     "description": "NeuroWiki with Neo4j knowledge base and CodeMirror 6 text editor",
     "plugins": [
+        "felixhayashi/hotzone",
         "hoelzro/progress-bar",
         "kookma/shiraz",
         "kookma/todolist",
