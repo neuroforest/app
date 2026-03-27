@@ -62,13 +62,6 @@ var focusActionButton = function(target) {
 
 var registerFocusChange = function(tRef, target) {
 
-  $tw.wiki.addTiddler(new $tw.Tiddler({
-      title: config.references.focussedTiddlerStore,
-      text: tRef
-    },
-    $tw.wiki.getModificationFields()
-  ));
-
   if(target) {
     var prevTarget = document.getElementsByClassName("hzone-focus")[0];
     if(prevTarget) {
@@ -90,7 +83,7 @@ var keyboardNavTimeout = null;
 var checkForFocusChange = function() {
 
   if(keyboardNav) {
-    console.log("hotzone: skipping scroll check (keyboard nav active)");
+
     return;
   }
 
@@ -116,7 +109,6 @@ var checkForFocusChange = function() {
     }
 
     var title = extractTitleFromFrame(target);
-    console.log("hotzone: scroll check, closest:", title, "current:", curRef);
 
     if(title !== curRef && $tw.wiki.getTiddler(title)) {
       curRef = title;
@@ -217,7 +209,7 @@ var moveFocus = function(direction) {
   pendingIdx = newIdx;
   var target = frames[newIdx];
   var title = extractTitleFromFrame(target);
-  console.log("hotzone: keyboard move", direction > 0 ? "down" : "up", "to:", title);
+
   if(title) {
     keyboardNav = true;
     curRef = title;
