@@ -101,6 +101,18 @@ def get_recorded_commit(path):
     return None
 
 
+def has_uncommitted_changes(path):
+    """Check if a repository has uncommitted changes (staged, unstaged, or untracked)."""
+    result = subprocess.run(
+        ["git", "-C", path, "status", "--porcelain"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return False
+    # If there's any output, there are uncommitted changes
+    return bool(result.stdout.strip())
+
+
 @invoke.task(pre=[setup.env])
 def status(c):
     """Show branch and sync status for all submodules."""
@@ -157,6 +169,9 @@ def status(c):
             unpushed = get_ahead_count(source, f"origin/{expected}")
             if unpushed and unpushed > 0:
                 issues.append(f"{unpushed} unpushed")
+
+            if has_uncommitted_changes(source):
+                issues.append("uncommitted")
 
         if issues:
             symbol = terminal_style.FAIL if current != expected else terminal_style.WARN
