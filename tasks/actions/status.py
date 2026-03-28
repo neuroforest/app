@@ -131,6 +131,7 @@ def status(c):
             pool.map(fetch, fetch_paths)
 
     max_path = max(len(path) for path, _ in submodules) if submodules else 0
+    ok_count = 0
 
     for path, expected in submodules:
         if not os.path.isdir(path):
@@ -177,4 +178,9 @@ def status(c):
             symbol = terminal_style.FAIL if current != expected else terminal_style.WARN
             print(f"{symbol} {path:<{max_path}}  {current} ({', '.join(issues)})")
         else:
-            print(f"{terminal_style.SUCCESS} {path:<{max_path}}  {current} (up to date)")
+            ok_count += 1
+
+    if ok_count == len(submodules):
+        print(f"{terminal_style.SUCCESS} All {ok_count} submodules up to date")
+    elif ok_count > 0:
+        print(f"{terminal_style.SUCCESS} {ok_count} other submodules up to date")
