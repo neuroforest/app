@@ -1,6 +1,6 @@
 tags: $:/tags/Stylesheet
 title: $:/plugins/oeyoews/tiddlywiki-codemirror-6/nf-styles
-type: text/css
+type: text/vnd.tiddlywiki
 
 .btc-list-group small {
   color: <<color foreground>>;
