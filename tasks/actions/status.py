@@ -139,13 +139,11 @@ def status(c):
             continue
 
         current = get_branch(path)
-        if current is None:
-            print(f"{terminal_style.FAIL} {path:<{max_path}}  (detached HEAD)")
-            continue
-
         issues = []
 
-        if current != expected:
+        if current is None:
+            issues.append("detached HEAD")
+        elif current != expected:
             issues.append(f"expected {expected}")
 
         behind = get_behind_count(path, expected)
@@ -158,6 +156,9 @@ def status(c):
         head = get_head(path)
         if recorded and head and recorded != head:
             issues.append("pointer not committed")
+
+        if has_uncommitted_changes(path):
+            issues.append("uncommitted")
 
         source = local_subs.get(path)
         if source:
@@ -172,15 +173,30 @@ def status(c):
                 issues.append(f"{unpushed} unpushed")
 
             if has_uncommitted_changes(source):
-                issues.append("uncommitted")
+                issues.append("uncommitted in source")
 
         if issues:
             symbol = terminal_style.FAIL if current != expected else terminal_style.WARN
-            print(f"{symbol} {path:<{max_path}}  {current} ({', '.join(issues)})")
+            print(f"{symbol} {path:<{max_path}}  {current or 'HEAD'} ({', '.join(issues)})")
         else:
             ok_count += 1
 
-    if ok_count == len(submodules):
-        print(f"{terminal_style.SUCCESS} All {ok_count} submodules up to date")
+    # Check app (current repo) itself
+    issues = []
+    current = get_branch(".")
+    if current is None:
+        issues.append("detached HEAD")
+    if has_uncommitted_changes("."):
+        issues.append("uncommitted")
+    ahead = get_ahead_count(".", f"origin/{current}") if current else None
+    if ahead and ahead > 0:
+        issues.append(f"{ahead} unpushed")
+    if issues:
+        print(f"{terminal_style.WARN} {'app':<{max_path}}  {current or 'HEAD'} ({', '.join(issues)})")
+    else:
+        ok_count += 1
+
+    if ok_count == len(submodules) + 1:
+        print(f"{terminal_style.SUCCESS} All {ok_count} modules up to date")
     elif ok_count > 0:
-        print(f"{terminal_style.SUCCESS} {ok_count} other submodules up to date")
+        print(f"{terminal_style.SUCCESS} {ok_count} other modules up to date")
