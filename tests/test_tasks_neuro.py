@@ -28,9 +28,9 @@ def patch_subprocess(monkeypatch):
 
 
 @pytest.fixture
-def patch_rsync(monkeypatch):
+def patch_nenv(monkeypatch):
     rec = Recorder()
-    monkeypatch.setattr(neuro_mod.setup, "rsync", rec)
+    monkeypatch.setattr(neuro_mod.setup, "nenv", rec)
     return rec
 
 
@@ -160,20 +160,19 @@ class TestTest:
 # ---------------------------------------------------------------------------
 
 class TestTestLocal:
-    def test_calls_rsync(self, ctx, patch_rsync, patch_test):
+    def test_calls_nenv(self, ctx, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx)
-        assert patch_rsync.call_count == 1
-        assert patch_rsync.last_kwargs == {"components": ["neuro"]}
+        assert patch_nenv.call_count == 1
 
-    def test_default_mode_is_e2e(self, ctx, patch_rsync, patch_test):
+    def test_default_mode_is_e2e(self, ctx, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx)
         assert patch_test.last_args[1] == "e2e"
 
-    def test_custom_mode(self, ctx, patch_rsync, patch_test):
+    def test_custom_mode(self, ctx, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx, mode="unit")
         assert patch_test.last_args[1] == "unit"
 
-    def test_passes_pytest_args(self, ctx, patch_rsync, patch_test):
+    def test_passes_pytest_args(self, ctx, patch_nenv, patch_test):
         neuro_mod.test_local.__wrapped__(ctx, pytest_args="-k foo")
         assert patch_test.last_args[3] == "-k foo"
 

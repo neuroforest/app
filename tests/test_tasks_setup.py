@@ -42,30 +42,6 @@ def _patch_step(monkeypatch):
     monkeypatch.setattr(setup_mod.terminal_style, "step", noop_step)
 
 
-@pytest.fixture
-def patch_get_path(monkeypatch, tmp_path):
-    """Provide real tmp dirs for nf and tw5 so file operations work."""
-    nf = tmp_path / "nf"
-    tw5 = tmp_path / "tw5"
-    neuro = tmp_path / "neuro"
-    desktop = tmp_path / "desktop"
-    for d in (nf, tw5, neuro, desktop):
-        d.mkdir()
-    paths = {
-        "nf": nf,
-        "tw5": tw5,
-        "neuro": neuro,
-        "desktop": desktop,
-    }
-    monkeypatch.setattr(setup_mod.internal_utils, "get_path", lambda k: paths[k])
-    return paths
-
-
-@pytest.fixture
-def rsync_recorder(monkeypatch):
-    rec = Recorder()
-    monkeypatch.setattr(setup_mod.build_utils, "rsync_local", rec)
-    return rec
 
 
 @pytest.fixture
@@ -141,42 +117,6 @@ class TestNenvTask:
         setup_mod.nenv.__wrapped__(ctx)
         for call in subprocess_recorder.calls:
             assert call[1].get("check") is True
-
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-class TestGetSubmodules:
-    def test_parses_env(self, monkeypatch):
-        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro"}')
-        assert setup_mod.get_submodules() == {"neuro": "/src/neuro"}
-
-    def test_defaults_to_empty(self, monkeypatch):
-        monkeypatch.delenv("SUBMODULES", raising=False)
-        assert setup_mod.get_submodules() == {}
-
-
-# ---------------------------------------------------------------------------
-# Task: rsync
-# ---------------------------------------------------------------------------
-
-class TestRsyncTask:
-    @pytest.fixture(autouse=True)
-    def _patch_nenv(self, monkeypatch):
-        monkeypatch.setattr(setup_mod, "nenv", Recorder())
-
-    def test_defaults_to_all_submodules(self, ctx, patch_get_path, rsync_recorder, monkeypatch):
-        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro", "desktop": "/src/desktop"}')
-        setup_mod.rsync.__wrapped__(ctx, components=[])
-        assert rsync_recorder.call_count == 2
-
-    def test_specific_module(self, ctx, patch_get_path, rsync_recorder, monkeypatch):
-        monkeypatch.setenv("SUBMODULES", '{"neuro": "/src/neuro", "desktop": "/src/desktop"}')
-        setup_mod.rsync.__wrapped__(ctx, components=["neuro"])
-        assert rsync_recorder.call_count == 1
-        args = rsync_recorder.last_args
-        assert args[2] == "neuro"
 
 
 # ---------------------------------------------------------------------------

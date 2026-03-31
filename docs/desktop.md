@@ -18,8 +18,7 @@ NeuroDesktop is a desktop application built on NW.js that runs a TiddlyWiki inte
 Runs its prerequisites automatically via invoke pre-tasks:
 
 1. `setup.env` -- load config
-2. `setup.rsync -c desktop` -- sync desktop source
-3. `nwjs.get` -- download and extract NW.js SDK
+2. `nwjs.get` -- download and extract NW.js SDK
 
 ### Stages
 

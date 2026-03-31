@@ -52,41 +52,38 @@ def _patch_rsync(source, dest, name):
 
 @invoke.task(pre=[setup.env], iterable="components")
 def patch(c, components):
-    """Rsync SUBMODULES components into build/.
+    """Rsync submodule sources into build/.
     Components: neuro, desktop, tw5-plugins/neuroforest/front, etc.
-    Without arguments, patches all SUBMODULES.
+    Without arguments, patches all owned submodules.
     """
     build_dir = internal_utils.get_path("build")
-    submodules = setup.get_submodules()
     if not components:
-        components = list(submodules)
+        components = list(setup.OWNED_SUBMODULES)
     for comp in components:
-        if comp not in submodules:
-            print(f"{terminal_style.FAIL} {comp} not found in SUBMODULES")
+        if not os.path.isdir(comp):
+            print(f"{terminal_style.FAIL} {comp} not found")
             continue
-        comp_root = submodules[comp]
-        source_label = os.path.relpath(comp_root, os.path.dirname(internal_utils.get_path("nf")))
         if comp == "neuro":
             site_packages = glob.glob(str(build_dir / "nenv" / "lib" / "python*" / "site-packages" / "neuro"))
             if not site_packages:
                 print(f"{terminal_style.FAIL} neuro not found in build nenv")
                 continue
-            source_dir = os.path.join(comp_root, "neuro") + "/"
-            _patch_rsync(source_dir, site_packages[0], f"Patch {source_label} ➜  build")
+            source_dir = os.path.join(comp, "neuro") + "/"
+            _patch_rsync(source_dir, site_packages[0], f"Patch {comp} ➜ build")
         elif comp == "desktop":
-            source_dir = os.path.join(comp_root, "source") + "/"
-            _patch_rsync(source_dir, str(build_dir / "source"), f"Patch {source_label} ➜  build")
+            source_dir = os.path.join(comp, "source") + "/"
+            _patch_rsync(source_dir, str(build_dir / "source"), f"Patch {comp} ➜ build")
         elif comp.startswith("tw5-plugins/"):
-            info_path, info = tw5.discover_tw5_plugins(comp_root)
+            info_path, info = tw5.discover_tw5_plugins(comp)
             if not info:
-                print(f"{terminal_style.FAIL} No plugin.info found in {source_label}")
+                print(f"{terminal_style.FAIL} No plugin.info found in {comp}")
                 continue
             plugin_type = info.get("plugin-type", "plugin")
             target_base = "themes" if plugin_type == "theme" else "plugins"
             relative = comp.removeprefix("tw5-plugins/")
             source_dir = os.path.dirname(info_path) + "/"
             dest = str(build_dir / "tw5" / target_base / relative)
-            _patch_rsync(source_dir, dest, f"Patch {source_label} ➜  build")
+            _patch_rsync(source_dir, dest, f"Patch {comp} ➜ build")
 
 
 @invoke.task(pre=[setup.env, setup.init, neurobase.start, desktop.run])

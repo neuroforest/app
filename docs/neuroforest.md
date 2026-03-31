@@ -71,7 +71,7 @@ invoke app.stop      # closes desktop and stops neurobase
 | Task | Description |
 |------|-------------|
 | `setup.env` | Load config and chdir to NF_DIR |
-| `setup.rsync` | Rsync local submodules (neuro, desktop) |
+| `setup.nenv` | Create virtualenv and install neuro |
 | `setup.master` | Reset all submodules to master |
 | `setup.develop` | Reset submodules to develop |
 | `setup.branch` | Reset submodules to a specific branch |
