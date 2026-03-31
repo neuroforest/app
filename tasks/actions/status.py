@@ -174,9 +174,12 @@ def status(c):
         if recorded and head and recorded != head:
             issues.append("pointer not committed")
 
+        if has_uncommitted_changes(path):
+            issues.append("uncommitted")
+
         if is_worktree:
             if wt_path and has_uncommitted_changes(wt_path):
-                issues.append("uncommitted")
+                issues.append("worktree uncommitted")
             if head:
                 result = subprocess.run(
                     ["git", "-C", path, "rev-list", f"HEAD..{expected}", "--count"],
