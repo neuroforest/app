@@ -1,13 +1,12 @@
 # Setup
 
-Environment loading, submodule syncing, and branch management.
+Environment loading and branch management.
 
 ## Tasks
 
 | Task | Description |
 |------|-------------|
 | `setup.env` | Load config and chdir to NF_DIR |
-| `setup.rsync` | Rsync local submodules (neuro, desktop) into app/ |
 | `setup.master` | Reset all submodules to master |
 | `setup.develop` | Reset submodules to develop |
 | `setup.branch` | Reset submodules to a specific branch |
@@ -26,18 +25,6 @@ Environment loading, submodule syncing, and branch management.
 Raises `Exit` if `NF_DIR` does not exist.
 
 All other tasks depend on `setup.env` as a pre-task.
-
-## rsync
-
-    invoke setup.rsync                  # sync all local submodules
-    invoke setup.rsync -c neuro         # sync only neuro
-    invoke setup.rsync -c desktop       # sync only desktop
-
-Rsyncs local development copies into the app submodule directories. Source paths are resolved from environment variables (`NEURO`, `DESKTOP`).
-
-When `neuro` is included, also runs `setup.nenv` to reinstall the package.
-
-Local submodules: `neuro`, `desktop`.
 
 ## master / develop / branch
 

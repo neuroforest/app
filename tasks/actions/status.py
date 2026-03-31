@@ -2,7 +2,6 @@
 Show branch and sync status for all submodules.
 """
 
-import json
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -117,14 +116,11 @@ def has_uncommitted_changes(path):
 def status(c):
     """Show branch and sync status for all submodules."""
     submodules = parse_gitmodules()
-    local_subs = json.loads(os.environ.get("SUBMODULES", "{}"))
 
     fetch_paths = set()
     for path, _ in submodules:
         if os.path.isdir(path):
             fetch_paths.add(path)
-    for source in local_subs.values():
-        fetch_paths.add(source)
 
     with terminal_style.step("Fetch"):
         with ThreadPoolExecutor() as pool:
@@ -139,11 +135,12 @@ def status(c):
             continue
 
         current = get_branch(path)
+        is_worktree = path in setup.OWNED_SUBMODULES
         issues = []
 
-        if current is None:
+        if current is None and not is_worktree:
             issues.append("detached HEAD")
-        elif current != expected:
+        elif current is not None and current != expected:
             issues.append(f"expected {expected}")
 
         behind = get_behind_count(path, expected)
@@ -157,26 +154,19 @@ def status(c):
         if recorded and head and recorded != head:
             issues.append("pointer not committed")
 
-        if has_uncommitted_changes(path):
-            issues.append("uncommitted")
-
-        source = local_subs.get(path)
-        if source:
-            app_head = get_head(path)
-            if app_head:
-                unsynced = get_ahead_count(source, app_head)
-                if unsynced and unsynced > 0:
-                    issues.append(f"{unsynced} not synced")
-
-            unpushed = get_ahead_count(source, f"origin/{expected}")
-            if unpushed and unpushed > 0:
-                issues.append(f"{unpushed} unpushed")
-
-            if has_uncommitted_changes(source):
-                issues.append("uncommitted in source")
+        if is_worktree and head:
+            result = subprocess.run(
+                ["git", "-C", path, "rev-list", f"HEAD..{expected}", "--count"],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                wt_ahead = int(result.stdout.strip())
+                if wt_ahead > 0:
+                    issues.append(f"worktree {wt_ahead} ahead")
 
         if issues:
-            symbol = terminal_style.FAIL if current != expected else terminal_style.WARN
+            unexpected_branch = current is not None and current != expected
+            symbol = terminal_style.FAIL if unexpected_branch else terminal_style.WARN
             print(f"{symbol} {path:<{max_path}}  {current or 'HEAD'} ({', '.join(issues)})")
         else:
             ok_count += 1

@@ -32,8 +32,8 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test_local(c, mode="e2e", location="neuro/tests", pytest_args=""):
-    """Rsync neuro and run tests. Modes: unit, integration, e2e (default)."""
-    setup.rsync(c, components=["neuro"])
+    """Install neuro and run tests. Modes: unit, integration, e2e (default)."""
+    setup.nenv(c)
     test(c, mode, location, pytest_args)
 
 

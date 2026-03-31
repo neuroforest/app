@@ -66,8 +66,6 @@ def get_app_dir():
 def build(c, build_dir=None):
     """Assemble NW.js + TW5 + source into a build directory."""
     nwjs.get(c)
-    if os.environ.get("ENVIRONMENT") == "DEVELOP":
-        setup.rsync(c, components=["desktop"])
 
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"

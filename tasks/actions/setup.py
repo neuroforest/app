@@ -1,9 +1,8 @@
 """
-Load environment config, chdir to NF_DIR, and prepare submodules.
+Load environment config, chdir to NF_DIR, and manage submodules.
 """
 
 import getpass
-import json
 import os
 import secrets
 import subprocess
@@ -13,9 +12,15 @@ import invoke
 from neuro.utils import build_utils, config, internal_utils, network_utils, terminal_style
 
 
-def get_submodules():
-    """Parse SUBMODULES env var as JSON map of {subrepo_path: local_source}."""
-    return json.loads(os.environ.get("SUBMODULES", "{}"))
+OWNED_SUBMODULES = [
+    "desktop",
+    "neuro",
+    "tw5-plugins/neuroforest/basic",
+    "tw5-plugins/neuroforest/core",
+    "tw5-plugins/neuroforest/front",
+    "tw5-plugins/neuroforest/mobile",
+    "tw5-plugins/neuroforest/neo4j-syncadaptor",
+]
 
 
 def reset_submodule(path, branch_name, remote=None):
@@ -64,29 +69,10 @@ def nenv(c):
 
 
 @invoke.task(pre=[env], iterable="components")
-def rsync(c, components):
-    """Rsync local submodules into app/."""
-    submodules = get_submodules()
-    if not components:
-        components = list(submodules.keys())
-    nf_dir = internal_utils.get_path("nf")
-    for component in components:
-        if component not in submodules:
-            print(f"{terminal_style.FAIL} Unknown component: {component}")
-            continue
-        source = submodules[component] + "/"
-        dest = nf_dir / component
-        build_utils.rsync_local(source, dest, component)
-
-    if "neuro" in components:
-        nenv(c)
-
-
-@invoke.task(pre=[env], iterable="components")
 def master(c, components, remote="origin"):
     """Reset all submodules to their configured branches."""
     if not components:
-        components = list(get_submodules())
+        components = list(OWNED_SUBMODULES)
     for component in components:
         reset_submodule(component, "master", remote=remote)
 
@@ -95,7 +81,7 @@ def master(c, components, remote="origin"):
 def develop(c, components, remote="origin"):
     """Fetch and reset NF submodules to origin/develop."""
     if not components:
-        components = list(get_submodules())
+        components = list(OWNED_SUBMODULES)
     for component in components:
         reset_submodule(component, "develop", remote=remote)
 
@@ -104,7 +90,7 @@ def develop(c, components, remote="origin"):
 def branch(c, branch_name, components):
     """Reset submodules to a branch, with fallback to configured branch."""
     if not components:
-        components = list(get_submodules())
+        components = list(OWNED_SUBMODULES)
     for component in components:
         reset_submodule(component, branch_name)
 
