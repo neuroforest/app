@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NF_DIR: ${{ github.workspace }}
+      NENV: nenv
     strategy:
       fail-fast: false
       matrix:
