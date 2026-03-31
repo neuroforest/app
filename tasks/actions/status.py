@@ -176,7 +176,11 @@ def status(c):
     current = get_branch(".")
     if current is None:
         issues.append("detached HEAD")
-    if has_uncommitted_changes("."):
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--ignore-submodules=dirty"],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
         issues.append("uncommitted")
     ahead = get_ahead_count(".", f"origin/{current}") if current else None
     if ahead and ahead > 0:
