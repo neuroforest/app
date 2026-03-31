@@ -3,7 +3,6 @@ Load environment config, chdir to NF_DIR, and manage submodules.
 """
 
 import getpass
-import json
 import os
 import secrets
 import subprocess
@@ -15,11 +14,6 @@ from neuro.utils import build_utils, config, internal_utils, network_utils, term
 
 def get_nenv_dir():
     return os.path.expanduser(os.environ["NENV"])
-
-
-def get_submodules():
-    val = os.getenv("SUBMODULES")
-    return json.loads(val) if val else []
 
 
 def reset_submodule(path, branch_name, remote=None):
@@ -70,27 +64,21 @@ def nenv(c):
 
 @invoke.task(pre=[env], iterable="components")
 def master(c, components, remote="origin"):
-    """Reset all submodules to their configured branches."""
-    if not components:
-        components = get_submodules()
+    """Reset given submodules to master."""
     for component in components:
         reset_submodule(component, "master", remote=remote)
 
 
 @invoke.task(pre=[env], iterable="components")
 def develop(c, components, remote="origin"):
-    """Fetch and reset NF submodules to origin/develop."""
-    if not components:
-        components = get_submodules()
+    """Reset given submodules to origin/develop."""
     for component in components:
         reset_submodule(component, "develop", remote=remote)
 
 
 @invoke.task(pre=[env], iterable="components")
 def branch(c, branch_name, components):
-    """Reset submodules to a branch, with fallback to configured branch."""
-    if not components:
-        components = get_submodules()
+    """Reset given submodules to a branch."""
     for component in components:
         reset_submodule(component, branch_name)
 
