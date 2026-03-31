@@ -27,7 +27,7 @@ def build(c, build_dir=None):
             shutil.rmtree(build_dir)
     os.makedirs(build_dir)
     desktop.build(c, build_dir=build_dir)
-    tw5.build(c, build_dir=build_dir)
+    tw5.bundle(c, build_dir=build_dir)
 
     nenv_dir = os.path.join(build_dir, "nenv")
     neuro_dir = str(internal_utils.get_path("neuro"))

@@ -6,17 +6,18 @@ TiddlyWiki5 tree assembly: copy custom editions and plugins, then run TW5 tests.
 
 | Task | Description |
 |------|-------------|
-| `tw5.bundle` | Copy editions and plugins into the TW5 tree |
-| `tw5.build` | Bundle and copy the TW5 tree into the app build directory |
-| `tw5.test` | Bundle and run `tw5/bin/test.sh` |
+| `tw5.bundle` | Copy TW5 tree to build/, overlay editions and plugins |
+| `tw5.test` | Bundle and run `bin/test.sh` |
 
 ## Bundle
 
     invoke tw5.bundle
 
+Rsyncs the clean `tw5/` subrepo into `build/tw5/`, then overlays editions and plugins into the build copy. Sets `TW5` env var to `build/tw5/` so downstream tasks use the bundled tree.
+
 ### 1. Copy editions
 
-Copies validated edition directories from `tw5-editions/` into `tw5/editions/`. If an edition already exists in the target, it is replaced.
+Copies validated edition directories from `tw5-editions/` into `build/tw5/editions/`. If an edition already exists in the target, it is replaced.
 
 #### Edition validation
 
@@ -52,7 +53,7 @@ tw5-editions/
 
 ### 2. Copy plugins
 
-Discovers plugins and themes in `tw5-plugins/` by walking for `plugin.info` files, then copies them into `tw5/plugins/` or `tw5/themes/` based on `plugin-type`.
+Discovers plugins and themes in `tw5-plugins/` by walking for `plugin.info` files, then copies them into `build/tw5/plugins/` or `build/tw5/themes/` based on `plugin-type`.
 
 #### Plugin validation
 
@@ -67,8 +68,8 @@ Each `plugin.info` must contain valid JSON with required fields:
 
 | `plugin-type` | Target | Example |
 |---------------|--------|---------|
-| `"plugin"` or not set | `tw5/plugins/<author>/<name>/` | `$:/plugins/kookma/shiraz` -> `tw5/plugins/kookma/shiraz/` |
-| `"theme"` | `tw5/themes/<author>/<name>/` | `$:/themes/neuroforest/basic` -> `tw5/themes/neuroforest/basic/` |
+| `"plugin"` or not set | `build/tw5/plugins/<author>/<name>/` | `$:/plugins/kookma/shiraz` -> `build/tw5/plugins/kookma/shiraz/` |
+| `"theme"` | `build/tw5/themes/<author>/<name>/` | `$:/themes/neuroforest/basic` -> `build/tw5/themes/neuroforest/basic/` |
 
 The `<author>/<name>` path is derived from the `title` field by stripping the `$:/plugins/` or `$:/themes/` prefix.
 
@@ -92,19 +93,12 @@ tw5-plugins/
 }
 ```
 
-## Build
-
-    invoke tw5.build
-    invoke tw5.build --build-dir /tmp/mybuild
-
-Runs `tw5.bundle` as a pre-task, then rsyncs the TW5 tree into the app build directory (defaults to `{NF_DIR}/app`).
-
 ## Test
 
     invoke tw5.test
 
-1. Runs `tw5.bundle` (copy editions and plugins)
-2. Runs `tw5/bin/test.sh`
+1. Runs `tw5.bundle` (rsync + overlay editions and plugins into `build/tw5/`)
+2. Runs `build/tw5/bin/test.sh`
 
 Non-zero exit code raises `SystemExit`.
 

@@ -63,7 +63,7 @@ class TestBuild:
         build_dir = tmp_path / "app"
         tw5_rec = Recorder()
         desktop_rec = Recorder()
-        monkeypatch.setattr(app_mod.tw5, "build", tw5_rec)
+        monkeypatch.setattr(app_mod.tw5, "bundle", tw5_rec)
         monkeypatch.setattr(app_mod.desktop, "build", desktop_rec)
 
         app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
@@ -80,7 +80,7 @@ class TestBuild:
         build_dir.mkdir()
         (build_dir / "old_file").write_text("data")
 
-        monkeypatch.setattr(app_mod.tw5, "build", Recorder())
+        monkeypatch.setattr(app_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
 
         app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
@@ -91,7 +91,7 @@ class TestBuild:
     def test_default_build_dir(self, ctx, monkeypatch, tmp_path):
         build_dir = tmp_path / "build"
         monkeypatch.setenv("BUILD", str(build_dir))
-        monkeypatch.setattr(app_mod.tw5, "build", Recorder())
+        monkeypatch.setattr(app_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
         monkeypatch.setattr(app_mod.subprocess, "run", lambda *a, **kw: None)
 
