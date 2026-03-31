@@ -54,11 +54,8 @@ def _patch_rsync(source, dest, name):
 def patch(c, components):
     """Rsync submodule sources into build/.
     Components: neuro, desktop, tw5-plugins/neuroforest/front, etc.
-    Without arguments, patches all owned submodules.
     """
     build_dir = internal_utils.get_path("build")
-    if not components:
-        components = setup.get_submodules()
     for comp in components:
         if not os.path.isdir(comp):
             print(f"{terminal_style.FAIL} {comp} not found")
