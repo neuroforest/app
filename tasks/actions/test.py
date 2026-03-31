@@ -70,7 +70,7 @@ def ruff(c, ruff_args=""):
         ruff_args = []
     else:
         ruff_args = shlex.split(ruff_args)
-    result = subprocess.run(["nenv/bin/ruff", "check", "tasks/", "tests/"] + ruff_args)
+    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "ruff"), "check", "tasks/", "tests/"] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 

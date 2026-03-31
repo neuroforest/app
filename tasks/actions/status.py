@@ -150,7 +150,7 @@ def status(c):
             print(f"{terminal_style.FAIL} {path:<{max_path}}  (not initialized)")
             continue
 
-        is_worktree = path in setup.OWNED_SUBMODULES
+        is_worktree = path in setup.get_submodules()
         if is_worktree:
             wt_path = get_worktree_path(path)
             current = get_branch(wt_path) if wt_path else get_branch(path)

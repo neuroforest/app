@@ -105,15 +105,17 @@ class TestBuild:
 # ---------------------------------------------------------------------------
 
 class TestTest:
-    def test_runs_pytest(self, ctx, subprocess_recorder):
+    def test_runs_pytest(self, ctx, subprocess_recorder, monkeypatch):
+        monkeypatch.setenv("NENV", "build/nenv")
         app_mod.test.__wrapped__(ctx)
         cmd = subprocess_recorder.calls[0][0][0]
-        assert cmd == ["nenv/bin/pytest", "tests/"]
+        assert cmd == ["build/nenv/bin/pytest", "tests/"]
 
-    def test_pytest_args(self, ctx, subprocess_recorder):
+    def test_pytest_args(self, ctx, subprocess_recorder, monkeypatch):
+        monkeypatch.setenv("NENV", "build/nenv")
         app_mod.test.__wrapped__(ctx, pytest_args="-k foo")
         cmd = subprocess_recorder.calls[0][0][0]
-        assert cmd == ["nenv/bin/pytest", "tests/", "-k", "foo"]
+        assert cmd == ["build/nenv/bin/pytest", "tests/", "-k", "foo"]
 
     def test_nonzero_exit(self, ctx, monkeypatch):
         monkeypatch.setattr(

@@ -3,6 +3,7 @@ Load environment config, chdir to NF_DIR, and manage submodules.
 """
 
 import getpass
+import json
 import os
 import secrets
 import subprocess
@@ -12,15 +13,13 @@ import invoke
 from neuro.utils import build_utils, config, internal_utils, network_utils, terminal_style
 
 
-OWNED_SUBMODULES = [
-    "desktop",
-    "neuro",
-    "tw5-plugins/neuroforest/basic",
-    "tw5-plugins/neuroforest/core",
-    "tw5-plugins/neuroforest/front",
-    "tw5-plugins/neuroforest/mobile",
-    "tw5-plugins/neuroforest/neo4j-syncadaptor",
-]
+def get_nenv_dir():
+    return os.path.expanduser(os.environ["NENV"])
+
+
+def get_submodules():
+    val = os.getenv("SUBMODULES")
+    return json.loads(val) if val else []
 
 
 def reset_submodule(path, branch_name, remote=None):
@@ -60,10 +59,11 @@ def env(c, environment=None):
 @invoke.task(pre=[env])
 def nenv(c):
     """Create virtualenv and install neuro."""
+    nenv_dir = get_nenv_dir()
     with terminal_style.step("Installing neuro"):
-        subprocess.run(["python3", "-m", "venv", "nenv"], check=True, capture_output=build_utils.quiet())
-        subprocess.run(["nenv/bin/pip", "install", "./neuro"], check=True, capture_output=build_utils.quiet())
-    nenv_bin = os.path.abspath("nenv/bin")
+        subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=build_utils.quiet())
+        subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", "./neuro"], check=True, capture_output=build_utils.quiet())
+    nenv_bin = os.path.join(nenv_dir, "bin")
     if nenv_bin not in os.environ.get("PATH", ""):
         os.environ["PATH"] = nenv_bin + os.pathsep + os.environ.get("PATH", "")
 
@@ -72,7 +72,7 @@ def nenv(c):
 def master(c, components, remote="origin"):
     """Reset all submodules to their configured branches."""
     if not components:
-        components = list(OWNED_SUBMODULES)
+        components = get_submodules()
     for component in components:
         reset_submodule(component, "master", remote=remote)
 
@@ -81,7 +81,7 @@ def master(c, components, remote="origin"):
 def develop(c, components, remote="origin"):
     """Fetch and reset NF submodules to origin/develop."""
     if not components:
-        components = list(OWNED_SUBMODULES)
+        components = get_submodules()
     for component in components:
         reset_submodule(component, "develop", remote=remote)
 
@@ -90,7 +90,7 @@ def develop(c, components, remote="origin"):
 def branch(c, branch_name, components):
     """Reset submodules to a branch, with fallback to configured branch."""
     if not components:
-        components = list(OWNED_SUBMODULES)
+        components = get_submodules()
     for component in components:
         reset_submodule(component, branch_name)
 

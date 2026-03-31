@@ -58,7 +58,7 @@ def patch(c, components):
     """
     build_dir = internal_utils.get_path("build")
     if not components:
-        components = list(setup.OWNED_SUBMODULES)
+        components = setup.get_submodules()
     for comp in components:
         if not os.path.isdir(comp):
             print(f"{terminal_style.FAIL} {comp} not found")
@@ -102,6 +102,6 @@ def stop(c):
 def test(c, pytest_args=""):
     """Run app tests (pytest tests/)."""
     extra = shlex.split(pytest_args) if pytest_args else []
-    result = subprocess.run(["nenv/bin/pytest", "tests/"] + extra)
+    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "pytest"), "tests/"] + extra)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
