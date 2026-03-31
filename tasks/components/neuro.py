@@ -1,3 +1,4 @@
+import os
 import shlex
 import subprocess
 
@@ -25,7 +26,7 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
         tw5.bundle(c)
         neurobase.reset(c, confirmed=True)
     extra = shlex.split(pytest_args) if pytest_args else []
-    result = subprocess.run(["nenv/bin/pytest", location] + MODES[mode] + extra)
+    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "pytest"), location] + MODES[mode] + extra)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
@@ -51,7 +52,7 @@ def ruff(c, ruff_args=""):
         ruff_args = []
     else:
         ruff_args = shlex.split(ruff_args)
-    result = subprocess.run(["nenv/bin/ruff", "check", internal_utils.get_path("neuro")] + ruff_args)
+    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "ruff"), "check", internal_utils.get_path("neuro")] + ruff_args)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 

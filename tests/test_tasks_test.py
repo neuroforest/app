@@ -111,14 +111,16 @@ class TestRuff:
         assert rec.last_kwargs == {"ruff_args": "--fix"}
 
     def test_runs_ruff_on_app(self, ctx, monkeypatch, patch_subprocess):
+        monkeypatch.setenv("NENV", "build/nenv")
         monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
         test_mod.ruff.__wrapped__(ctx)
-        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "tasks/", "tests/"],)
+        assert patch_subprocess.last_args == (["build/nenv/bin/ruff", "check", "tasks/", "tests/"],)
 
     def test_custom_args(self, ctx, monkeypatch, patch_subprocess):
+        monkeypatch.setenv("NENV", "build/nenv")
         monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
         test_mod.ruff.__wrapped__(ctx, ruff_args="--fix")
-        assert patch_subprocess.last_args == (["nenv/bin/ruff", "check", "tasks/", "tests/", "--fix"],)
+        assert patch_subprocess.last_args == (["build/nenv/bin/ruff", "check", "tasks/", "tests/", "--fix"],)
 
     def test_nonzero_exit_raises(self, ctx, monkeypatch):
         monkeypatch.setattr(test_mod.neuro, "ruff", Recorder())
