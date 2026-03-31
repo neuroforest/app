@@ -83,7 +83,6 @@ class TestRuff:
 class TestTest:
     @pytest.fixture(autouse=True)
     def _patch_deps(self, monkeypatch):
-        monkeypatch.setattr(neuro_mod.tw5, "compile", Recorder())
         monkeypatch.setattr(neuro_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(neuro_mod.neurobase, "reset", Recorder())
 

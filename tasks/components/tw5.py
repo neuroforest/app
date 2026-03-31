@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import invoke
 
@@ -190,8 +191,7 @@ def get_builtin_editions():
     return {line.removeprefix("editions/") for line in result.stdout.splitlines()}
 
 
-def copy_tw5_editions():
-    tw5_path = internal_utils.get_path("tw5")
+def copy_tw5_editions(tw5_target):
     editions_source = internal_utils.get_path("nf") / "tw5-editions"
 
     if not os.path.isdir(editions_source):
@@ -209,7 +209,7 @@ def copy_tw5_editions():
         if edition in builtin:
             print(f"  {terminal_style.WARN} TW5 edition conflict: {edition}")
             continue
-        target = tw5_path / "editions" / edition
+        target = Path(tw5_target) / "editions" / edition
         shutil.rmtree(target, ignore_errors=True)
         shutil.copytree(source, target)
 
@@ -243,8 +243,7 @@ def ensure_plugin_fields(info_path, info):
             f.write("\n")
 
 
-def copy_tw5_plugins():
-    tw5_path = internal_utils.get_path("tw5")
+def copy_tw5_plugins(tw5_target):
     plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
 
     if not os.path.isdir(plugins_dir):
@@ -263,7 +262,7 @@ def copy_tw5_plugins():
             target_base = "plugins"
 
         source_dir = os.path.dirname(info_path)
-        target = tw5_path / target_base / relative
+        target = Path(tw5_target) / target_base / relative
         shutil.rmtree(target, ignore_errors=True)
         shutil.copytree(source_dir, target)
 
@@ -286,23 +285,18 @@ def compile(c, directory=None):
 
 
 @invoke.task(pre=[setup.env])
-def bundle(c):
-    """Copy TW5 editions and plugins into the TW5 tree."""
-    with terminal_style.step("Bundle tw5"):
-        copy_tw5_editions()
-        copy_tw5_plugins()
-
-
-@invoke.task(pre=[setup.env])
-def build(c, build_dir=None):
-    """Bundle tw5 and copy it to the app build directory."""
-    bundle(c)
+def bundle(c, build_dir=None):
+    """Copy TW5 tree to build/, overlay editions and plugins."""
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"
-    if not os.path.isdir(build_dir):
-        raise SystemExit(f"Build directory does not exist: {build_dir}")
-    tw5_source = internal_utils.get_path("nf") / "tw5"
+    os.makedirs(str(build_dir), exist_ok=True)
+    tw5_source = internal_utils.get_path("tw5")
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
+    tw5_build = str(Path(str(build_dir)) / "tw5")
+    with terminal_style.step("Bundle editions & plugins"):
+        copy_tw5_editions(tw5_build)
+        copy_tw5_plugins(tw5_build)
+    os.environ["TW5"] = tw5_build
 
 
 @invoke.task(pre=[setup.env])
@@ -325,9 +319,8 @@ def run(c, edition="neuro-bare", port=0):
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c):
-    """Copy editions/plugins, run tw5/bin/test.sh."""
+    """Bundle tw5, run bin/test.sh."""
     bundle(c)
-    tw5_path = internal_utils.get_path("tw5")
-    result = subprocess.run(["bin/test.sh"], cwd=tw5_path)
+    result = subprocess.run(["bin/test.sh"], cwd=os.environ["TW5"])
     if result.returncode != 0:
         raise SystemExit(result.returncode)

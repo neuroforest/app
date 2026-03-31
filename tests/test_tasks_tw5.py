@@ -57,13 +57,6 @@ def patch_compile(monkeypatch):
     return rec
 
 
-@pytest.fixture
-def patch_bundle(monkeypatch, patch_compile):
-    rec = Recorder()
-    monkeypatch.setattr(tw5_mod, "bundle", rec)
-    return rec
-
-
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -154,13 +147,14 @@ class TestCopyEditions:
         ed.mkdir()
         info = {"description": "x", "plugins": [], "themes": [], "build": {}}
         (ed / "tiddlywiki.info").write_text(json.dumps(info))
+        tw5_target = str(tmp_path / "tw5")
         (tmp_path / "tw5" / "editions").mkdir()
 
-        tw5_mod.copy_tw5_editions()
+        tw5_mod.copy_tw5_editions(tw5_target)
         assert (tmp_path / "tw5" / "editions" / "myedition" / "tiddlywiki.info").exists()
 
     def test_no_editions_dir(self, nf_tree, capsys):
-        tw5_mod.copy_tw5_editions()
+        tw5_mod.copy_tw5_editions(str(Path("/dummy")))
         assert "No editions directory" in capsys.readouterr().out
 
 
@@ -178,9 +172,10 @@ class TestCopyPlugins:
             "title": "$:/plugins/nf/myplugin", "description": "My plugin",
         }))
         (p / "somefile.tid").write_text("content")
+        tw5_target = str(tmp_path / "tw5")
         (tmp_path / "tw5" / "plugins").mkdir()
 
-        tw5_mod.copy_tw5_plugins()
+        tw5_mod.copy_tw5_plugins(tw5_target)
         assert (tmp_path / "tw5" / "plugins" / "nf" / "myplugin" / "somefile.tid").exists()
 
     def test_copies_theme_to_themes_dir(self, nf_tree, tmp_path):
@@ -192,13 +187,14 @@ class TestCopyPlugins:
             "title": "$:/themes/nf/mytheme", "description": "A theme",
             "plugin-type": "theme",
         }))
+        tw5_target = str(tmp_path / "tw5")
         (tmp_path / "tw5" / "themes").mkdir()
 
-        tw5_mod.copy_tw5_plugins()
+        tw5_mod.copy_tw5_plugins(tw5_target)
         assert (tmp_path / "tw5" / "themes" / "nf" / "mytheme" / "plugin.info").exists()
 
     def test_no_plugins_dir(self, nf_tree, capsys):
-        tw5_mod.copy_tw5_plugins()
+        tw5_mod.copy_tw5_plugins(str(Path("/dummy")))
         assert "No plugins directory" in capsys.readouterr().out
 
 
@@ -207,55 +203,53 @@ class TestCopyPlugins:
 # ---------------------------------------------------------------------------
 
 class TestBundle:
-    def test_calls_copy_functions(self, ctx, monkeypatch):
+    def test_rsyncs_and_copies(self, ctx, monkeypatch, tmp_path):
+        rsync_rec = Recorder()
         ed_rec = Recorder()
         pl_rec = Recorder()
-        monkeypatch.setattr(tw5_mod, "compile", Recorder())
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
         monkeypatch.setattr(tw5_mod, "copy_tw5_editions", ed_rec)
         monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", pl_rec)
-        tw5_mod.bundle.__wrapped__(ctx)
-        assert ed_rec.call_count == 1
-        assert pl_rec.call_count == 1
-
-
-# ---------------------------------------------------------------------------
-# build task
-# ---------------------------------------------------------------------------
-
-class TestBuild:
-    def test_rsyncs_tw5_to_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
-        rsync_rec = Recorder()
-        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
         nf = tmp_path / "nf"
         nf.mkdir()
+        (nf / "tw5").mkdir()
         build_dir = nf / "build"
-        build_dir.mkdir()
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
+                            lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
+        tw5_mod.bundle.__wrapped__(ctx)
+        assert rsync_rec.call_count == 1
+        assert rsync_rec.calls[0][0] == (nf / "tw5", build_dir, "tw5")
+        assert ed_rec.call_count == 1
+        assert ed_rec.calls[0][0] == (str(build_dir / "tw5"),)
+        assert pl_rec.call_count == 1
+        assert pl_rec.calls[0][0] == (str(build_dir / "tw5"),)
+
+    def test_custom_build_dir(self, ctx, monkeypatch, tmp_path):
+        rsync_rec = Recorder()
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
+        monkeypatch.setattr(tw5_mod, "copy_tw5_editions", Recorder())
+        monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", Recorder())
+        build_dir = tmp_path / "custom"
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
+                            lambda k: {"nf": tmp_path, "tw5": tmp_path / "tw5"}[k])
+        tw5_mod.bundle.__wrapped__(ctx, build_dir=str(build_dir))
+        assert rsync_rec.calls[0][0] == (tmp_path / "tw5", str(build_dir), "tw5")
+
+    def test_sets_tw5_env(self, ctx, monkeypatch, tmp_path):
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", Recorder())
+        monkeypatch.setattr(tw5_mod, "copy_tw5_editions", Recorder())
+        monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", Recorder())
+        nf = tmp_path / "nf"
+        nf.mkdir()
         (nf / "tw5").mkdir()
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
                             lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
-        tw5_mod.build.__wrapped__(ctx)
-        args = rsync_rec.calls[0][0]
-        assert args == (nf / "tw5", nf / "build", "tw5")
-
-    def test_custom_build_dir(self, ctx, monkeypatch, tmp_path, patch_bundle):
-        rsync_rec = Recorder()
-        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
-        build_dir = tmp_path / "custom"
-        build_dir.mkdir()
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": tmp_path, "tw5": tmp_path / "tw5"}[k])
-        tw5_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
-        args = rsync_rec.calls[0][0]
-        assert args == (tmp_path / "tw5", str(build_dir), "tw5")
-
-    def test_exits_if_dir_missing(self, ctx, monkeypatch, tmp_path, patch_bundle):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: tmp_path)
-        with pytest.raises(SystemExit):
-            tw5_mod.build.__wrapped__(ctx, build_dir=str(tmp_path / "nope"))
+        tw5_mod.bundle.__wrapped__(ctx)
+        assert "TW5" in tw5_mod.os.environ
+        assert tw5_mod.os.environ["TW5"] == str(nf / "build" / "tw5")
 
     def test_pre_includes_env(self):
-        pre_names = [t.name for t in tw5_mod.build.pre]
+        pre_names = [t.name for t in tw5_mod.bundle.pre]
         assert "env" in pre_names
 
 
@@ -264,25 +258,31 @@ class TestBuild:
 # ---------------------------------------------------------------------------
 
 class TestTestTask:
+    @pytest.fixture
+    def patch_bundle(self, monkeypatch):
+        rec = Recorder()
+        monkeypatch.setattr(tw5_mod, "bundle", rec)
+        return rec
+
     def test_calls_bundle(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
+        monkeypatch.setenv("TW5", "/build/tw5")
         tw5_mod.test.__wrapped__(ctx)
         assert patch_bundle.call_count == 1
 
     def test_runs_test_sh(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
+        monkeypatch.setenv("TW5", "/build/tw5")
         tw5_mod.test.__wrapped__(ctx)
         args, kwargs = subprocess_recorder.calls[0]
         assert args[0] == ["bin/test.sh"]
-        assert kwargs["cwd"] == Path("/app/tw5")
+        assert kwargs["cwd"] == "/build/tw5"
 
     def test_nonzero_exit_raises(self, ctx, patch_bundle, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
+        monkeypatch.setenv("TW5", "/build/tw5")
         monkeypatch.setattr(tw5_mod.subprocess, "run",
                             Recorder(return_value=SubprocessResult(1)))
         with pytest.raises(SystemExit):
             tw5_mod.test.__wrapped__(ctx)
 
     def test_zero_exit_ok(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: Path("/app/tw5"))
+        monkeypatch.setenv("TW5", "/build/tw5")
         tw5_mod.test.__wrapped__(ctx)  # should not raise

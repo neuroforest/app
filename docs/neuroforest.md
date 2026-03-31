@@ -85,8 +85,7 @@ invoke app.stop      # closes desktop and stops neurobase
 | `neuro.test-local` | Rsync neuro and run tests |
 | `neuro.test-branch` | Set neuro branch and run tests |
 | `neuro.test` | Run neuro tests |
-| `tw5.bundle` | Copy editions and plugins into the TW5 tree |
-| `tw5.build` | Bundle and copy TW5 tree to app build directory |
+| `tw5.bundle` | Copy TW5 tree to build/, overlay editions and plugins |
 | `tw5.test` | Bundle and run TW5 tests |
 | `neurobase.create` | Create the Neo4j container |
 | `neurobase.start` | Start the Neo4j container and wait for Bolt |

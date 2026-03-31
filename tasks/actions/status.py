@@ -108,8 +108,24 @@ def has_uncommitted_changes(path):
     )
     if result.returncode != 0:
         return False
-    # If there's any output, there are uncommitted changes
     return bool(result.stdout.strip())
+
+
+def get_worktree_path(submodule_path):
+    """Get the develop worktree path for an owned submodule."""
+    result = subprocess.run(
+        ["git", "-C", submodule_path, "worktree", "list", "--porcelain"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return None
+    current_path = None
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            current_path = line.removeprefix("worktree ")
+        elif line == "branch refs/heads/develop":
+            return current_path
+    return None
 
 
 @invoke.task(pre=[setup.env])
@@ -134,13 +150,17 @@ def status(c):
             print(f"{terminal_style.FAIL} {path:<{max_path}}  (not initialized)")
             continue
 
-        current = get_branch(path)
         is_worktree = path in setup.OWNED_SUBMODULES
+        if is_worktree:
+            wt_path = get_worktree_path(path)
+            current = get_branch(wt_path) if wt_path else get_branch(path)
+        else:
+            current = get_branch(path)
         issues = []
 
-        if current is None and not is_worktree:
+        if current is None:
             issues.append("detached HEAD")
-        elif current is not None and current != expected:
+        elif current != expected:
             issues.append(f"expected {expected}")
 
         behind = get_behind_count(path, expected)
@@ -154,15 +174,18 @@ def status(c):
         if recorded and head and recorded != head:
             issues.append("pointer not committed")
 
-        if is_worktree and head:
-            result = subprocess.run(
-                ["git", "-C", path, "rev-list", f"HEAD..{expected}", "--count"],
-                capture_output=True, text=True,
-            )
-            if result.returncode == 0:
-                wt_ahead = int(result.stdout.strip())
-                if wt_ahead > 0:
-                    issues.append(f"worktree {wt_ahead} ahead")
+        if is_worktree:
+            if wt_path and has_uncommitted_changes(wt_path):
+                issues.append("uncommitted")
+            if head:
+                result = subprocess.run(
+                    ["git", "-C", path, "rev-list", f"HEAD..{expected}", "--count"],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0:
+                    wt_ahead = int(result.stdout.strip())
+                    if wt_ahead > 0:
+                        issues.append(f"worktree {wt_ahead} ahead")
 
         if issues:
             unexpected_branch = current is not None and current != expected
