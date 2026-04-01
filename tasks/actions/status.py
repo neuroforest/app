@@ -147,6 +147,10 @@ def status(c):
         elif behind > 0:
             issues.append(f"{behind} behind")
 
+        ahead = get_ahead_count(path, f"origin/{expected}")
+        if ahead and ahead > 0:
+            issues.append(f"{ahead} unpushed")
+
         recorded = get_recorded_commit(path)
         head = get_head(path)
         if recorded and head and recorded != head:
