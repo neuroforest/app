@@ -27,12 +27,6 @@ def patch_subprocess(monkeypatch):
     return rec
 
 
-@pytest.fixture
-def patch_nenv(monkeypatch):
-    rec = Recorder()
-    monkeypatch.setattr(neuro_mod.setup, "nenv", rec)
-    return rec
-
 
 @pytest.fixture
 def patch_branch(monkeypatch):
@@ -154,28 +148,6 @@ class TestTest:
         args = patch_subprocess.last_args[0]
         assert "neuro/tests/core" in args
         assert "-v" in args
-
-
-# ---------------------------------------------------------------------------
-# test_local
-# ---------------------------------------------------------------------------
-
-class TestTestLocal:
-    def test_calls_nenv(self, ctx, patch_nenv, patch_test):
-        neuro_mod.test_local.__wrapped__(ctx)
-        assert patch_nenv.call_count == 1
-
-    def test_default_mode_is_e2e(self, ctx, patch_nenv, patch_test):
-        neuro_mod.test_local.__wrapped__(ctx)
-        assert patch_test.last_args[1] == "e2e"
-
-    def test_custom_mode(self, ctx, patch_nenv, patch_test):
-        neuro_mod.test_local.__wrapped__(ctx, mode="unit")
-        assert patch_test.last_args[1] == "unit"
-
-    def test_passes_pytest_args(self, ctx, patch_nenv, patch_test):
-        neuro_mod.test_local.__wrapped__(ctx, pytest_args="-k foo")
-        assert patch_test.last_args[3] == "-k foo"
 
 
 # ---------------------------------------------------------------------------

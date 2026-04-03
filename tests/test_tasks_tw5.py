@@ -33,14 +33,12 @@ def _patch_header(monkeypatch):
 
 @pytest.fixture
 def nf_tree(monkeypatch, tmp_path):
-    """Create nf/tw5 dirs and patch get_path."""
+    """Create nf/ and nf/tw5 dirs and patch get_path."""
     nf = tmp_path / "nf"
-    tw5 = tmp_path / "tw5"
     nf.mkdir()
-    tw5.mkdir()
-    paths = {"nf": nf, "tw5": tw5}
-    monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: paths[k])
-    return paths
+    (nf / "tw5").mkdir()
+    monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"nf": nf}[k])
+    return {"nf": nf}
 
 
 @pytest.fixture
@@ -148,7 +146,7 @@ class TestCopyEditions:
         info = {"description": "x", "plugins": [], "themes": [], "build": {}}
         (ed / "tiddlywiki.info").write_text(json.dumps(info))
         tw5_target = str(tmp_path / "tw5")
-        (tmp_path / "tw5" / "editions").mkdir()
+        (tmp_path / "tw5" / "editions").mkdir(parents=True)
 
         tw5_mod.copy_tw5_editions(tw5_target)
         assert (tmp_path / "tw5" / "editions" / "myedition" / "tiddlywiki.info").exists()
@@ -173,7 +171,7 @@ class TestCopyPlugins:
         }))
         (p / "somefile.tid").write_text("content")
         tw5_target = str(tmp_path / "tw5")
-        (tmp_path / "tw5" / "plugins").mkdir()
+        (tmp_path / "tw5" / "plugins").mkdir(parents=True)
 
         tw5_mod.copy_tw5_plugins(tw5_target)
         assert (tmp_path / "tw5" / "plugins" / "nf" / "myplugin" / "somefile.tid").exists()
@@ -188,7 +186,7 @@ class TestCopyPlugins:
             "plugin-type": "theme",
         }))
         tw5_target = str(tmp_path / "tw5")
-        (tmp_path / "tw5" / "themes").mkdir()
+        (tmp_path / "tw5" / "themes").mkdir(parents=True)
 
         tw5_mod.copy_tw5_plugins(tw5_target)
         assert (tmp_path / "tw5" / "themes" / "nf" / "mytheme" / "plugin.info").exists()
@@ -235,18 +233,20 @@ class TestBundle:
         tw5_mod.bundle.__wrapped__(ctx, build_dir=str(build_dir))
         assert rsync_rec.calls[0][0] == (tmp_path / "tw5", str(build_dir), "tw5")
 
-    def test_sets_tw5_env(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", Recorder())
-        monkeypatch.setattr(tw5_mod, "copy_tw5_editions", Recorder())
-        monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", Recorder())
+    def test_bundles_to_build_tw5(self, ctx, monkeypatch, tmp_path):
+        rsync_rec = Recorder()
+        ed_rec = Recorder()
+        pl_rec = Recorder()
+        monkeypatch.setattr(tw5_mod.build_utils, "rsync_local", rsync_rec)
+        monkeypatch.setattr(tw5_mod, "copy_tw5_editions", ed_rec)
+        monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", pl_rec)
         nf = tmp_path / "nf"
         nf.mkdir()
         (nf / "tw5").mkdir()
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"nf": nf}[k])
         tw5_mod.bundle.__wrapped__(ctx)
-        assert "TW5" in tw5_mod.os.environ
-        assert tw5_mod.os.environ["TW5"] == str(nf / "build" / "tw5")
+        assert ed_rec.calls[0][0] == (str(nf / "build" / "tw5"),)
+        assert pl_rec.calls[0][0] == (str(nf / "build" / "tw5"),)
 
     def test_pre_includes_env(self):
         pre_names = [t.name for t in tw5_mod.bundle.pre]
@@ -265,24 +265,24 @@ class TestTestTask:
         return rec
 
     def test_calls_bundle(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setenv("TW5", "/build/tw5")
+        monkeypatch.setenv("BUILD", "build")
         tw5_mod.test.__wrapped__(ctx)
         assert patch_bundle.call_count == 1
 
     def test_runs_test_sh(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setenv("TW5", "/build/tw5")
+        monkeypatch.setenv("BUILD", "build")
         tw5_mod.test.__wrapped__(ctx)
         args, kwargs = subprocess_recorder.calls[0]
         assert args[0] == ["bin/test.sh"]
-        assert kwargs["cwd"] == "/build/tw5"
+        assert kwargs["cwd"] == "build/tw5"
 
     def test_nonzero_exit_raises(self, ctx, patch_bundle, monkeypatch):
-        monkeypatch.setenv("TW5", "/build/tw5")
+        monkeypatch.setenv("BUILD", "build")
         monkeypatch.setattr(tw5_mod.subprocess, "run",
                             Recorder(return_value=SubprocessResult(1)))
         with pytest.raises(SystemExit):
             tw5_mod.test.__wrapped__(ctx)
 
     def test_zero_exit_ok(self, ctx, patch_bundle, subprocess_recorder, monkeypatch):
-        monkeypatch.setenv("TW5", "/build/tw5")
+        monkeypatch.setenv("BUILD", "build")
         tw5_mod.test.__wrapped__(ctx)  # should not raise
