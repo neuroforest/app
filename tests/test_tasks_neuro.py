@@ -81,6 +81,7 @@ class TestTest:
     def _patch_deps(self, monkeypatch):
         monkeypatch.setattr(neuro_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(neuro_mod.neurobase, "reset", Recorder())
+        monkeypatch.setattr(neuro_mod.setup, "nenv", Recorder())
 
     def test_unit_mode(self, ctx, patch_subprocess):
         neuro_mod.test.__wrapped__(ctx, mode="unit")
