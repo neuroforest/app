@@ -181,7 +181,7 @@ def build_compiled_plugin(wrapper_dir, cfg, compiled_dir):
 
 def get_builtin_editions():
     """Return the set of edition names shipped with TW5 (via git, ignoring bundled copies)."""
-    tw5_path = internal_utils.get_path("tw5")
+    tw5_path = internal_utils.get_path("nf") / "tw5"
     result = subprocess.run(
         ["git", "ls-tree", "--name-only", "HEAD", "editions/"],
         cwd=tw5_path, capture_output=True, text=True,
@@ -290,28 +290,26 @@ def bundle(c, build_dir=None):
     if not build_dir:
         build_dir = internal_utils.get_path("nf") / "build"
     os.makedirs(str(build_dir), exist_ok=True)
-    tw5_source = internal_utils.get_path("tw5")
+    tw5_source = internal_utils.get_path("nf") / "tw5"
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
     tw5_build = str(Path(str(build_dir)) / "tw5")
     with terminal_style.step("Bundle editions & plugins"):
         copy_tw5_editions(tw5_build)
         copy_tw5_plugins(tw5_build)
-    os.environ["TW5"] = tw5_build
 
 
 @invoke.task(pre=[setup.env])
 def run(c, edition="neuro-bare", port=0):
     """Launch TW5 edition with auto-restart on browser refresh."""
-    tw5_path = internal_utils.get_path("tw5")
-    editions_source = internal_utils.get_path("nf") / "tw5-editions"
-    edition_path = editions_source / edition
+    tw5_build = internal_utils.get_path("build") / "tw5"
+    edition_path = tw5_build / "editions" / edition
 
     if not os.path.isdir(edition_path):
         print(f"{terminal_style.FAIL} Edition not found: {edition_path}")
         sys.exit(1)
 
     cmd = [
-        "node", str(tw5_path / "tiddlywiki.js"), str(edition_path),
+        "node", str(tw5_build / "tiddlywiki.js"), str(edition_path),
         "--listen", "port={port}", "host=127.0.0.1",
     ]
     network_utils.RestartProxy.serve(cmd, port=port)
@@ -321,6 +319,6 @@ def run(c, edition="neuro-bare", port=0):
 def test(c):
     """Bundle tw5, run bin/test.sh."""
     bundle(c)
-    result = subprocess.run(["bin/test.sh"], cwd=os.environ["TW5"])
+    result = subprocess.run(["bin/test.sh"], cwd=os.path.join(os.environ["BUILD"], "tw5"))
     if result.returncode != 0:
         raise SystemExit(result.returncode)

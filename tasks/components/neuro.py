@@ -31,12 +31,6 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
         raise SystemExit(result.returncode)
 
 
-@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test_local(c, mode="e2e", location="neuro/tests", pytest_args=""):
-    """Install neuro and run tests. Modes: unit, integration, e2e (default)."""
-    setup.nenv(c)
-    test(c, mode, location, pytest_args)
-
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test_branch(c, branch_name, mode="e2e", location="neuro/tests", pytest_args=""):

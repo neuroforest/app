@@ -34,7 +34,7 @@ def local(c, components):
     if "neuro" in components:
         terminal_style.header("Testing NEURO")
         try:
-            neuro.test_local(c)
+            neuro.test(c, mode="e2e")
         except SystemExit:
             failed.append("neuro")
 
