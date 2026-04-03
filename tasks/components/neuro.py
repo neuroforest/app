@@ -20,6 +20,7 @@ MODES = {
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, mode="integration", location="neuro/tests", pytest_args=""):
     """Run neuro tests. Modes: unit, integration (default), e2e."""
+    setup.nenv(c)
     if mode not in MODES:
         raise SystemExit(f"Unknown mode: {mode}. Choose from {', '.join(MODES)}")
     if mode in ("integration", "e2e"):
