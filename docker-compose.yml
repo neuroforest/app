@@ -16,7 +16,7 @@ services:
       - data:/data
       - logs:/logs
     environment:
-      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD}"
+      NEO4J_AUTH: "${NEO4J_AUTH:-neo4j/${NEO4J_PASSWORD}}"
 
 volumes:
   data:
