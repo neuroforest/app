@@ -26,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NF_DIR: ${{ github.workspace }}
-      NENV: nenv
     strategy:
       fail-fast: false
       matrix:
@@ -37,18 +36,17 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
       - name: Install dependencies
-        run: |
-          python -m venv nenv
-          nenv/bin/pip install "neuro/[dev]"
+        run: uv sync --frozen --project neuro --extra dev
+        env:
+          UV_PROJECT_ENVIRONMENT: nenv
+          UV_PYTHON: "3.14"
 
       - name: Compile TW5 plugins
         if: matrix.component == 'neuro'
