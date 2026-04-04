@@ -19,6 +19,7 @@ COMPONENTS = ["app", "neuro", "tw5"]
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], iterable="components")
 def local(c, components):
+    run_all = not components
     if not components:
         components = COMPONENTS
 
@@ -45,14 +46,15 @@ def local(c, components):
         except SystemExit:
             failed.append("tw5")
 
-    terminal_style.header("Ruff")
-    try:
-        ruff(c)
-    except SystemExit:
-        failed.append("ruff")
+    if run_all:
+        terminal_style.header("Ruff")
+        try:
+            ruff(c)
+        except SystemExit:
+            failed.append("ruff")
 
     terminal_style.header("Results")
-    for name in components + ["ruff"]:
+    for name in components + (["ruff"] if run_all else []):
         if name in failed:
             print(f"  {terminal_style.FAIL} {name}")
         else:

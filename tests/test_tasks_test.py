@@ -74,7 +74,7 @@ class TestLocal:
         assert patch_tw5_test.call_count == 1
         assert patch_neuro_test.call_count == 0
         assert patch_app.call_count == 0
-        assert patch_ruff.call_count == 1
+        assert patch_ruff.call_count == 0
 
     def test_only_neuro(self, ctx, patch_tw5_test, patch_neuro_test,
                         patch_app, patch_ruff):
@@ -82,7 +82,7 @@ class TestLocal:
         assert patch_tw5_test.call_count == 0
         assert patch_neuro_test.call_count == 1
         assert patch_app.call_count == 0
-        assert patch_ruff.call_count == 1
+        assert patch_ruff.call_count == 0
 
     def test_only_app(self, ctx, patch_tw5_test, patch_neuro_test,
                       patch_app, patch_ruff):
@@ -90,7 +90,7 @@ class TestLocal:
         assert patch_tw5_test.call_count == 0
         assert patch_neuro_test.call_count == 0
         assert patch_app.call_count == 1
-        assert patch_ruff.call_count == 1
+        assert patch_ruff.call_count == 0
 
 
 # ---------------------------------------------------------------------------
