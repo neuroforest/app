@@ -50,7 +50,7 @@ All tasks depend on `setup.env` as a pre-task. It loads config and changes to `A
 | `DESIGN` | `design` | Design directory |
 | `DESKTOP` | `desktop` | Desktop submodule |
 | `NEURO` | `neuro` | Neuro submodule |
-| `RESOURCES` | `neuro/resources` | Resources directory |
+| `ASSETS` | `neuro/resources` | Resources directory |
 | `STORAGE` | `storage` | Storage directory |
 | `TW5` | `tw5` | TiddlyWiki5 submodule |
 

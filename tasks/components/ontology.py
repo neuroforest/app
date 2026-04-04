@@ -63,7 +63,7 @@ def _load_with_deps(nb, path, registry, loaded=None):
 def render(c, ontology=""):
     """Load ontology into neurobase and print Neo4j browser link."""
     neurobase.start(c)
-    ontology_dir = internal_utils.get_path("resources") / "ontology"
+    ontology_dir = internal_utils.get_path("assets") / "ontology"
 
     registry, targets = _resolve_targets(ontology_dir, ontology)
     with NeuroBase() as nb:
@@ -81,7 +81,7 @@ def render(c, ontology=""):
 def test(c, ontology=""):
     """Validate ontologies against the metaontology."""
     neurobase.reset(c, confirmed=True)
-    ontology_dir = internal_utils.get_path("resources") / "ontology"
+    ontology_dir = internal_utils.get_path("assets") / "ontology"
     metaontology_nid = nfx.read(ontology_dir / "metaontology.nfx").get("nid", "")
     registry, targets = _resolve_targets(ontology_dir, ontology, exclude_nid=metaontology_nid)
 
