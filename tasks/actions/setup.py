@@ -51,15 +51,18 @@ def env(c, environment=None):
 
 
 @invoke.task(pre=[env])
-def nenv(c):
+def nenv(c, nenv_dir=None):
     """Create virtualenv and install neuro."""
-    nenv_dir = get_nenv_dir()
+    default = nenv_dir is None
+    if nenv_dir is None:
+        nenv_dir = get_nenv_dir()
     with terminal_style.step("Installing neuro"):
         subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=build_utils.quiet())
         subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", "./neuro"], check=True, capture_output=build_utils.quiet())
-    nenv_bin = os.path.join(nenv_dir, "bin")
-    if nenv_bin not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = nenv_bin + os.pathsep + os.environ.get("PATH", "")
+    if default:
+        nenv_bin = os.path.join(nenv_dir, "bin")
+        if nenv_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = nenv_bin + os.pathsep + os.environ.get("PATH", "")
 
 
 @invoke.task(pre=[env], iterable="components")
