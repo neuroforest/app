@@ -57,8 +57,11 @@ def nenv(c, nenv_dir=None):
     if nenv_dir is None:
         nenv_dir = get_nenv_dir()
     with terminal_style.step("Installing neuro"):
-        subprocess.run(["python3", "-m", "venv", nenv_dir], check=True, capture_output=build_utils.quiet())
-        subprocess.run([os.path.join(nenv_dir, "bin", "pip"), "install", "./neuro"], check=True, capture_output=build_utils.quiet())
+        subprocess.run(
+            ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"],
+            env={**os.environ, "UV_PROJECT_ENVIRONMENT": nenv_dir},
+            check=True, capture_output=build_utils.quiet()
+        )
     if default:
         nenv_bin = os.path.join(nenv_dir, "bin")
         if nenv_bin not in os.environ.get("PATH", ""):

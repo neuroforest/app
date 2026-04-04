@@ -16,27 +16,21 @@ Knowledge engineering platform built on TiddlyWiki5, Neo4j, and NW.js.
 - Python 3.14+
 - Docker + Docker Compose
 - Node.js
-- git, rsync
+- git, uv, ruff, rsync
 
 ## Install
 
 > Development environment only.
 
-`invoke` ships inside `neuro`, so `build/nenv` must exist before any invoke task can run.
+`invoke` ships inside `neuro`, so `nenv/` must exist before any invoke task can run.
 On a fresh clone, seed it manually:
 
 ```sh
 git clone https://github.com/neuroforest/app
 cd app
-python3 -m venv build/nenv
-build/nenv/bin/pip install "./neuro[dev]"
-```
-
-After this:
-
-```sh
-build/nenv/bin/invoke app.build   # full build — updates build/nenv, bundles TW5, assembles desktop
-build/nenv/bin/invoke app.run     # start NeuroBase and launch NeuroDesktop
+UV_PROJECT_ENVIRONMENT=nenv uv sync --frozen --project neuro --extra dev
+nenv/bin/invoke app.build   # full build — bundles TW5, assembles desktop, creates build/nenv
+nenv/bin/invoke app.run     # start NeuroBase and launch NeuroDesktop
 ```
 
 ## Configuration
@@ -47,9 +41,7 @@ Tasks read environment from dotenv files. Loading order:
 2. `$NF_CONFIG/env` — user-wide overrides
 3. `$NF_CONFIG/env.{ENVIRONMENT}` — environment-specific overrides
 
-`NF_CONFIG` defaults to `~/.config/neuroforest/`. Create `env.develop` there with absolute path overrides.
-
-`NF_DIR` must be set in the shell environment to point to `app/`.
+`NF_CONFIG` defaults to `~/.config/neuroforest/`. Use `env.develop` there for local overrides (e.g. absolute paths).
 
 ## Development workflow
 

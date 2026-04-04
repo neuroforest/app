@@ -65,6 +65,7 @@ class TestBuild:
         desktop_rec = Recorder()
         monkeypatch.setattr(app_mod.tw5, "bundle", tw5_rec)
         monkeypatch.setattr(app_mod.desktop, "build", desktop_rec)
+        monkeypatch.setattr(app_mod.setup, "nenv", Recorder())
 
         app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
 
@@ -82,6 +83,7 @@ class TestBuild:
 
         monkeypatch.setattr(app_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
+        monkeypatch.setattr(app_mod.setup, "nenv", Recorder())
 
         app_mod.build.__wrapped__(ctx, build_dir=str(build_dir))
 
@@ -93,7 +95,7 @@ class TestBuild:
         monkeypatch.setenv("BUILD", str(build_dir))
         monkeypatch.setattr(app_mod.tw5, "bundle", Recorder())
         monkeypatch.setattr(app_mod.desktop, "build", Recorder())
-        monkeypatch.setattr(app_mod.subprocess, "run", lambda *a, **kw: None)
+        monkeypatch.setattr(app_mod.setup, "nenv", Recorder())
 
         app_mod.build.__wrapped__(ctx)
 
