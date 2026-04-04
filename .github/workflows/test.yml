@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NF_DIR: ${{ github.workspace }}
+      UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/nenv
+      UV_PYTHON: "3.14"
     strategy:
       fail-fast: false
       matrix:
@@ -44,9 +46,6 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --frozen --project neuro --extra dev
-        env:
-          UV_PROJECT_ENVIRONMENT: nenv
-          UV_PYTHON: "3.14"
 
       - name: Compile TW5 plugins
         if: matrix.component == 'neuro'
