@@ -109,10 +109,9 @@ class TestNenvTask:
     def test_creates_venv_and_installs(self, ctx, subprocess_recorder, monkeypatch):
         monkeypatch.setenv("NENV", "build/nenv")
         setup_mod.nenv.__wrapped__(ctx)
-        assert subprocess_recorder.call_count == 2
-        cmds = [c[0][0] for c in subprocess_recorder.calls]
-        assert cmds[0] == ["python3", "-m", "venv", "build/nenv"]
-        assert cmds[1] == ["build/nenv/bin/pip", "install", "./neuro"]
+        assert subprocess_recorder.call_count == 1
+        cmd = subprocess_recorder.calls[0][0][0]
+        assert cmd == ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"]
 
     def test_passes_check_true(self, ctx, subprocess_recorder):
         setup_mod.nenv.__wrapped__(ctx)

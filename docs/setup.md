@@ -49,9 +49,8 @@ All submodules:
 
     invoke setup.nenv
 
-1. Creates a virtualenv at `nenv/` via `python3 -m venv nenv`
-2. Installs the local neuro package via `nenv/bin/pip install ./neuro`
-3. Adds `nenv/bin` to `PATH` if not already present
+1. Creates a virtualenv at `$NENV` and installs neuro via `uv sync --frozen`
+2. Adds `$NENV/bin` to `PATH` if not already present
 
 ## Tests
 
