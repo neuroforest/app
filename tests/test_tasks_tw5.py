@@ -37,8 +37,8 @@ def nf_tree(monkeypatch, tmp_path):
     nf = tmp_path / "nf"
     nf.mkdir()
     (nf / "tw5").mkdir()
-    monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"nf": nf}[k])
-    return {"nf": nf}
+    monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"app": nf}[k])
+    return {"app": nf}
 
 
 @pytest.fixture
@@ -213,7 +213,7 @@ class TestBundle:
         (nf / "tw5").mkdir()
         build_dir = nf / "build"
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": nf, "tw5": nf / "tw5"}[k])
+                            lambda k: {"app": nf, "tw5": nf / "tw5"}[k])
         tw5_mod.bundle.__wrapped__(ctx)
         assert rsync_rec.call_count == 1
         assert rsync_rec.calls[0][0] == (nf / "tw5", build_dir, "tw5")
@@ -229,7 +229,7 @@ class TestBundle:
         monkeypatch.setattr(tw5_mod, "copy_tw5_plugins", Recorder())
         build_dir = tmp_path / "custom"
         monkeypatch.setattr(tw5_mod.internal_utils, "get_path",
-                            lambda k: {"nf": tmp_path, "tw5": tmp_path / "tw5"}[k])
+                            lambda k: {"app": tmp_path, "tw5": tmp_path / "tw5"}[k])
         tw5_mod.bundle.__wrapped__(ctx, build_dir=str(build_dir))
         assert rsync_rec.calls[0][0] == (tmp_path / "tw5", str(build_dir), "tw5")
 
@@ -243,7 +243,7 @@ class TestBundle:
         nf = tmp_path / "nf"
         nf.mkdir()
         (nf / "tw5").mkdir()
-        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"nf": nf}[k])
+        monkeypatch.setattr(tw5_mod.internal_utils, "get_path", lambda k: {"app": nf}[k])
         tw5_mod.bundle.__wrapped__(ctx)
         assert ed_rec.calls[0][0] == (str(nf / "build" / "tw5"),)
         assert pl_rec.calls[0][0] == (str(nf / "build" / "tw5"),)

@@ -1,5 +1,5 @@
 """
-Load environment config, chdir to NF_DIR, and manage submodules.
+Load environment config, chdir to APP_DIR, and manage submodules.
 """
 
 import getpass
@@ -36,8 +36,8 @@ def reset_submodule(path, branch_name, remote=None):
 
 @invoke.task
 def env(c, environment=None):
-    """Load config and chdir to NF_DIR."""
-    nf_dir = internal_utils.get_path("nf")
+    """Load config and chdir to APP_DIR."""
+    nf_dir = internal_utils.get_path("app")
     if environment:
         os.environ["ENVIRONMENT"] = environment
     config.main()

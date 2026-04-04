@@ -6,7 +6,7 @@ Environment loading and branch management.
 
 | Task | Description |
 |------|-------------|
-| `setup.env` | Load config and chdir to NF_DIR |
+| `setup.env` | Load config and chdir to APP_DIR |
 | `setup.master` | Reset all submodules to master |
 | `setup.develop` | Reset submodules to develop |
 | `setup.branch` | Reset submodules to a specific branch |
@@ -17,12 +17,12 @@ Environment loading and branch management.
     invoke setup.env
     invoke setup.env --environment=TESTING
 
-1. Resolves `NF_DIR` via `internal_utils.get_path("nf")`
+1. Resolves `APP_DIR` via `internal_utils.get_path("app")`
 2. Sets `ENVIRONMENT` if provided
 3. Loads config via `neuro.utils.config.main()`
-4. Changes working directory to `NF_DIR`
+4. Changes working directory to `APP_DIR`
 
-Raises `Exit` if `NF_DIR` does not exist.
+Raises `Exit` if `APP_DIR` does not exist.
 
 All other tasks depend on `setup.env` as a pre-task.
 

@@ -14,7 +14,7 @@ def _resolve_version(version):
 
 
 def _nwjs_paths(version):
-    app_path = internal_utils.get_path("nf")
+    app_path = internal_utils.get_path("app")
     nwjs_dir = app_path / "nwjs"
     url = os.getenv("NWJS_URL")
     return {

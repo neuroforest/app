@@ -57,7 +57,7 @@ def subprocess_recorder(monkeypatch):
 
 class TestEnv:
     def test_prints_environment_and_dir(self, ctx, monkeypatch, capsys, tmp_path):
-        monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("APP_DIR", str(tmp_path))
         monkeypatch.setenv("VERBOSE", "1")
         setup_mod.env.__wrapped__(ctx, environment="TESTING")
         out = capsys.readouterr().out
@@ -65,12 +65,12 @@ class TestEnv:
         assert str(tmp_path) in out
 
     def test_sets_environment_variable(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("APP_DIR", str(tmp_path))
         setup_mod.env.__wrapped__(ctx, environment="TESTING")
         assert os.environ["ENVIRONMENT"] == "TESTING"
 
     def test_no_environment_param_keeps_existing(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("APP_DIR", str(tmp_path))
         monkeypatch.setenv("ENVIRONMENT", "PRODUCTION")
         setup_mod.env.__wrapped__(ctx, environment=None)
         assert os.environ["ENVIRONMENT"] == "PRODUCTION"
@@ -78,13 +78,13 @@ class TestEnv:
     def test_calls_config_main(self, ctx, monkeypatch, tmp_path):
         rec = Recorder()
         monkeypatch.setattr(setup_mod.config, "main", rec)
-        monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("APP_DIR", str(tmp_path))
         monkeypatch.setenv("ENVIRONMENT", "TESTING")
         setup_mod.env.__wrapped__(ctx)
         assert rec.call_count == 1
 
     def test_chdir_to_nf_dir(self, ctx, monkeypatch, tmp_path):
-        monkeypatch.setenv("NF_DIR", str(tmp_path))
+        monkeypatch.setenv("APP_DIR", str(tmp_path))
         monkeypatch.setenv("ENVIRONMENT", "TESTING")
         original = os.getcwd()
         try:
