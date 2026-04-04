@@ -68,17 +68,17 @@ def build(c, build_dir=None):
     nwjs.get(c)
 
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") / "build"
+        build_dir = internal_utils.get_path("app") / "build"
     if not os.path.isdir(build_dir):
         raise SystemExit(f"Build directory does not exist: {build_dir}")
 
     # NWjs
     nwjs_version = os.getenv("NWJS_VERSION")
-    nwjs_source = str(internal_utils.get_path("nf") / "nwjs" / f"v{nwjs_version}") + "/"
+    nwjs_source = str(internal_utils.get_path("app") / "nwjs" / f"v{nwjs_version}") + "/"
     build_utils.rsync_local(nwjs_source, build_dir, f"NW.js v{nwjs_version}")
 
     # Desktop
-    desktop_source = internal_utils.get_path("nf") / "desktop" / "source"
+    desktop_source = internal_utils.get_path("app") / "desktop" / "source"
     build_utils.rsync_local(desktop_source, build_dir, "desktop source")
     desktop_name = os.environ["DESKTOP_NAME"]
     source_pkg = os.path.join(build_dir, "source", "package.json")

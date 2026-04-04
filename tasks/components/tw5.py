@@ -65,7 +65,7 @@ def discover_tw5_plugins(search_dir=None):
     """
     single = search_dir is not None
     if not single:
-        search_dir = internal_utils.get_path("nf") / "tw5-plugins"
+        search_dir = internal_utils.get_path("app") / "tw5-plugins"
     seen = {}
     for root, dirs, files in os.walk(search_dir):
         has_build = "build.json" in files
@@ -148,7 +148,7 @@ def unpack_plugin_json(json_path, output_dir):
 def discover_compiled_plugins(plugins_dir=None):
     """Find plugin wrappers containing build.json."""
     if plugins_dir is None:
-        plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
+        plugins_dir = internal_utils.get_path("app") / "tw5-plugins"
     results = []
     for root, _dirs, files in os.walk(plugins_dir):
         if "build.json" in files:
@@ -181,7 +181,7 @@ def build_compiled_plugin(wrapper_dir, cfg, compiled_dir):
 
 def get_builtin_editions():
     """Return the set of edition names shipped with TW5 (via git, ignoring bundled copies)."""
-    tw5_path = internal_utils.get_path("nf") / "tw5"
+    tw5_path = internal_utils.get_path("app") / "tw5"
     result = subprocess.run(
         ["git", "ls-tree", "--name-only", "HEAD", "editions/"],
         cwd=tw5_path, capture_output=True, text=True,
@@ -192,7 +192,7 @@ def get_builtin_editions():
 
 
 def copy_tw5_editions(tw5_target):
-    editions_source = internal_utils.get_path("nf") / "tw5-editions"
+    editions_source = internal_utils.get_path("app") / "tw5-editions"
 
     if not os.path.isdir(editions_source):
         print(f"No editions directory found at {editions_source}")
@@ -244,7 +244,7 @@ def ensure_plugin_fields(info_path, info):
 
 
 def copy_tw5_plugins(tw5_target):
-    plugins_dir = internal_utils.get_path("nf") / "tw5-plugins"
+    plugins_dir = internal_utils.get_path("app") / "tw5-plugins"
 
     if not os.path.isdir(plugins_dir):
         print(f"No plugins directory found at {plugins_dir}")
@@ -274,7 +274,7 @@ def copy_tw5_plugins(tw5_target):
 def compile(c, directory=None):
     """Compile TypeScript TW5 plugins into exploded format."""
     if directory:
-        directory = internal_utils.get_path("nf") / "tw5-plugins" / directory
+        directory = internal_utils.get_path("app") / "tw5-plugins" / directory
     plugins = discover_compiled_plugins(directory)
     if not plugins:
         return
@@ -288,9 +288,9 @@ def compile(c, directory=None):
 def bundle(c, build_dir=None):
     """Copy TW5 tree to build/, overlay editions and plugins."""
     if not build_dir:
-        build_dir = internal_utils.get_path("nf") / "build"
+        build_dir = internal_utils.get_path("app") / "build"
     os.makedirs(str(build_dir), exist_ok=True)
-    tw5_source = internal_utils.get_path("nf") / "tw5"
+    tw5_source = internal_utils.get_path("app") / "tw5"
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
     tw5_build = str(Path(str(build_dir)) / "tw5")
     with terminal_style.step("Bundle editions & plugins"):

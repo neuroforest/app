@@ -6,14 +6,14 @@ Environment variables are managed through dotenv files in the `app/` directory.
 
 | File | Purpose |
 |------|---------|
-| `.env` | Default values in `NF_DIR`, committed to the repository |
+| `.env` | Default values in `APP_DIR`, committed to the repository |
 | `$NF_CONFIG/env.develop` | Overrides for DEVELOP environment |
 | `$NF_CONFIG/env.testing` | Overrides for TESTING environment |
 | `$NF_CONFIG/env.production` | Overrides for PRODUCTION environment |
 
 Loading order:
 
-1. `.env` — repo defaults from `NF_DIR`.
+1. `.env` — repo defaults from `APP_DIR`.
 2. XDG paths resolved — `NF_CONFIG` is shared; `NF_DATA` is namespaced for develop/testing only (production at root); `NF_STATE` and `NF_CACHE` are always namespaced per environment.
 3. `$NF_CONFIG/env.{environment}` — environment-specific overrides (if file exists).
 4. In system mode, relative user paths (e.g. `STORAGE`) are remapped to XDG locations.
@@ -22,7 +22,7 @@ This is handled by `neuro.utils.config` and triggered by the `setup.env` task.
 
 ## Setup
 
-All tasks depend on `setup.env` as a pre-task. It loads config and changes to `NF_DIR`:
+All tasks depend on `setup.env` as a pre-task. It loads config and changes to `APP_DIR`:
 
     invoke setup.env
     invoke setup.env --environment=TESTING
@@ -88,4 +88,4 @@ In environment override files, these are typically set to absolute paths. In `.e
 ## Notes
 
 - Variable interpolation (`${VAR}`) does not work in `.env` files. Use hardcoded values.
-- The `NF_DIR` variable points to the NeuroForest root and is expected to be set externally (e.g. by the shell environment or launcher script).
+- The `APP_DIR` variable points to the NeuroForest root and is expected to be set externally (e.g. by the shell environment or launcher script).

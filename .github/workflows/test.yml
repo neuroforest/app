@@ -25,7 +25,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      NF_DIR: ${{ github.workspace }}
+      APP_DIR: ${{ github.workspace }}
       UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/nenv
       UV_PYTHON: "3.14"
     strategy:

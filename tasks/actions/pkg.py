@@ -21,7 +21,7 @@ def find_packages():
 
 def get_app_git_info():
     """Get commit hash, short hash, and commit count from the app git repo."""
-    nf_dir = str(internal_utils.get_path("nf"))
+    nf_dir = str(internal_utils.get_path("app"))
     git = ["git", "-C", nf_dir]
 
     commit = subprocess.run(
