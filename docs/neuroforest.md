@@ -125,7 +125,8 @@ See [configuration.md](configuration.md) for environment variable reference.
 | [setup.md](setup.md) | Setup -- env loading, rsync, branch management |
 | [configuration.md](configuration.md) | Environment variables, dotenv files, setup |
 | [neuro.md](neuro.md) | Neuro Python package -- sync, submodules, tests |
+| [nfx.md](nfx.md) | NFX graph interchange format |
+| [ontology.md](ontology.md) | Ontology module -- schema, validation |
 | [tw5.md](tw5.md) | TW5 editions, plugins, and testing |
 | [neurobase.md](neurobase.md) | NeuroBase -- Neo4j Docker container |
-| [nwjs.md](nwjs.md) | NW.js SDK download and extraction |
-| [desktop.md](desktop.md) | NeuroDesktop -- build, run, close |
+| [desktop.md](desktop.md) | NeuroDesktop -- build, run, close, NW.js SDK |

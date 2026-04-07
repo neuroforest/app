@@ -9,6 +9,9 @@ NeuroDesktop is a desktop application built on NW.js that runs a TiddlyWiki inte
 | `desktop.build` | Assemble NW.js + desktop source into a build directory |
 | `desktop.run` | Launch the desktop app |
 | `desktop.close` | Close the desktop app |
+| `nwjs.get` | Download and extract the NW.js SDK |
+| `nwjs.download` | Download the NW.js SDK tarball |
+| `nwjs.extract` | Extract the NW.js SDK tarball |
 
 ## Build
 
@@ -63,6 +66,24 @@ Reads the PID from `{app_dir}/nw.pid` and sends `SIGTERM`. The PID file is remov
 | PID file exists, process gone | Prints "already closed", removes PID file |
 | No PID file | Prints "already closed" |
 
+## NW.js SDK
+
+    invoke nwjs.get
+
+Downloads the SDK tarball from `{NWJS_URL}/v{NWJS_VERSION}/nwjs-sdk-v{NWJS_VERSION}-linux-x64.tar.gz` into `desktop/nwjs/`, then extracts it. Both stages are cached — skipped if already present. The `overwrite` flag forces re-download and re-extraction.
+
+### Output structure
+
+```
+desktop/
+  nwjs/
+    v0.91.0.tar.gz
+    v0.91.0/
+      nw
+      lib/
+      ...
+```
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -71,8 +92,10 @@ Reads the PID from `{app_dir}/nw.pid` and sends `SIGTERM`. The PID file is remov
 | `APP_NAME` | `NeuroDesktop` | Application name in package.json |
 | `DESKTOP_ARGS` | | Extra args passed to TiddlyWiki `--listen` |
 | `NWJS_VERSION` | `0.91.0` | NW.js SDK version |
+| `NWJS_URL` | `https://dl.node-webkit.org` | NW.js download base URL |
 | `PORT` | `8080` | TiddlyWiki port (used by protocol handler) |
 
 ## Tests
 
     pytest tests/test_tasks_desktop.py
+    pytest tests/test_tasks_nwjs.py

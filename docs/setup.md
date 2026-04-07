@@ -40,10 +40,16 @@ For each submodule runs:
 2. `git reset --hard <branch>`
 3. `git clean -fdx`
 
-All submodules:
+Neuroforest submodules:
 
-- `neuro`, `desktop`, `tw5`
-- `tw5-plugins/neuroforest/core`, `front`, `neo4j-syncadaptor`, `basic`, `mobile`
+- `neuro`
+- `desktop`
+- `tw5`
+- `tw5-plugins/neuroforest/core`
+- `tw5-plugins/neuroforest/front`
+- `tw5-plugins/neuroforest/neo4j-syncadaptor`
+- `tw5-plugins/neuroforest/basic`
+- `tw5-plugins/neuroforest/mobile`
 
 ## nenv
 
@@ -51,7 +57,3 @@ All submodules:
 
 1. Creates a virtualenv at `$NENV` and installs neuro via `uv sync --frozen`
 2. Adds `$NENV/bin` to `PATH` if not already present
-
-## Tests
-
-    pytest tests/test_tasks_setup.py
