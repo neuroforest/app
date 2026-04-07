@@ -4,6 +4,8 @@ from pathlib import Path
 import invoke
 
 from neuro.base import NeuroBase, nfx
+from neuro.base.ontology import ObjectValidator
+from neuro.base.schema import ONTOLOGY_OBJECTS
 from neuro.utils import internal_utils, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase
@@ -77,13 +79,46 @@ def render(c, ontology=""):
     print(f"\n  http://localhost:{http_port}/browser/")
 
 
+def _validate_instances(nb, path):
+    """Validate instance nodes in an NFX file against the loaded ontology."""
+
+    class _Node:
+        def __init__(self, labels, properties):
+            self.labels = labels
+            self.properties = properties
+
+    data = nfx.read(path)
+    ontology_labels = set(ONTOLOGY_OBJECTS)
+    failed = []
+
+    for entry in data.get("nodes", []):
+        if any(label in ontology_labels for label in entry["labels"]):
+            continue
+        props = {"neuro.id": entry["nid"], **entry.get("properties", {})}
+        node = _Node(entry["labels"], props)
+        violations = ObjectValidator(nb, node).get_violations()
+        if violations:
+            identifier = (
+                entry.get("properties", {}).get("identifier")
+                or entry.get("properties", {}).get("name")
+                or entry["nid"]
+            )
+            failed.append((identifier, ":".join(entry["labels"]), violations))
+
+    for identifier, label_str, violations in failed:
+        print(f"  {terminal_style.FAIL} {label_str} {identifier}")
+        print(f"  {repr(violations)}")
+
+    return not failed
+
+
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test(c, ontology=""):
-    """Validate ontologies against the metaontology."""
+def test(c, o="", strict=False):
+    """Validate ontologies against the metaontology. -o: target file, --strict: also validate instances."""
     neurobase.reset(c, confirmed=True)
     ontology_dir = internal_utils.get_path("assets") / "ontology"
     metaontology_nid = nfx.read(ontology_dir / "metaontology.nfx").get("nid", "")
-    registry, targets = _resolve_targets(ontology_dir, ontology, exclude_nid=metaontology_nid)
+    registry, targets = _resolve_targets(ontology_dir, o, exclude_nid=metaontology_nid)
 
     failed = []
     with NeuroBase() as nb:
@@ -92,11 +127,14 @@ def test(c, ontology=""):
             _load_with_deps(nb, path, registry)
             name = nfx.read(path).get("name", path.stem)
             valid = nb.metaontology.is_ontology_valid()
+            if strict:
+                valid = _validate_instances(nb, path) and valid
             if valid:
                 print(f"{terminal_style.SUCCESS} {name}")
             else:
                 print(f"{terminal_style.FAIL} {name}")
-                print(repr(nb.metaontology.violations))
+                if nb.metaontology.violations:
+                    print(repr(nb.metaontology.violations))
                 failed.append(name)
 
     if failed:
