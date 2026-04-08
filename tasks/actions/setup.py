@@ -58,7 +58,7 @@ def nenv(c, nenv_dir=None):
         nenv_dir = get_nenv_dir()
     cmd = ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"]
     if not default:
-        cmd.append("--no-editable")
+        cmd += ["--no-editable", "--reinstall-package", "neuro"]
     with terminal_style.step("Installing neuro"):
         subprocess.run(
             cmd,

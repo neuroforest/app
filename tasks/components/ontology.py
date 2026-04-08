@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -5,7 +6,6 @@ import invoke
 
 from neuro.base import NeuroBase, nfx
 from neuro.base.ontology import ObjectValidator
-from neuro.base.schema import ONTOLOGY_OBJECTS
 from neuro.utils import internal_utils, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase
@@ -88,7 +88,7 @@ def _validate_instances(nb, path):
             self.properties = properties
 
     data = nfx.read(path)
-    ontology_labels = set(ONTOLOGY_OBJECTS)
+    ontology_labels = set(json.loads(os.environ["ONTOLOGY_OBJECTS"]))
     failed = []
 
     for entry in data.get("nodes", []):
