@@ -59,7 +59,7 @@ def nenv(c, nenv_dir=None):
     with terminal_style.step("Installing neuro"):
         subprocess.run(
             ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"],
-            env={**os.environ, "UV_PROJECT_ENVIRONMENT": nenv_dir},
+            env={**os.environ, "UV_PROJECT_ENVIRONMENT": os.path.abspath(nenv_dir)},
             check=True, capture_output=build_utils.quiet()
         )
     if default:
