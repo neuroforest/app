@@ -56,9 +56,12 @@ def nenv(c, nenv_dir=None):
     default = nenv_dir is None
     if nenv_dir is None:
         nenv_dir = get_nenv_dir()
+    cmd = ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"]
+    if not default:
+        cmd.append("--no-editable")
     with terminal_style.step("Installing neuro"):
         subprocess.run(
-            ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"],
+            cmd,
             env={**os.environ, "UV_PROJECT_ENVIRONMENT": os.path.abspath(nenv_dir)},
             check=True, capture_output=build_utils.quiet()
         )
