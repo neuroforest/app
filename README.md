@@ -6,7 +6,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
 ![TiddlyWiki](https://img.shields.io/badge/TiddlyWiki-8B4513)
 
-Knowledge engineering platform built on TiddlyWiki5, Neo4j, and NW.js.
+NeuroForest is an object-oriented knowledge engineering platform. Both knowledge and ontology share the same labeled property graph data model.
 
 ## Components
 
