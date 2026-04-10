@@ -61,12 +61,6 @@ class TestCreate:
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "compose", "up", "-d"]
 
-    def test_base_name_param(self, ctx, monkeypatch, subprocess_recorder):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: n == "custom")
-        neurobase_mod.create.__wrapped__(ctx, name="custom")
-        assert subprocess_recorder.call_count == 0
-
 
 # ---------------------------------------------------------------------------
 # start
@@ -108,19 +102,6 @@ class TestStart:
         neurobase_mod.start.__wrapped__(ctx)
         assert patch_wait.calls[0][0] == ("127.0.0.1", 7688)
 
-    def test_base_name_param(self, ctx, monkeypatch, subprocess_recorder, patch_wait):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
-        neurobase_mod.start.__wrapped__(ctx, name="custom")
-        cmd = subprocess_recorder.calls[0][0][0]
-        assert cmd == ["docker", "start", "custom"]
-
-    def test_base_name_param_propagates_to_create(self, ctx, monkeypatch, subprocess_recorder, patch_wait):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: False)
-        neurobase_mod.start.__wrapped__(ctx, name="custom")
-        assert self.create_rec.last_kwargs == {"name": "custom"}
-
     def test_container_not_exists_fails(self, ctx, monkeypatch, capsys):
         monkeypatch.setenv("BASE_NAME", "nb")
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: False)
@@ -148,13 +129,6 @@ class TestStop:
         neurobase_mod.stop.__wrapped__(ctx)
         cmd = subprocess_recorder.calls[0][0][0]
         assert cmd == ["docker", "stop", "nb"]
-
-    def test_name_param(self, ctx, monkeypatch, subprocess_recorder):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: True)
-        neurobase_mod.stop.__wrapped__(ctx, name="custom")
-        cmd = subprocess_recorder.calls[0][0][0]
-        assert cmd == ["docker", "stop", "custom"]
 
 
 # ---------------------------------------------------------------------------
@@ -207,13 +181,6 @@ class TestClear:
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: False)
         with pytest.raises(SystemExit):
             neurobase_mod.clear.__wrapped__(ctx)
-
-    def test_name_propagates_to_start(self, ctx, monkeypatch):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        nb = FakeNeuroBase(node_count=0)
-        monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
-        neurobase_mod.clear.__wrapped__(ctx, name="custom")
-        assert self.start_rec.last_kwargs == {"name": "custom"}
 
     def test_prompt_includes_name(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
@@ -302,16 +269,6 @@ class TestBackup:
         assert container.backup_called
         assert container.clean_called
 
-    def test_passes_name_to_container(self, ctx, monkeypatch):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        captured = {}
-        def fake_container(**kwargs):
-            captured.update(kwargs)
-            return FakeContainer()
-        monkeypatch.setattr(neurobase_mod.docker_tools, "Container", fake_container)
-        neurobase_mod.backup.__wrapped__(ctx, name="custom")
-        assert captured["name"] == "custom"
-
     def test_uses_env_default(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "nb")
         captured = {}
@@ -359,14 +316,6 @@ class TestDelete:
         assert ["docker", "rm", "nb"] in cmds
         assert ["docker", "volume", "rm", "vol1"] in cmds
         assert ["docker", "volume", "rm", "vol2"] in cmds
-
-    def test_name_param(self, ctx, monkeypatch, subprocess_recorder):
-        monkeypatch.setenv("BASE_NAME", "ignored")
-        monkeypatch.setattr(neurobase_mod.docker_tools, "container_exists", lambda n: True)
-        monkeypatch.setattr(neurobase_mod.docker_tools, "get_container_volumes", lambda n: [])
-        neurobase_mod.delete.__wrapped__(ctx, name="custom")
-        cmd = subprocess_recorder.calls[0][0][0]
-        assert cmd == ["docker", "rm", "custom"]
 
     def test_no_volumes(self, ctx, monkeypatch, subprocess_recorder):
         monkeypatch.setenv("BASE_NAME", "nb")

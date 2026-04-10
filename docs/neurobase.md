@@ -1,6 +1,6 @@
 # NeuroBase
 
-NeuroBase is a containerized Neo4j graph database that serves as the persistent storage backend for NeuroDesktop. It is deployed via Docker Compose with APOC plugins enabled. NeuroDesktop connects to it over Bolt protocol. Multiple instances can run side by side using different `BASE_NAME` values.
+NeuroBase is a containerized Neo4j graph database that serves as the persistent storage backend for NeuroDesktop. It is deployed via Docker Compose with APOC plugins enabled. NeuroDesktop connects to it over Bolt protocol. The container name is determined by the `BASE_NAME` environment variable.
 
 ## Tasks
 
@@ -12,12 +12,11 @@ NeuroBase is a containerized Neo4j graph database that serves as the persistent 
 | `neurobase.backup` | Stop and backup the container and data |
 | `neurobase.delete` | Stop and remove the container and its volumes |
 
-All tasks accept an optional `--name` parameter that overrides `BASE_NAME`.
+All tasks use the `BASE_NAME` environment variable.
 
 ## Create
 
     invoke neurobase.create
-    invoke neurobase.create --name base-name
 
 1. If the container already exists, prints a message and exits
 2. Otherwise creates it with `docker compose up -d`
@@ -29,14 +28,12 @@ All tasks accept an optional `--name` parameter that overrides `BASE_NAME`.
 ## Backup
 
     invoke neurobase.backup
-    invoke neurobase.backup --name base-name
 
 Stops the container (pre-task), then backs up the container image and `/data` volume to the archive directory.
 
 ## Delete
 
     invoke neurobase.delete
-    invoke neurobase.delete --name base-name
 
 Stops the container (pre-task), then prompts for confirmation before removing the container and its associated volumes.
 
@@ -64,7 +61,7 @@ services:
 | `${BASE_NAME}-data` | `/data` | Neo4j database files |
 | `${BASE_NAME}-logs` | `/logs` | Neo4j log files |
 
-Multiple projects with different `BASE_NAME` values can run side by side without volume conflicts.
+Different `BASE_NAME` values produce separate volume sets without conflicts.
 
 ## Ports
 

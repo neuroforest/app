@@ -43,9 +43,9 @@ def verify_neo4j(timeout=32):
 
 
 @invoke.task(pre=[setup.env])
-def create(c, name=None):
+def create(c):
     """Create the neurobase docker container if it doesn't exist."""
-    base_name = name or os.getenv("BASE_NAME")
+    base_name = os.getenv("BASE_NAME")
 
     if docker_tools.container_exists(base_name):
         return
@@ -58,11 +58,11 @@ def create(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def start(c, name=None):
+def start(c):
     """Start the neurobase docker container and wait for Neo4j."""
     docker_tools.verify_access()
-    base_name = name or os.getenv("BASE_NAME")
-    create(c, name=base_name)
+    base_name = os.getenv("BASE_NAME")
+    create(c)
     bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
 
     if not docker_tools.container_exists(base_name):
@@ -77,19 +77,18 @@ def start(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def count(c, name=None):
+def count(c):
     """Print the number of nodes in the neurobase."""
-    base_name = name or os.getenv("BASE_NAME")
-    start(c, name=base_name)
+    start(c)
     with NeuroBase() as nb:
         print(nb.count())
 
 
 @invoke.task(pre=[setup.env])
-def clear(c, name=None, confirmed=False):
+def clear(c, confirmed=False):
     """Clear all data from the test database after confirmation."""
-    base_name = name or os.getenv("BASE_NAME")
-    start(c, name=base_name)
+    base_name = os.getenv("BASE_NAME")
+    start(c)
     with NeuroBase() as nb:
         node_count = nb.count()
         if node_count == 0:
@@ -102,12 +101,9 @@ def clear(c, name=None, confirmed=False):
 
 
 @invoke.task(pre=[setup.env])
-def stop(c, name=None):
+def stop(c):
     """Stop the neurobase docker container."""
-    if name:
-        base_name = name
-    else:
-        base_name = os.getenv("BASE_NAME")
+    base_name = os.getenv("BASE_NAME")
 
     if not docker_tools.container_running(base_name):
         print(f"{terminal_style.SUCCESS} Already stopped: {base_name}")
@@ -118,10 +114,10 @@ def stop(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def backup(c, name=None):
+def backup(c):
     """Backup the neurobase docker container and clean up temporary artifacts."""
-    base_name = name or os.getenv("BASE_NAME")
-    stop(c, name=base_name)
+    base_name = os.getenv("BASE_NAME")
+    stop(c)
 
     container = docker_tools.Container(name=base_name)
     with terminal_style.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
@@ -130,9 +126,9 @@ def backup(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def restore(c, name=None, backup=None):
+def restore(c, backup=None):
     """Restore the neurobase container from a backup."""
-    base_name = name or os.getenv("BASE_NAME")
+    base_name = os.getenv("BASE_NAME")
     container = docker_tools.Container(name=base_name)
 
     if not backup:
@@ -156,20 +152,20 @@ def restore(c, name=None, backup=None):
         raise SystemExit(1)
     container.backup_location = backup
 
-    stop(c, name=base_name)
+    stop(c)
 
     data_volume = f"{base_name}-data"
     with terminal_style.step(f"Restore data: {base_name}"):
         container.restore_data(data_volume)
 
-    start(c, name=base_name)
+    start(c)
 
 
 @invoke.task(pre=[setup.env])
-def delete(c, name=None):
+def delete(c):
     """Remove the neurobase container and its associated volumes."""
-    base_name = name or os.getenv("BASE_NAME")
-    stop(c, name=base_name)
+    base_name = os.getenv("BASE_NAME")
+    stop(c)
 
     if not docker_tools.container_exists(base_name):
         print(f"{terminal_style.FAIL} NeuroBase '{base_name}' not found")
