@@ -1,5 +1,11 @@
 # NeuroForest
 
+![CI](https://github.com/neuroforest/app/actions/workflows/test.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
+![Neo4j](https://img.shields.io/badge/Neo4j-4581C3?logo=neo4j&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+![TiddlyWiki](https://img.shields.io/badge/TiddlyWiki-8B4513)
+
 Knowledge engineering platform built on TiddlyWiki5, Neo4j, and NW.js.
 
 ## Components
