@@ -77,6 +77,15 @@ def start(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
+def count(c, name=None):
+    """Print the number of nodes in the neurobase."""
+    base_name = name or os.getenv("BASE_NAME")
+    start(c, name=base_name)
+    with NeuroBase() as nb:
+        print(nb.count())
+
+
+@invoke.task(pre=[setup.env])
 def clear(c, name=None, confirmed=False):
     """Clear all data from the test database after confirmation."""
     base_name = name or os.getenv("BASE_NAME")
