@@ -121,6 +121,42 @@ def backup(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
+def restore(c, name=None, backup=None):
+    """Restore the neurobase container from a backup."""
+    base_name = name or os.getenv("BASE_NAME")
+    container = docker_tools.Container(name=base_name)
+
+    if not backup:
+        archive_dir = internal_utils.get_path("archive") / "base"
+        backups = [
+            b for b in sorted(str(p) for p in __import__("pathlib").Path(archive_dir).iterdir())
+            if docker_tools.Container.is_valid_backup(b) and base_name in b.rsplit("/", 1)[1]
+        ]
+        if not backups:
+            print(f"{terminal_style.FAIL} No backups found for '{base_name}'")
+            raise SystemExit(1)
+        backup = terminal_components.selector([b.rsplit("/", 1)[1] for b in backups])
+        if not backup:
+            raise SystemExit("Aborting restore.")
+
+    # Resolve backup path
+    if not docker_tools.Container.is_valid_backup(backup):
+        backup = str(internal_utils.get_path("archive") / "base" / backup)
+    if not docker_tools.Container.is_valid_backup(backup):
+        print(f"{terminal_style.FAIL} Invalid backup: {backup}")
+        raise SystemExit(1)
+    container.backup_location = backup
+
+    stop(c, name=base_name)
+
+    data_volume = f"{base_name}-data"
+    with terminal_style.step(f"Restore data: {base_name}"):
+        container.restore_data(data_volume)
+
+    start(c, name=base_name)
+
+
+@invoke.task(pre=[setup.env])
 def delete(c, name=None):
     """Remove the neurobase container and its associated volumes."""
     base_name = name or os.getenv("BASE_NAME")
