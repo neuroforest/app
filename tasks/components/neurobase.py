@@ -79,7 +79,6 @@ def start(c):
 @invoke.task(pre=[setup.env])
 def count(c):
     """Print the number of nodes in the neurobase."""
-    start(c)
     with NeuroBase() as nb:
         print(nb.count())
 

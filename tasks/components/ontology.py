@@ -61,6 +61,18 @@ def _load_with_deps(nb, path, registry, loaded=None):
     loaded.add(str(path))
 
 
+@invoke.task(name="import", pre=[setup.env])
+def import_(c, ontology=""):
+    """Import ontology into neurobase."""
+    ontology_dir = internal_utils.get_path("assets") / "ontology"
+
+    registry, targets = _resolve_targets(ontology_dir, ontology)
+    with NeuroBase() as nb:
+        for path in targets:
+            with terminal_style.step(path.stem):
+                _load_with_deps(nb, path, registry)
+
+
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def render(c, ontology=""):
     """Load ontology into neurobase and print Neo4j browser link."""
@@ -110,6 +122,13 @@ def _validate_instances(nb, path):
         print(f"  {repr(violations)}")
 
     return not failed
+
+
+@invoke.task(pre=[setup.env])
+def clear(c):
+    """Remove all ontology nodes from the database."""
+    with NeuroBase() as nb:
+        nb.ontology.clear()
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
