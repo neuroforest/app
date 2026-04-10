@@ -80,7 +80,7 @@ class TestTest:
     @pytest.fixture(autouse=True)
     def _patch_deps(self, monkeypatch):
         monkeypatch.setattr(neuro_mod.tw5, "bundle", Recorder())
-        monkeypatch.setattr(neuro_mod.neurobase, "reset", Recorder())
+        monkeypatch.setattr(neuro_mod.neurobase, "clear", Recorder())
         monkeypatch.setattr(neuro_mod.setup, "nenv", Recorder())
 
     def test_unit_mode(self, ctx, patch_subprocess):
@@ -119,19 +119,19 @@ class TestTest:
 
     def test_integration_cleans_neurobase(self, ctx, patch_subprocess, monkeypatch):
         reset_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
+        monkeypatch.setattr(neuro_mod.neurobase, "clear", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="integration")
         assert reset_rec.call_count == 1
 
     def test_e2e_cleans_neurobase(self, ctx, patch_subprocess, monkeypatch):
         reset_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
+        monkeypatch.setattr(neuro_mod.neurobase, "clear", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="e2e")
         assert reset_rec.call_count == 1
 
     def test_unit_skips_neurobase(self, ctx, patch_subprocess, monkeypatch):
         reset_rec = Recorder()
-        monkeypatch.setattr(neuro_mod.neurobase, "reset", reset_rec)
+        monkeypatch.setattr(neuro_mod.neurobase, "clear", reset_rec)
         neuro_mod.test.__wrapped__(ctx, mode="unit")
         assert reset_rec.call_count == 0
 

@@ -179,7 +179,7 @@ class FakeNeuroBase:
         self.cleared = confirm
 
 
-class TestReset:
+class TestClear:
     @pytest.fixture(autouse=True)
     def _patch_start(self, monkeypatch):
         self.start_rec = Recorder()
@@ -189,7 +189,7 @@ class TestReset:
         monkeypatch.setenv("BASE_NAME", "nb")
         nb = FakeNeuroBase(node_count=0)
         monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
-        neurobase_mod.reset.__wrapped__(ctx)
+        neurobase_mod.clear.__wrapped__(ctx)
         assert not nb.cleared
 
     def test_clears_on_confirm(self, ctx, monkeypatch):
@@ -197,7 +197,7 @@ class TestReset:
         nb = FakeNeuroBase(node_count=5)
         monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: True)
-        neurobase_mod.reset.__wrapped__(ctx)
+        neurobase_mod.clear.__wrapped__(ctx)
         assert nb.cleared
 
     def test_aborts_on_decline(self, ctx, monkeypatch):
@@ -206,13 +206,13 @@ class TestReset:
         monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt", lambda msg: False)
         with pytest.raises(SystemExit):
-            neurobase_mod.reset.__wrapped__(ctx)
+            neurobase_mod.clear.__wrapped__(ctx)
 
     def test_name_propagates_to_start(self, ctx, monkeypatch):
         monkeypatch.setenv("BASE_NAME", "ignored")
         nb = FakeNeuroBase(node_count=0)
         monkeypatch.setattr(neurobase_mod, "NeuroBase", lambda: nb)
-        neurobase_mod.reset.__wrapped__(ctx, name="custom")
+        neurobase_mod.clear.__wrapped__(ctx, name="custom")
         assert self.start_rec.last_kwargs == {"name": "custom"}
 
     def test_prompt_includes_name(self, ctx, monkeypatch):
@@ -222,7 +222,7 @@ class TestReset:
         prompts = []
         monkeypatch.setattr(neurobase_mod.terminal_components, "bool_prompt",
                             lambda msg: (prompts.append(msg), True)[1])
-        neurobase_mod.reset.__wrapped__(ctx)
+        neurobase_mod.clear.__wrapped__(ctx)
         assert "nb" in prompts[0]
         assert "3" in prompts[0]
 
