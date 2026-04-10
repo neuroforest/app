@@ -25,7 +25,7 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
         raise SystemExit(f"Unknown mode: {mode}. Choose from {', '.join(MODES)}")
     if mode in ("integration", "e2e"):
         tw5.bundle(c)
-        neurobase.reset(c, confirmed=True)
+        neurobase.clear(c, confirmed=True)
     extra = shlex.split(pytest_args) if pytest_args else []
     result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "pytest"), location] + MODES[mode] + extra)
     if result.returncode != 0:

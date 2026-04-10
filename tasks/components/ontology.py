@@ -115,7 +115,7 @@ def _validate_instances(nb, path):
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, o="", strict=False):
     """Validate ontologies against the metaontology. -o: target file, --strict: also validate instances."""
-    neurobase.reset(c, confirmed=True)
+    neurobase.clear(c, confirmed=True)
     ontology_dir = internal_utils.get_path("assets") / "ontology"
     metaontology_nid = nfx.read(ontology_dir / "metaontology.nfx").get("nid", "")
     registry, targets = _resolve_targets(ontology_dir, o, exclude_nid=metaontology_nid)

@@ -77,7 +77,7 @@ def start(c, name=None):
 
 
 @invoke.task(pre=[setup.env])
-def reset(c, name=None, confirmed=False):
+def clear(c, name=None, confirmed=False):
     """Clear all data from the test database after confirmation."""
     base_name = name or os.getenv("BASE_NAME")
     start(c, name=base_name)
@@ -86,9 +86,9 @@ def reset(c, name=None, confirmed=False):
         if node_count == 0:
             return
         if not confirmed:
-            if not terminal_components.bool_prompt(f"Reset '{base_name}'? ({node_count} nodes will be deleted)"):
-                raise SystemExit("Aborting reset.")
-        with terminal_style.step(f"Reset test database: {base_name}"):
+            if not terminal_components.bool_prompt(f"Clear '{base_name}'? ({node_count} nodes will be deleted)"):
+                raise SystemExit("Aborting clear.")
+        with terminal_style.step(f"Clear test database: {base_name}"):
             nb.clear(confirm=True)
 
 
