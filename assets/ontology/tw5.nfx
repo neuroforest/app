@@ -2,7 +2,7 @@
     "nid": "ce530fb8-f018-4530-9968-936e57b187d1",
     "name": "TW5",
     "description": "TiddlyWiki5 ontology",
-    "version": "1.1",
+    "version": "1.2",
     "dependencies": [
         "a6b459b4-70a8-4977-86d2-18d6a4c8d466@2.0"
     ],
@@ -120,16 +120,6 @@
         {
             "from": "81ba01a1-3ec4-4a8b-ab93-b2cdb5dfcc8f",
             "to": "ec2e0557-ab8a-43fc-8101-b4772c90fc3f",
-            "type": "REQUIRE_PROPERTY"
-        },
-        {
-            "from": "81ba01a1-3ec4-4a8b-ab93-b2cdb5dfcc8f",
-            "to": "82616c2e-1014-443c-a496-66abca9e28ca",
-            "type": "REQUIRE_PROPERTY"
-        },
-        {
-            "from": "81ba01a1-3ec4-4a8b-ab93-b2cdb5dfcc8f",
-            "to": "d341ac45-6dd0-4802-9186-b8b1a2933ffd",
             "type": "REQUIRE_PROPERTY"
         },
         {
