@@ -6,43 +6,61 @@ import invoke
 
 from neuro.base import NeuroBase, nfx
 from neuro.base.ontology import ObjectValidator
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import internal_utils, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase
 
 
+def _metaontology_path():
+    """Metaontology is always loaded from assets — it must stay in sync with the code."""
+    return internal_utils.get_path("assets") / "ontology" / "metaontology.nfx"
+
+
 def _build_registry(*dirs):
+    meta_path = _metaontology_path()
     registry = {}
+    # Pin metaontology to the canonical path.
+    data = nfx.read(meta_path)
+    for key in (data.get("nid", ""), data.get("name", ""), meta_path.stem, meta_path.name):
+        if key:
+            registry[key] = meta_path
     for d in dirs:
-        for path in Path(d).glob("*.nfx"):
-            data = nfx.read(path)
-            nid = data.get("nid", "")
-            if nid:
-                registry[nid] = path
-            name = data.get("name", "")
-            if name:
-                registry[name] = path
-            registry[path.stem] = path
-            registry[path.name] = path
+        for root, _, files in os.walk(d, followlinks=True):
+            for fname in files:
+                if not fname.endswith(".nfx"):
+                    continue
+                path = Path(root) / fname
+                data = nfx.read(path)
+                nid = data.get("nid", "")
+                if nid:
+                    registry.setdefault(nid, path)
+                name = data.get("name", "")
+                if name:
+                    registry.setdefault(name, path)
+                registry.setdefault(path.stem, path)
+                registry.setdefault(path.name, path)
     return registry
 
 
-def _resolve_targets(ontology_dir, ontology, exclude_nid=None):
+def _resolve_targets(ontology_dirs, ontology, exclude_nid=None):
     if ontology:
         p = Path(ontology)
-        extra_dir = p.parent if p.exists() else None
-        registry = _build_registry(ontology_dir, *([extra_dir] if extra_dir else []))
+        extra_dirs = [p.parent] if p.exists() else []
+        registry = _build_registry(*ontology_dirs, *extra_dirs)
         path = p if p.exists() else registry.get(ontology)
         if not path:
             print(f"{terminal_style.FAIL} Ontology not found: {ontology}")
             raise SystemExit(1)
         return registry, [path]
     else:
-        registry = _build_registry(ontology_dir)
+        registry = _build_registry(*ontology_dirs)
         targets = sorted(
-            p for p in ontology_dir.glob("*.nfx")
+            p for p in registry.values()
             if not exclude_nid or nfx.read(p).get("nid") != exclude_nid
         )
+        # Deduplicate (registry maps multiple keys to the same path)
+        seen = set()
+        targets = [p for p in targets if str(p) not in seen and not seen.add(str(p))]
         return registry, targets
 
 
@@ -64,9 +82,9 @@ def _load_with_deps(nb, path, registry, loaded=None):
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, ontology=""):
     """Import ontology into neurobase."""
-    ontology_dir = internal_utils.get_path("assets") / "ontology"
+    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
 
-    registry, targets = _resolve_targets(ontology_dir, ontology)
+    registry, targets = _resolve_targets(ontology_dirs, ontology)
     with NeuroBase() as nb:
         for path in targets:
             with terminal_style.step(path.stem):
@@ -77,9 +95,9 @@ def import_(c, ontology=""):
 def render(c, ontology=""):
     """Load ontology into neurobase and print Neo4j browser link."""
     neurobase.start(c)
-    ontology_dir = internal_utils.get_path("assets") / "ontology"
+    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
 
-    registry, targets = _resolve_targets(ontology_dir, ontology)
+    registry, targets = _resolve_targets(ontology_dirs, ontology)
     with NeuroBase() as nb:
         nb.clear(confirm=True)
 
@@ -125,6 +143,35 @@ def _validate_instances(nb, path):
 
 
 @invoke.task(pre=[setup.env])
+def registry(c):
+    """Show discovered ontologies from ONTOLOGY search path."""
+    app_dir = Path(os.environ["APP_DIR"])
+    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    reg = _build_registry(*ontology_dirs)
+    seen = set()
+    rows = []
+    for path in reg.values():
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        data = nfx.read(path)
+        try:
+            rel = os.path.relpath(path, app_dir)
+        except ValueError:
+            rel = str(path)
+        rows.append((
+            data.get("name", path.stem),
+            data.get("version", ""),
+            data.get("nid", ""),
+            rel,
+        ))
+    rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
+    header = ("Name", "Version", "NID", "Path")
+    terminal_components.table(rows, header=header)
+
+
+@invoke.task(pre=[setup.env])
 def clear(c):
     """Remove all ontology nodes from the database."""
     with NeuroBase() as nb:
@@ -135,9 +182,9 @@ def clear(c):
 def test(c, o="", strict=False):
     """Validate ontologies against the metaontology. -o: target file, --strict: also validate instances."""
     neurobase.clear(c, confirmed=True)
-    ontology_dir = internal_utils.get_path("assets") / "ontology"
-    metaontology_nid = nfx.read(ontology_dir / "metaontology.nfx").get("nid", "")
-    registry, targets = _resolve_targets(ontology_dir, o, exclude_nid=metaontology_nid)
+    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    metaontology_nid = nfx.read(_metaontology_path()).get("nid", "")
+    registry, targets = _resolve_targets(ontology_dirs, o, exclude_nid=metaontology_nid)
 
     failed = []
     with NeuroBase() as nb:
