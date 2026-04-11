@@ -64,6 +64,26 @@ def _resolve_targets(ontology_dirs, ontology, exclude_nid=None):
         return registry, targets
 
 
+def _check_dependency_versions(path, registry):
+    """Check that all dependencies have exact version match. Returns list of error strings."""
+    data = nfx.read(path)
+    errors = []
+    for dep in data.get("dependencies", []):
+        dep_nid, _, required_version = dep.partition("@")
+        dep_path = registry.get(dep_nid)
+        if not dep_path:
+            errors.append(f"dependency {dep_nid} not found in registry")
+            continue
+        if not required_version:
+            continue
+        dep_data = nfx.read(dep_path)
+        actual_version = dep_data.get("version", "")
+        if actual_version != required_version:
+            dep_name = dep_data.get("name", dep_path.stem)
+            errors.append(f"{dep_name} requires {required_version}, found {actual_version}")
+    return errors
+
+
 def _load_with_deps(nb, path, registry, loaded=None):
     if loaded is None:
         loaded = set()
@@ -195,12 +215,17 @@ def test(c, o="", strict=False):
             valid = nb.metaontology.is_ontology_valid()
             if strict:
                 valid = _validate_instances(nb, path) and valid
+            dep_errors = _check_dependency_versions(path, registry)
+            if dep_errors:
+                valid = False
             if valid:
                 print(f"{terminal_style.SUCCESS} {name}")
             else:
                 print(f"{terminal_style.FAIL} {name}")
-                if nb.metaontology.violations:
-                    print(repr(nb.metaontology.violations))
+                for v in nb.metaontology.violations:
+                    print(f"  {v}")
+                for err in dep_errors:
+                    print(f"  {err}")
                 failed.append(name)
 
     if failed:

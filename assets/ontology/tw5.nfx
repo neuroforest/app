@@ -4,7 +4,7 @@
     "description": "TiddlyWiki5 ontology",
     "version": "1.2",
     "dependencies": [
-        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@2.0"
+        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@2.1"
     ],
     "nodes":
     [
