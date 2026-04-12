@@ -194,6 +194,13 @@ def registry(c):
 
 
 @invoke.task(pre=[setup.env])
+def info(c, label):
+    """Show ontology info for a label."""
+    with NeuroBase() as nb:
+        nb.ontology.info(label).display()
+
+
+@invoke.task(pre=[setup.env])
 def export(c, path):
     """Export ontology from neurobase to an NFX file."""
     with NeuroBase() as nb:
