@@ -192,6 +192,13 @@ def registry(c):
 
 
 @invoke.task(pre=[setup.env])
+def count(c):
+    """Count all ontology nodes in the database."""
+    with NeuroBase() as nb:
+        print(nb.ontology.count())
+
+
+@invoke.task(pre=[setup.env])
 def clear(c):
     """Remove all ontology nodes from the database."""
     with NeuroBase() as nb:
