@@ -227,6 +227,8 @@ def test(c, o="", strict=False):
                 for err in dep_errors:
                     print(f"  {err}")
                 failed.append(name)
+            for w in nb.metaontology.violations.warnings:
+                print(f"  {w}")
 
     if failed:
         raise SystemExit(1)
