@@ -107,7 +107,8 @@ def import_(c, ontology=""):
     registry, targets = _resolve_targets(ontology_dirs, ontology)
     with NeuroBase() as nb:
         for path in targets:
-            with terminal_style.step(path.stem):
+            name = nfx.read(path).get("name", path.stem)
+            with terminal_style.step(name):
                 _load_with_deps(nb, path, registry)
 
 
@@ -122,7 +123,8 @@ def render(c, ontology=""):
         nb.clear(confirm=True)
 
         for path in targets:
-            with terminal_style.step(path.stem):
+            name = nfx.read(path).get("name", path.stem)
+            with terminal_style.step(name):
                 _load_with_deps(nb, path, registry)
 
     http_port = os.environ["NEO4J_PORT_HTTP"]
