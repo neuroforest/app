@@ -192,6 +192,13 @@ def registry(c):
 
 
 @invoke.task(pre=[setup.env])
+def export(c, path):
+    """Export ontology from neurobase to an NFX file."""
+    with NeuroBase() as nb:
+        nb.ontology.export_nfx(path)
+
+
+@invoke.task(pre=[setup.env])
 def count(c):
     """Count all ontology nodes in the database."""
     with NeuroBase() as nb:
