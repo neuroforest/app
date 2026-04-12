@@ -8,7 +8,7 @@ import subprocess
 
 import invoke
 
-from neuro.utils import build_utils, internal_utils, terminal_style
+from neuro.utils import build_utils, internal_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 
@@ -83,7 +83,7 @@ def arch(c, package=""):
             print(f"{terminal_style.SKIP} {name} already at {pkgver}")
             continue
 
-        with terminal_style.step(f"Updating {name} to {pkgver} ({short})"):
+        with terminal_components.step(f"Updating {name} to {pkgver} ({short})"):
             update_file(pkgbuild, [
                 (r"^pkgver=.*$", f"pkgver={pkgver}"),
                 (r"^_commit=.*$", f"_commit={commit}"),

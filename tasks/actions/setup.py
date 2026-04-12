@@ -9,7 +9,7 @@ import subprocess
 
 import invoke
 
-from neuro.utils import build_utils, config, internal_utils, network_utils, terminal_style
+from neuro.utils import build_utils, config, internal_utils, network_utils, terminal_components, terminal_style
 
 
 def get_nenv_dir():
@@ -29,7 +29,7 @@ def reset_submodule(path, branch_name, remote=None):
         if result.returncode != 0:
             return
         commit = result.stdout.strip()
-        with terminal_style.step(f"Reset {path} to {target} ({commit})"):
+        with terminal_components.step(f"Reset {path} to {target} ({commit})"):
             subprocess.run(["git", "reset", "--hard", target], check=True, capture_output=build_utils.quiet())
             subprocess.run(["git", "clean", "-fdx"], check=True, capture_output=build_utils.quiet())
 
@@ -59,7 +59,7 @@ def nenv(c, nenv_dir=None):
     cmd = ["uv", "sync", "--frozen", "--project", "./neuro", "--extra", "dev"]
     if not default:
         cmd += ["--no-editable", "--reinstall-package", "neuro"]
-    with terminal_style.step("Installing neuro"):
+    with terminal_components.step("Installing neuro"):
         subprocess.run(
             cmd,
             env={**os.environ, "UV_PROJECT_ENVIRONMENT": os.path.abspath(nenv_dir)},
@@ -118,7 +118,7 @@ def init(c):
         print(f"{terminal_style.SUCCESS} User config already exists: {env_local_path}")
         return
 
-    with terminal_style.step("Creating XDG directories"):
+    with terminal_components.step("Creating XDG directories"):
         for d in dirs:
             os.makedirs(d, exist_ok=True)
 
@@ -146,7 +146,7 @@ def init(c):
         f"NEO4J_URI=bolt://127.0.0.1:{bolt_port}\n"
     )
 
-    with terminal_style.step(f"Generating {env_local_path}"):
+    with terminal_components.step(f"Generating {env_local_path}"):
         with open(env_local_path, "w") as f:
             f.write(env_content)
 

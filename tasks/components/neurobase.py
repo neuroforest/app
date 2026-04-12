@@ -50,7 +50,7 @@ def create(c):
     if docker_tools.container_exists(base_name):
         return
 
-    with terminal_style.step(f"Compose NeuroBase: {base_name}"):
+    with terminal_components.step(f"Compose NeuroBase: {base_name}"):
         result = subprocess.run(["docker", "compose", "up", "-d"], capture_output=True, text=True)
         if result.returncode != 0:
             print(result.stderr)
@@ -69,7 +69,7 @@ def start(c):
         print(f"{terminal_style.FAIL} NeuroBase container does not exist: {base_name}")
         raise SystemExit(1)
 
-    with terminal_style.step(f"Start NeuroBase instance: {base_name}"):
+    with terminal_components.step(f"Start NeuroBase instance: {base_name}"):
         if not docker_tools.container_running(base_name):
             subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
         network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=32)
@@ -95,7 +95,7 @@ def clear(c, confirmed=False):
         if not confirmed:
             if not terminal_components.bool_prompt(f"Clear '{base_name}'? ({node_count} nodes will be deleted)"):
                 raise SystemExit("Aborting clear.")
-        with terminal_style.step(f"Clear test database: {base_name}"):
+        with terminal_components.step(f"Clear test database: {base_name}"):
             nb.clear(confirm=True)
 
 
@@ -108,7 +108,7 @@ def stop(c):
         print(f"{terminal_style.SUCCESS} Already stopped: {base_name}")
         return
 
-    with terminal_style.step(f"Stop NeuroBase instance: {base_name}"):
+    with terminal_components.step(f"Stop NeuroBase instance: {base_name}"):
         subprocess.run(["docker", "stop", base_name], capture_output=build_utils.quiet())
 
 
@@ -119,7 +119,7 @@ def backup(c):
     stop(c)
 
     container = docker_tools.Container(name=base_name)
-    with terminal_style.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
+    with terminal_components.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
         container.backup()
         container.clean()
 
@@ -154,7 +154,7 @@ def restore(c, backup=None):
     stop(c)
 
     data_volume = f"{base_name}-data"
-    with terminal_style.step(f"Restore data: {base_name}"):
+    with terminal_components.step(f"Restore data: {base_name}"):
         container.restore_data(data_volume)
 
     start(c)
@@ -175,9 +175,9 @@ def delete(c):
 
     volumes = docker_tools.get_container_volumes(base_name)
 
-    with terminal_style.step(f"Remove container: {base_name}"):
+    with terminal_components.step(f"Remove container: {base_name}"):
         subprocess.run(["docker", "rm", base_name], capture_output=build_utils.quiet())
 
     for vol in volumes:
-        with terminal_style.step(f"Remove volume: {vol}"):
+        with terminal_components.step(f"Remove volume: {vol}"):
             subprocess.run(["docker", "volume", "rm", vol], capture_output=build_utils.quiet())

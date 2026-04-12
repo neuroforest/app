@@ -4,7 +4,7 @@ import subprocess
 
 import invoke
 
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import internal_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 
@@ -39,7 +39,7 @@ def download(c, version=None, overwrite=False):
     if os.path.isfile(p["tarfile_local"]):
         os.remove(p["tarfile_local"])
 
-    with terminal_style.step(f"Download NW.js v{version}"):
+    with terminal_components.step(f"Download NW.js v{version}"):
         subprocess.run([
             "wget", "-c", "-q",
             "-O", p["tarfile_local"],
@@ -59,7 +59,7 @@ def extract(c, version=None, overwrite=False):
     if os.path.isdir(p["extract_final"]):
         shutil.rmtree(p["extract_final"])
 
-    with terminal_style.step(f"Extract NW.js v{version}"):
+    with terminal_components.step(f"Extract NW.js v{version}"):
         subprocess.run([
             "tar", "-xzf", p["tarfile_local"],
             "-C", p["nwjs_dir"],

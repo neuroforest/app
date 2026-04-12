@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import invoke
 
 from tasks.actions import setup
-from neuro.utils import build_utils, terminal_style
+from neuro.utils import build_utils, terminal_components, terminal_style
 
 
 def parse_gitmodules():
@@ -121,7 +121,7 @@ def status(c):
         if os.path.isdir(path):
             fetch_paths.add(path)
 
-    with terminal_style.step("Fetch"):
+    with terminal_components.step("Fetch"):
         with ThreadPoolExecutor() as pool:
             pool.map(fetch, fetch_paths)
 
