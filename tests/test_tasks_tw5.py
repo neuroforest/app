@@ -23,7 +23,7 @@ def ctx():
 
 @pytest.fixture(autouse=True)
 def _patch_step(monkeypatch):
-    monkeypatch.setattr(tw5_mod.terminal_style, "step", noop_step)
+    monkeypatch.setattr(tw5_mod.terminal_components, "step", noop_step)
 
 
 @pytest.fixture(autouse=True)

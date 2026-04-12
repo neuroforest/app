@@ -34,7 +34,7 @@ def import_(c, ontology=""):
     with NeuroBase() as nb:
         for path in targets:
             name = nfx.read(path).get("name", path.stem)
-            with terminal_style.step(name) as status:
+            with terminal_components.step(name) as status:
                 def on_import(dep_name, imported):
                     status.log(f"  {'▸' if imported else '-'} {dep_name}{'' if imported else ' (loaded)'}")
                 nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
@@ -53,7 +53,7 @@ def render(c, ontology=""):
 
         for path in targets:
             name = nfx.read(path).get("name", path.stem)
-            with terminal_style.step(name):
+            with terminal_components.step(name):
                 nb.metaontology.import_nfx(path, index=idx)
 
     http_port = os.environ["NEO4J_PORT_HTTP"]

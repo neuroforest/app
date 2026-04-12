@@ -8,7 +8,7 @@ from pathlib import Path
 import invoke
 
 from neuro.core import Tiddler
-from neuro.utils import build_utils, internal_utils, network_utils, terminal_style
+from neuro.utils import build_utils, internal_utils, network_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 
@@ -162,7 +162,7 @@ def build_compiled_plugin(wrapper_dir, cfg, compiled_dir):
     """Build a compiled TW5 plugin from its wrapper directory."""
     name = os.path.basename(wrapper_dir)
 
-    with terminal_style.step(f"Compile {name}"):
+    with terminal_components.step(f"Compile {name}"):
         subprocess.run(
             ["bash", "build.sh"],
             cwd=wrapper_dir, check=True, capture_output=build_utils.quiet(),
@@ -293,7 +293,7 @@ def bundle(c, build_dir=None):
     tw5_source = internal_utils.get_path("app") / "tw5"
     build_utils.rsync_local(tw5_source, build_dir, "tw5")
     tw5_build = str(Path(str(build_dir)) / "tw5")
-    with terminal_style.step("Bundle editions & plugins"):
+    with terminal_components.step("Bundle editions & plugins"):
         copy_tw5_editions(tw5_build)
         copy_tw5_plugins(tw5_build)
 

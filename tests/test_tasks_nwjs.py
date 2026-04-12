@@ -22,7 +22,7 @@ def ctx():
 
 @pytest.fixture(autouse=True)
 def _patch_step(monkeypatch):
-    monkeypatch.setattr(nwjs_mod.terminal_style, "step", noop_step)
+    monkeypatch.setattr(nwjs_mod.terminal_components, "step", noop_step)
 
 
 @pytest.fixture

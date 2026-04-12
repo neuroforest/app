@@ -12,7 +12,7 @@ import time
 import invoke
 
 from neuro.tools.tw5api import tw_get, tw_actions
-from neuro.utils import internal_utils, terminal_style, build_utils, network_utils
+from neuro.utils import internal_utils, terminal_components, terminal_style, build_utils, network_utils
 
 from tasks.actions import setup
 from tasks.components import nwjs
@@ -100,7 +100,7 @@ def build(c, build_dir=None):
         f.write(html)
 
     # Install node modules
-    with terminal_style.step("npm install"):
+    with terminal_components.step("npm install"):
         subprocess.run(["npm", "install"], cwd=build_dir, check=True, capture_output=build_utils.quiet())
 
 

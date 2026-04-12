@@ -27,7 +27,7 @@ def subprocess_recorder(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def patch_step(monkeypatch):
-    monkeypatch.setattr(neurobase_mod.terminal_style, "step", noop_step)
+    monkeypatch.setattr(neurobase_mod.terminal_components, "step", noop_step)
 
 
 @pytest.fixture(autouse=True)

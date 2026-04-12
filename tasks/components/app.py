@@ -11,7 +11,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import internal_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
 from tasks.components import desktop, neurobase, tw5
@@ -23,7 +23,7 @@ def build(c, build_dir=None):
     if not build_dir:
         build_dir = Path(os.environ["BUILD"])
     if os.path.exists(build_dir):
-        with terminal_style.step(f"Removing {build_dir}"):
+        with terminal_components.step(f"Removing {build_dir}"):
             shutil.rmtree(build_dir)
     os.makedirs(build_dir)
     desktop.build(c, build_dir=build_dir)
