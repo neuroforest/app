@@ -1,6 +1,6 @@
 {
   "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
-  "version": "2.1",
+  "version": "2.2",
   "name": "Metaontology",
   "description": "Self-describing schema for NeuroBase ontology",
   "nodes": [
@@ -304,7 +304,7 @@
     },
     {
       "from": "304b6f3a-9651-403f-83f8-bed6ad80db59",
-      "to": "9f866828-db25-43b7-b9ff-dc33e12dd038",
+      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
       "type": "HAS_TARGET"
     }
   ]
