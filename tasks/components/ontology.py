@@ -117,11 +117,65 @@ def index(c):
     terminal_components.table(rows, header=header)
 
 
+def _ontology_tree(nb):
+    """Print the dependency graph as an ASCII tree."""
+    data = nb.get_data("""
+        MATCH (m:OntologyMetadata)
+        OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:OntologyMetadata)
+        RETURN m.name as name, m.version as version,
+               collect(DISTINCT d.name) as dependencies
+    """)
+    by_name = {r["name"]: r for r in data}
+    roots = [r["name"] for r in data
+             if not any(r["name"] in d["dependencies"] for d in data)]
+
+    def _draw(name, prefix="", is_last=True):
+        r = by_name[name]
+        connector = "└── " if is_last else "├── "
+        print(f"{prefix}{connector}{r['name']}@{r['version']}")
+        child_prefix = prefix + ("    " if is_last else "│   ")
+        deps = sorted(r["dependencies"])
+        for i, dep in enumerate(deps):
+            _draw(dep, child_prefix, i == len(deps) - 1)
+
+    for i, root in enumerate(sorted(roots)):
+        r = by_name[root]
+        print(f"{r['name']}@{r['version']}")
+        deps = sorted(r["dependencies"])
+        for j, dep in enumerate(deps):
+            _draw(dep, "", j == len(deps) - 1)
+
+
 @invoke.task(pre=[setup.env])
-def info(c, label):
-    """Show ontology info for a label."""
+def info(c, type="", tree=False):
+    """Show ontology info. Without --type: loaded ontologies overview. With --type: type details. With --tree: dependency graph."""
     with NeuroBase() as nb:
-        nb.ontology.info(label).display()
+        if type:
+            nb.ontology.info(type).display()
+        elif tree:
+            _ontology_tree(nb)
+        else:
+            data = nb.get_data("""
+                MATCH (m:OntologyMetadata)
+                OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:OntologyMetadata)
+                OPTIONAL MATCH (m)-[:DEFINES]->(n)
+                RETURN m.name as name, m.version as version,
+                       count(DISTINCT n) as types,
+                       collect(DISTINCT d.name) as dependencies
+                ORDER BY m.name
+            """)
+            rows = []
+            for r in data:
+                deps = ", ".join(sorted(r["dependencies"])) if r["dependencies"] else ""
+                rows.append((r["name"], r["version"], str(r["types"]), deps))
+            header = ("Name", "Version", "Types", "Dependencies")
+            terminal_components.table(rows, header=header)
+
+            total = nb.get_data("""
+                MATCH (m:OntologyMetadata)-[:DEFINES]->(n)
+                RETURN count(DISTINCT n) as types
+            """)[0]
+            print(f"\n{len(data)} ontologies, {total['types']} types")
 
 
 @invoke.task(pre=[setup.env])
