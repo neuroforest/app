@@ -160,13 +160,13 @@ def _index_info(idx, ontology_name):
     # Types
     ontology_objects = json.loads(os.environ["ONTOLOGY_OBJECTS"])
     nodes = data.get("nodes", [])
-    types = [n for n in nodes if any(l in ontology_objects for l in n.get("labels", []))]
-    non_types = [n for n in nodes if not any(l in ontology_objects for l in n.get("labels", []))]
+    types = [n for n in nodes if any(lb in ontology_objects for lb in n.get("labels", []))]
+    non_types = [n for n in nodes if not any(lb in ontology_objects for lb in n.get("labels", []))]
 
     kind_map = {"OntologyNode": "Nodes", "OntologyRelationship": "Relationships"}
     by_kind = {}
     for t in types:
-        kind = next((l for l in t.get("labels", []) if l in ontology_objects), "")
+        kind = next((lb for lb in t.get("labels", []) if lb in ontology_objects), "")
         by_kind.setdefault(kind, []).append(t.get("properties", {}).get("label", "?"))
 
     total = len(types) + len(non_types)
@@ -181,7 +181,7 @@ def _index_info(idx, ontology_name):
     # Dependencies
     deps = data.get("dependencies", [])
     if deps:
-        print(f"\nDependencies:")
+        print("\nDependencies:")
         for dep in deps:
             dep_nid, _, dep_ver = dep.partition("@")
             dep_path = idx.resolve(dep_nid)
@@ -208,7 +208,7 @@ def _index_info(idx, ontology_name):
             if dep_nid == target_nid:
                 dependants.append(other.get("name", p.stem))
     if dependants:
-        print(f"\nRequired by:")
+        print("\nRequired by:")
         for name in sorted(dependants):
             print(f"  {name}")
     print()
