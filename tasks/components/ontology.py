@@ -94,11 +94,16 @@ def _validate_instances(nb, path):
 
 
 @invoke.task(pre=[setup.env])
-def index(c):
-    """Show discovered ontologies from ONTOLOGY search path."""
-    app_dir = Path(os.environ["APP_DIR"])
+def index(c, tree=False):
+    """Show discovered ontologies from ONTOLOGY search path. --tree: dependency graph."""
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
+
+    if tree:
+        _index_tree(idx)
+        return
+
+    app_dir = Path(os.environ["APP_DIR"])
     rows = []
     for path in idx.all_targets():
         data = nfx.read(path)
@@ -115,6 +120,41 @@ def index(c):
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
     header = ("Name", "Version", "NID", "Path")
     terminal_components.table(rows, header=header)
+
+
+def _index_tree(idx):
+    """Print a dependency tree from NFX file metadata (no DB needed)."""
+    packages = {}
+    for path in idx.all_targets():
+        data = nfx.read(path)
+        nid = data.get("nid", "")
+        name = data.get("name", path.stem)
+        version = data.get("version", "")
+        dep_nids = []
+        for dep in data.get("dependencies", []):
+            dep_nid, _, _ = dep.partition("@")
+            dep_nids.append(dep_nid)
+        packages[nid] = {"name": name, "version": version, "dep_nids": dep_nids}
+
+    # Find roots: packages that no other package depends on
+    all_deps = {d for p in packages.values() for d in p["dep_nids"]}
+    roots = [nid for nid in packages if nid not in all_deps]
+
+    def _draw(nid, prefix="", is_last=True):
+        p = packages[nid]
+        connector = "└── " if is_last else "├── "
+        print(f"{prefix}{connector}{p['name']}@{p['version']}")
+        child_prefix = prefix + ("    " if is_last else "│   ")
+        children = [d for d in p["dep_nids"] if d in packages]
+        for i, dep_nid in enumerate(sorted(children, key=lambda d: packages[d]["name"])):
+            _draw(dep_nid, child_prefix, i == len(children) - 1)
+
+    for i, nid in enumerate(sorted(roots, key=lambda n: packages[n]["name"])):
+        p = packages[nid]
+        print(f"{p['name']}@{p['version']}")
+        children = [d for d in p["dep_nids"] if d in packages]
+        for j, dep_nid in enumerate(sorted(children, key=lambda d: packages[d]["name"])):
+            _draw(dep_nid, "", j == len(children) - 1)
 
 
 def _ontology_tree(nb):
