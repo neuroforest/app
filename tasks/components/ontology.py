@@ -41,8 +41,8 @@ def import_(c, ontology=""):
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def render(c, ontology=""):
-    """Load ontology into neurobase and print Neo4j browser link."""
+def render(c, ontology="", independent=False, bare=False):
+    """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes."""
     neurobase.start(c)
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
@@ -54,7 +54,13 @@ def render(c, ontology=""):
         for path in targets:
             name = nfx.read(path).get("name", path.stem)
             with terminal_components.step(name):
-                nb.metaontology.import_nfx(path, index=idx)
+                if independent:
+                    nb.nodes.import_nfx(path, validate=False)
+                else:
+                    nb.metaontology.import_nfx(path, index=idx)
+
+        if bare:
+            _strip_properties(nb)
 
     http_port = os.environ["NEO4J_PORT_HTTP"]
     print(f"\n  http://localhost:{http_port}/browser/")
@@ -124,6 +130,11 @@ def index(c, tree=False, o="", ontology=""):
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
     header = ("Name", "Version", "NID", "Path")
     terminal_components.table(rows, header=header)
+
+
+def _strip_properties(nb):
+    """Remove all property nodes (targets of HAS_PROPERTY/REQUIRE_PROPERTY) from the database."""
+    nb.run_query("MATCH ()-[:HAS_PROPERTY|REQUIRE_PROPERTY]->(p) DETACH DELETE p")
 
 
 def _index_info(idx, ontology_name):
