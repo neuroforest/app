@@ -161,6 +161,16 @@ def restore(c, backup=None):
 
 
 @invoke.task(pre=[setup.env])
+def query(c, cypher):
+    """Run a Cypher query against the neurobase and print results."""
+    start(c)
+    with NeuroBase() as nb:
+        records = nb.get_data(cypher)
+        for record in records:
+            print(record)
+
+
+@invoke.task(pre=[setup.env])
 def delete(c):
     """Remove the neurobase container and its associated volumes."""
     base_name = os.getenv("BASE_NAME")
