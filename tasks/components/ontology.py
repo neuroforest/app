@@ -94,11 +94,15 @@ def _validate_instances(nb, path):
 
 
 @invoke.task(pre=[setup.env])
-def index(c, tree=False):
-    """Show discovered ontologies from ONTOLOGY search path. --tree: dependency graph."""
+def index(c, tree=False, o="", ontology=""):
+    """Show discovered ontologies from ONTOLOGY search path. --tree: dependency graph. -o/--ontology: ontology details."""
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
 
+    target = o or ontology
+    if target:
+        _index_info(idx, target)
+        return
     if tree:
         _index_tree(idx)
         return
@@ -120,6 +124,83 @@ def index(c, tree=False):
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
     header = ("Name", "Version", "NID", "Path")
     terminal_components.table(rows, header=header)
+
+
+def _index_info(idx, ontology_name):
+    """Show detailed info about a single ontology from NFX files."""
+    path = idx.resolve(ontology_name)
+    if not path:
+        print(f"{terminal_style.FAIL} Ontology not found: {ontology_name}")
+        raise SystemExit(1)
+
+    data = nfx.read(path)
+    B, RST = terminal_style.BOLD, terminal_style.RESET
+    DIM = "\033[2m"
+
+    # Header
+    print(f"\n{B}{data.get('name', path.stem)}{RST} {DIM}v{data.get('version', '?')}{RST}")
+    print("-" * 50)
+    desc = data.get("description", "")
+    if desc:
+        print(f"  {desc}")
+    print(f"  {DIM}{data.get('nid', '?')}{RST}")
+    print(f"  {DIM}{path}{RST}")
+
+    # Types
+    ontology_objects = json.loads(os.environ["ONTOLOGY_OBJECTS"])
+    nodes = data.get("nodes", [])
+    types = [n for n in nodes if any(l in ontology_objects for l in n.get("labels", []))]
+    non_types = [n for n in nodes if not any(l in ontology_objects for l in n.get("labels", []))]
+
+    kind_map = {"OntologyNode": "Nodes", "OntologyRelationship": "Relationships"}
+    by_kind = {}
+    for t in types:
+        kind = next((l for l in t.get("labels", []) if l in ontology_objects), "")
+        by_kind.setdefault(kind, []).append(t.get("properties", {}).get("label", "?"))
+
+    total = len(types) + len(non_types)
+    print(f"\nObjects ({total}):")
+    for kind in sorted(by_kind):
+        labels = sorted(by_kind[kind])
+        heading = kind_map.get(kind, kind)
+        print(f"  {DIM}{heading}{RST}:  {', '.join(labels)}")
+    if non_types:
+        print(f"  {DIM}Properties{RST}:  {len(non_types)}")
+
+    # Dependencies
+    deps = data.get("dependencies", [])
+    if deps:
+        print(f"\nDependencies:")
+        for dep in deps:
+            dep_nid, _, dep_ver = dep.partition("@")
+            dep_path = idx.resolve(dep_nid)
+            if dep_path:
+                dep_data = nfx.read(dep_path)
+                dep_name = dep_data.get("name", dep_path.stem)
+                actual_ver = dep_data.get("version", "?")
+                if actual_ver == dep_ver:
+                    print(f"  {terminal_style.SUCCESS} {dep_name}@{dep_ver}")
+                else:
+                    print(f"  {terminal_style.FAIL} {dep_name}@{dep_ver} (found {actual_ver})")
+            else:
+                print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
+
+    # Dependants
+    target_nid = data.get("nid", "")
+    dependants = []
+    for p in idx.all_targets():
+        if p == path:
+            continue
+        other = nfx.read(p)
+        for dep in other.get("dependencies", []):
+            dep_nid, _, _ = dep.partition("@")
+            if dep_nid == target_nid:
+                dependants.append(other.get("name", p.stem))
+    if dependants:
+        print(f"\nRequired by:")
+        for name in sorted(dependants):
+            print(f"  {name}")
+    print()
 
 
 def _index_tree(idx):
