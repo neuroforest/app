@@ -145,8 +145,7 @@ def _index_info(idx, ontology_name):
         raise SystemExit(1)
 
     data = nfx.read(path)
-    B, RST = terminal_style.BOLD, terminal_style.RESET
-    DIM = "\033[2m"
+    B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
 
     # Header
     print(f"\n{B}{data.get('name', path.stem)}{RST} {DIM}v{data.get('version', '?')}{RST}")
