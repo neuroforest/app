@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import invoke
@@ -100,14 +101,13 @@ def _validate_instances(nb, path):
 
 
 @invoke.task(pre=[setup.env])
-def index(c, tree=False, o="", ontology=""):
+def index(c, tree=False, ontology=""):
     """Show discovered ontologies from ONTOLOGY search path. --tree: dependency graph. -o/--ontology: ontology details."""
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
 
-    target = o or ontology
-    if target:
-        _index_info(idx, target)
+    if ontology:
+        _index_info(idx, ontology)
         return
     if tree:
         _index_tree(idx)
@@ -210,7 +210,43 @@ def _index_info(idx, ontology_name):
         print("\nRequired by:")
         for name in sorted(dependants):
             print(f"  {name}")
+
+    # Release history
+    history = _version_history(path)
+    if history:
+        print("\nReleases:")
+        terminal_components.table(history, header=("Version", "Date"))
     print()
+
+
+def _version_history(path):
+    """Extract (version, date) pairs from git tags '<name>/<version>' across all ONTOLOGY repos."""
+    name = nfx.read(path).get("name", Path(path).stem).lower()
+    repos = set()
+    for d in internal_utils.get_path_list("ONTOLOGY"):
+        try:
+            root = subprocess.run(
+                ["git", "-C", str(d), "rev-parse", "--show-toplevel"],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+        repos.add(root)
+
+    history = []
+    for root in repos:
+        result = subprocess.run(
+            ["git", "-C", root, "for-each-ref",
+             "--format=%(refname:lstrip=3)|%(creatordate:short)",
+             f"refs/tags/{name}/"],
+            capture_output=True, text=True, check=True,
+        )
+        for line in result.stdout.splitlines():
+            version, _, date = line.partition("|")
+            if version and date:
+                history.append((version, date))
+    history.sort(key=lambda r: [int(p) if p.isdigit() else p for p in r[0].split(".")])
+    return history
 
 
 def _index_tree(idx):
