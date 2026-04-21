@@ -63,8 +63,28 @@ def render(c, ontology="", independent=False, bare=False):
         if bare:
             _strip_properties(nb)
 
+        if ontology and not independent:
+            _tag_dependencies(nb, nfx.read(targets[0]).get("name", targets[0].stem))
+
     http_port = os.environ["NEO4J_PORT_HTTP"]
     print(f"\n  http://localhost:{http_port}/browser/")
+
+
+def _tag_dependencies(nb, target_name):
+    """Label objects defined by dependency ontologies: :Dependency (direct) and :TransitiveDependency (distance >= 2). Metaontology and OntologyMetadata nodes are skipped."""
+    nb.run_query(
+        """
+        MATCH (target:OntologyMetadata {name: $target_name})
+        MATCH path = (target)-[:DEPENDS_ON*1..]->(dep:OntologyMetadata)
+        WHERE dep.name <> "Metaontology"
+        WITH dep, min(length(path)) AS distance
+        MATCH (dep)-[:DEFINES]->(n)
+        WHERE NOT n:OntologyMetadata
+        FOREACH (_ IN CASE WHEN distance = 1 THEN [1] ELSE [] END | SET n:Dependency)
+        FOREACH (_ IN CASE WHEN distance > 1 THEN [1] ELSE [] END | SET n:TransitiveDependency)
+        """,
+        {"target_name": target_name},
+    )
 
 
 def _validate_instances(nb, path):
