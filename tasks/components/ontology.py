@@ -60,31 +60,69 @@ def render(c, ontology="", independent=False, bare=False):
                 else:
                     nb.metaontology.import_nfx(path, index=idx)
 
+        if ontology and not independent:
+            target_data = nfx.read(targets[0])
+            target_nid = target_data.get("nid", "")
+            target_name = target_data.get("name", targets[0].stem)
+            dependant_paths = _dependant_paths(idx, targets[0], target_nid)
+            if dependant_paths:
+                with terminal_components.step("Dependants") as status:
+                    for p in dependant_paths:
+                        dep_name = nfx.read(p).get("name", p.stem)
+                        status.log(f"  ▸ {dep_name}")
+                        nb.metaontology.import_nfx(p, index=idx)
+            _tag_dependencies(nb, target_name)
+            _tag_dependants(nb, target_name)
+
         if bare:
             _strip_properties(nb)
-
-        if ontology and not independent:
-            _tag_dependencies(nb, nfx.read(targets[0]).get("name", targets[0].stem))
 
     http_port = os.environ["NEO4J_PORT_HTTP"]
     print(f"\n  http://localhost:{http_port}/browser/")
 
 
 def _tag_dependencies(nb, target_name):
-    """Label objects defined by dependency ontologies: :Dependency (direct) and :TransitiveDependency (distance >= 2). Metaontology and OntologyMetadata nodes are skipped."""
+    """Label objects defined by dependency ontologies (direct or transitive) with :Dependency. Metaontology and OntologyMetadata nodes are skipped."""
     nb.run_query(
         """
         MATCH (target:OntologyMetadata {name: $target_name})
-        MATCH path = (target)-[:DEPENDS_ON*1..]->(dep:OntologyMetadata)
+        MATCH (target)-[:DEPENDS_ON*1..]->(dep:OntologyMetadata)
         WHERE dep.name <> "Metaontology"
-        WITH dep, min(length(path)) AS distance
         MATCH (dep)-[:DEFINES]->(n)
         WHERE NOT n:OntologyMetadata
-        FOREACH (_ IN CASE WHEN distance = 1 THEN [1] ELSE [] END | SET n:Dependency)
-        FOREACH (_ IN CASE WHEN distance > 1 THEN [1] ELSE [] END | SET n:TransitiveDependency)
+        SET n:Dependency
         """,
         {"target_name": target_name},
     )
+
+
+def _tag_dependants(nb, target_name):
+    """Label objects defined by ontologies that directly depend on target with :Dependant."""
+    nb.run_query(
+        """
+        MATCH (target:OntologyMetadata {name: $target_name})
+        MATCH (dep:OntologyMetadata)-[:DEPENDS_ON]->(target)
+        MATCH (dep)-[:DEFINES]->(n)
+        WHERE NOT n:OntologyMetadata
+        SET n:Dependant
+        """,
+        {"target_name": target_name},
+    )
+
+
+def _dependant_paths(idx, target_path, target_nid):
+    """Return paths of ontologies that directly depend on target."""
+    paths = []
+    for p in idx.all_targets():
+        if p == target_path:
+            continue
+        other = nfx.read(p)
+        for dep in other.get("dependencies", []):
+            dep_nid, _, _ = dep.partition("@")
+            if dep_nid == target_nid:
+                paths.append(p)
+                break
+    return paths
 
 
 def _validate_instances(nb, path):
