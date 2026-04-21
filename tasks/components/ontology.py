@@ -318,7 +318,11 @@ def info(c, type="", tree=False):
     """Show ontology info. Without --type: loaded ontologies overview. With --type: type details. With --tree: dependency graph."""
     with NeuroBase() as nb:
         if type:
-            nb.ontology.info(type).display()
+            try:
+                nb.ontology.info(type).display()
+            except ValueError as e:
+                print(f"{terminal_style.FAIL} {e}")
+                raise SystemExit(1)
         elif tree:
             _ontology_tree(nb)
         else:
