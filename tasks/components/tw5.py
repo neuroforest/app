@@ -211,7 +211,7 @@ def copy_tw5_editions(tw5_target):
             continue
         target = Path(tw5_target) / "editions" / edition
         shutil.rmtree(target, ignore_errors=True)
-        shutil.copytree(source, target)
+        shutil.copytree(source, target, ignore=shutil.ignore_patterns("tiddlers"))
 
 
 def ensure_plugin_fields(info_path, info):
