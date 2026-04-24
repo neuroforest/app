@@ -14,6 +14,12 @@ from tasks.actions import setup
 from tasks.components import neurobase
 
 
+def _plugin_test_path(ontology_path):
+    """Return a co-located `test_validators.py` path for an ontology, if any."""
+    candidate = Path(ontology_path).parent / "test_validators.py"
+    return candidate if candidate.exists() else None
+
+
 
 def _resolve_target(idx, ontology):
     """Resolve a single ontology target, or return all targets if empty."""
@@ -431,35 +437,63 @@ def clear(c):
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, o="", strict=False):
-    """Validate ontologies against the metaontology. -o: target file, --strict: also validate instances."""
+    """Validate each ontology against the metaontology and run its plugin
+       validators together. -o: target file, --strict: also validate instances.
+    """
     neurobase.clear(c, confirmed=True)
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
     metaontology_nid = nfx.read(idx.metaontology_path).get("nid", "")
-    targets = idx.all_targets(exclude_nid=metaontology_nid) if not o else _resolve_target(idx, o)
+    if o:
+        targets = _resolve_target(idx, o)
+    else:
+        targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
 
+    pytest_bin = os.path.join(setup.get_nenv_dir(), "bin", "pytest")
     failed = []
     with NeuroBase() as nb:
         for path in targets:
-            nb.clear(confirm=True)
-            nb.metaontology.import_nfx(path, index=idx)
-            name = nfx.read(path).get("name", path.stem)
-            valid = nb.metaontology.is_ontology_valid()
-            if strict:
-                valid = _validate_instances(nb, path) and valid
-            dep_errors = idx.check_dependency_versions(path)
-            if dep_errors:
-                valid = False
-            if valid:
-                print(f"{terminal_style.SUCCESS} {name}")
-            else:
+            data = nfx.read(path)
+            name = data.get("name", path.stem)
+            is_meta = data.get("nid", "") == metaontology_nid
+
+            failures = []
+            warnings = []
+
+            if not is_meta:
+                nb.clear(confirm=True)
+                nb.metaontology.import_nfx(path, index=idx)
+                valid = nb.metaontology.is_ontology_valid()
+                if strict:
+                    valid = _validate_instances(nb, path) and valid
+                dep_errors = idx.check_dependency_versions(path)
+                if not valid or dep_errors:
+                    failures.extend(str(v) for v in nb.metaontology.violations)
+                    failures.extend(str(err) for err in dep_errors)
+                warnings = list(nb.metaontology.violations.warnings)
+
+            test_path = _plugin_test_path(path)
+            if test_path:
+                result = subprocess.run(
+                    [pytest_bin, "--import-mode=importlib", str(test_path)],
+                    capture_output=True, text=True,
+                )
+                if result.returncode != 0:
+                    output = (result.stdout + result.stderr).rstrip()
+                    if output:
+                        failures.append(output)
+                    else:
+                        failures.append(f"pytest failed (exit {result.returncode})")
+
+            if failures:
                 print(f"{terminal_style.FAIL} {name}")
-                for v in nb.metaontology.violations:
-                    print(f"  {v}")
-                for err in dep_errors:
-                    print(f"  {err}")
+                for entry in failures:
+                    for line in entry.splitlines():
+                        print(f"  {line}")
                 failed.append(name)
-            for w in nb.metaontology.violations.warnings:
+            else:
+                print(f"{terminal_style.SUCCESS} {name}")
+            for w in warnings:
                 print(f"  {w}")
 
     if failed:
