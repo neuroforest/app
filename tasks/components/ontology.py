@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -5,7 +6,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx
+from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.base.ontology import ObjectValidator
 from neuro.utils import internal_utils, terminal_components, terminal_style
@@ -463,3 +464,31 @@ def test(c, o="", strict=False):
 
     if failed:
         raise SystemExit(1)
+
+
+@invoke.task(pre=[setup.env])
+def rehash(c, ontology=""):
+    """Recompute sha256(validators.py) and update the `hash` field in dir-form .nfx files. -o: target one ontology."""
+    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    idx = OntologyIndex(*ontology_dirs)
+    targets = _resolve_target(idx, ontology)
+
+    touched = 0
+    for path in targets:
+        plugin_dir = plugins.plugin_dir_for(path)
+        if plugin_dir is None:
+            continue
+        validators_path = plugin_dir / "validators.py"
+        if not validators_path.is_file():
+            continue
+        current = hashlib.sha256(validators_path.read_bytes()).hexdigest()
+        data = nfx.read(path)
+        if data.get("hash") == current:
+            print(f"  {terminal_style.SKIP} {terminal_style.DIM}{path.name}  {current[:12]}…{terminal_style.RESET}")
+            continue
+        data["hash"] = current
+        path.write_text(nfx.dumps(data))
+        print(f"  {terminal_style.SUCCESS} {path.name}  {current[:12]}…")
+        touched += 1
+
+    print(f"\n{touched} file(s) updated")
