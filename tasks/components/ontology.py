@@ -1,3 +1,4 @@
+import dataclasses
 import hashlib
 import json
 import os
@@ -41,7 +42,7 @@ def import_(c, ontology=""):
     targets = _resolve_target(idx, ontology)
     with NeuroBase() as nb:
         for path in targets:
-            name = nfx.read(path).get("name", path.stem)
+            name = nfx.read(path).name or path.stem
             with terminal_components.step(name) as status:
                 def on_import(dep_name, imported):
                     status.log(f"  {'▸' if imported else '-'} {dep_name}{'' if imported else ' (loaded)'}")
@@ -60,7 +61,7 @@ def render(c, ontology="", independent=False, bare=False):
         nb.clear(confirm=True)
 
         for path in targets:
-            name = nfx.read(path).get("name", path.stem)
+            name = nfx.read(path).name or path.stem
             with terminal_components.step(name):
                 if independent:
                     nb.nodes.import_nfx(path, validate=False)
@@ -68,14 +69,14 @@ def render(c, ontology="", independent=False, bare=False):
                     nb.metaontology.import_nfx(path, index=idx)
 
         if ontology and not independent:
-            target_data = nfx.read(targets[0])
-            target_nid = target_data.get("nid", "")
-            target_name = target_data.get("name", targets[0].stem)
+            target_doc = nfx.read(targets[0])
+            target_nid = target_doc.nid
+            target_name = target_doc.name or targets[0].stem
             dependant_paths = _dependant_paths(idx, targets[0], target_nid)
             if dependant_paths:
                 with terminal_components.step("Dependants") as status:
                     for p in dependant_paths:
-                        dep_name = nfx.read(p).get("name", p.stem)
+                        dep_name = nfx.read(p).name or p.stem
                         status.log(f"  ▸ {dep_name}")
                         nb.metaontology.import_nfx(p, index=idx)
             _tag_dependencies(nb, target_name)
@@ -123,12 +124,8 @@ def _dependant_paths(idx, target_path, target_nid):
     for p in idx.all_targets():
         if p == target_path:
             continue
-        other = nfx.read(p)
-        for dep in other.get("dependencies", []):
-            dep_nid, _, _ = dep.partition("@")
-            if dep_nid == target_nid:
-                paths.append(p)
-                break
+        if target_nid in nfx.read(p).dep_nids:
+            paths.append(p)
     return paths
 
 
@@ -140,11 +137,11 @@ def _validate_instances(nb, path):
             self.labels = labels
             self.properties = properties
 
-    data = nfx.read(path)
+    doc = nfx.read(path)
     ontology_labels = set(json.loads(os.environ["ONTOLOGY_OBJECTS"]))
     failed = []
 
-    for entry in data.get("nodes", []):
+    for entry in doc.nodes:
         if any(label in ontology_labels for label in entry["labels"]):
             continue
         props = {"neuro.id": entry["nid"], **entry.get("properties", {})}
@@ -181,15 +178,15 @@ def index(c, tree=False, ontology=""):
     app_dir = Path(os.environ["APP_DIR"])
     rows = []
     for path in idx.all_targets():
-        data = nfx.read(path)
+        doc = nfx.read(path)
         try:
             rel = os.path.relpath(path, app_dir)
         except ValueError:
             rel = str(path)
         rows.append((
-            data.get("name", path.stem),
-            data.get("version", ""),
-            data.get("nid", ""),
+            doc.name or path.stem,
+            doc.version,
+            doc.nid,
             rel,
         ))
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
@@ -209,23 +206,21 @@ def _index_info(idx, ontology_name):
         print(f"{terminal_style.FAIL} Ontology not found: {ontology_name}")
         raise SystemExit(1)
 
-    data = nfx.read(path)
+    doc = nfx.read(path)
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
 
     # Header
-    print(f"\n{B}{data.get('name', path.stem)}{RST} {DIM}v{data.get('version', '?')}{RST}")
+    print(f"\n{B}{doc.name or path.stem}{RST} {DIM}v{doc.version or '?'}{RST}")
     print("-" * 50)
-    desc = data.get("description", "")
-    if desc:
-        print(f"  {desc}")
-    print(f"  {DIM}{data.get('nid', '?')}{RST}")
+    if doc.description:
+        print(f"  {doc.description}")
+    print(f"  {DIM}{doc.nid or '?'}{RST}")
     print(f"  {DIM}{path}{RST}")
 
     # Types
     ontology_objects = json.loads(os.environ["ONTOLOGY_OBJECTS"])
-    nodes = data.get("nodes", [])
-    types = [n for n in nodes if any(lb in ontology_objects for lb in n.get("labels", []))]
-    non_types = [n for n in nodes if not any(lb in ontology_objects for lb in n.get("labels", []))]
+    types = [n for n in doc.nodes if any(lb in ontology_objects for lb in n.get("labels", []))]
+    non_types = [n for n in doc.nodes if not any(lb in ontology_objects for lb in n.get("labels", []))]
 
     kind_map = {"OntologyNode": "Nodes", "OntologyRelationship": "Relationships"}
     by_kind = {}
@@ -243,16 +238,14 @@ def _index_info(idx, ontology_name):
         print(f"  {DIM}Properties{RST}:  {len(non_types)}")
 
     # Dependencies
-    deps = data.get("dependencies", [])
-    if deps:
+    if doc.dependencies:
         print("\nDependencies:")
-        for dep in deps:
-            dep_nid, _, dep_ver = dep.partition("@")
+        for dep_nid, dep_ver in doc.dependencies:
             dep_path = idx.resolve(dep_nid)
             if dep_path:
-                dep_data = nfx.read(dep_path)
-                dep_name = dep_data.get("name", dep_path.stem)
-                actual_ver = dep_data.get("version", "?")
+                dep_doc = nfx.read(dep_path)
+                dep_name = dep_doc.name or dep_path.stem
+                actual_ver = dep_doc.version or "?"
                 if actual_ver == dep_ver:
                     print(f"  {terminal_style.SUCCESS} {dep_name}@{dep_ver}")
                 else:
@@ -261,16 +254,13 @@ def _index_info(idx, ontology_name):
                 print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
 
     # Dependants
-    target_nid = data.get("nid", "")
     dependants = []
     for p in idx.all_targets():
         if p == path:
             continue
         other = nfx.read(p)
-        for dep in other.get("dependencies", []):
-            dep_nid, _, _ = dep.partition("@")
-            if dep_nid == target_nid:
-                dependants.append(other.get("name", p.stem))
+        if doc.nid in other.dep_nids:
+            dependants.append(other.name or p.stem)
     if dependants:
         print("\nRequired by:")
         for name in sorted(dependants):
@@ -286,7 +276,7 @@ def _index_info(idx, ontology_name):
 
 def _version_history(path):
     """Extract (version, date) pairs from git tags '<name>/<version>' across all ONTOLOGY repos."""
-    name = nfx.read(path).get("name", Path(path).stem).lower()
+    name = (nfx.read(path).name or Path(path).stem).lower()
     repos = set()
     for d in internal_utils.get_path_list("ONTOLOGY"):
         try:
@@ -318,15 +308,12 @@ def _index_tree(idx):
     """Print a dependency tree from NFX file metadata (no DB needed)."""
     packages = {}
     for path in idx.all_targets():
-        data = nfx.read(path)
-        nid = data.get("nid", "")
-        name = data.get("name", path.stem)
-        version = data.get("version", "")
-        dep_nids = []
-        for dep in data.get("dependencies", []):
-            dep_nid, _, _ = dep.partition("@")
-            dep_nids.append(dep_nid)
-        packages[nid] = {"name": name, "version": version, "dep_nids": dep_nids}
+        doc = nfx.read(path)
+        packages[doc.nid] = {
+            "name": doc.name or path.stem,
+            "version": doc.version,
+            "dep_nids": list(doc.dep_nids),
+        }
 
     # Find roots: packages that no other package depends on
     all_deps = {d for p in packages.values() for d in p["dep_nids"]}
@@ -443,7 +430,7 @@ def test(c, o="", strict=False):
     neurobase.clear(c, confirmed=True)
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
-    metaontology_nid = nfx.read(idx.metaontology_path).get("nid", "")
+    metaontology_nid = nfx.read(idx.metaontology_path).nid
     if o:
         targets = _resolve_target(idx, o)
     else:
@@ -453,9 +440,9 @@ def test(c, o="", strict=False):
     failed = []
     with NeuroBase() as nb:
         for path in targets:
-            data = nfx.read(path)
-            name = data.get("name", path.stem)
-            is_meta = data.get("nid", "") == metaontology_nid
+            doc = nfx.read(path)
+            name = doc.name or path.stem
+            is_meta = doc.nid == metaontology_nid
 
             failures = []
             warnings = []
@@ -516,12 +503,12 @@ def rehash(c, ontology=""):
         if not validators_path.is_file():
             continue
         current = hashlib.sha256(validators_path.read_bytes()).hexdigest()
-        data = nfx.read(path)
-        if data.get("hash") == current:
+        doc = nfx.read(path)
+        if doc.hash == current:
             print(f"  {terminal_style.SKIP} {terminal_style.DIM}{path.name}  {current[:12]}…{terminal_style.RESET}")
             continue
-        data["hash"] = current
-        path.write_text(nfx.dumps(data))
+        doc = dataclasses.replace(doc, hash=current)
+        path.write_text(nfx.dumps(doc))
         print(f"  {terminal_style.SUCCESS} {path.name}  {current[:12]}…")
         touched += 1
 
