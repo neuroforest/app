@@ -9,6 +9,7 @@ import invoke
 import neo4j
 
 from neuro.base.api import NeuroBase
+from neuro.base.schema import Metaproperties, Metarelationships, Violations
 from neuro.utils import docker_tools
 from neuro.utils import build_utils, internal_utils, network_utils, terminal_components, terminal_style
 
@@ -365,6 +366,194 @@ def overview(c, fmt="text"):
         w = max(len(r) for r in relations)
         for r in relations:
             print(f"  {r:<{w}}  {rel_counts[r]}")
+
+
+def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
+    """Yield {"props", "nid"} rows for validation. Streams in batches when all_mode."""
+    if all_mode:
+        skip = 0
+        while True:
+            rows = nb.get_data(
+                f"MATCH (n:`{label}`) "
+                f"RETURN properties(n) AS props, n.`neuro.id` AS nid "
+                f"ORDER BY n.`neuro.id` SKIP {skip} LIMIT {batch}"
+            )
+            if not rows:
+                return
+            yield from rows
+            if len(rows) < batch:
+                return
+            skip += batch
+    else:
+        rows = nb.get_data(
+            f"MATCH (n:`{label}`) "
+            f"RETURN properties(n) AS props, n.`neuro.id` AS nid "
+            f"LIMIT {size}"
+        )
+        yield from rows
+
+
+def _node_id(nid, props):
+    return (
+        nid
+        or props.get("neuro.id")
+        or props.get("uuid")
+        or props.get("title")
+        or props.get("id")
+        or "?"
+    )
+
+
+def _aggregate_violations(pairs):
+    agg = {
+        "missing_properties": {},
+        "undefined_properties": {},
+        "invalid_properties": {},
+        "undefined_relationships": {},
+        "missing_relationships": {},
+        "invalid_relationships": {},
+    }
+    for nid, v in pairs:
+        for p in v.missing_properties:
+            agg["missing_properties"].setdefault(p.label, []).append(nid)
+        for k in v.undefined_properties:
+            agg["undefined_properties"].setdefault(k, []).append(nid)
+        for k, reason in v.invalid_properties:
+            agg["invalid_properties"].setdefault(f"{k} ({reason})", []).append(nid)
+        for rel, direction, _lbs in v.undefined_relationships:
+            agg["undefined_relationships"].setdefault(f"{rel} ({direction})", []).append(nid)
+        for mr in v.missing_relationships:
+            agg["missing_relationships"].setdefault(mr.label, []).append(nid)
+        for rel, direction, _actual, expected in v.invalid_relationships:
+            agg["invalid_relationships"].setdefault(
+                f"{rel} ({direction}, expected {expected})", []
+            ).append(nid)
+    return agg
+
+
+def _print_validation_entry(entry, all_mode, example_cap=5):
+    B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
+    header = (
+        f"{B}{entry['label']}{RST} "
+        f"{DIM}({entry['count']:,} nodes — "
+        f"{entry['pass']} pass, {entry['fail']} fail){RST}"
+    )
+    print(f"\n{header}")
+
+    if all_mode:
+        agg = entry["violations"]
+        kinds = (
+            ("missing", "missing_properties"),
+            ("undefined", "undefined_properties"),
+            ("invalid", "invalid_properties"),
+            ("undefined rel", "undefined_relationships"),
+            ("missing rel", "missing_relationships"),
+            ("invalid rel", "invalid_relationships"),
+        )
+        for tag, key in kinds:
+            for k, nids in sorted(agg[key].items()):
+                ex = ", ".join(str(n) for n in nids[:example_cap])
+                more = "" if len(nids) <= example_cap else f", +{len(nids) - example_cap} more"
+                print(f"  {tag} {B}{k}{RST} × {len(nids)}  {DIM}e.g. [{ex}{more}]{RST}")
+        return
+
+    for d in entry["details"]:
+        tag = terminal_style.SUCCESS if d["ok"] else terminal_style.FAIL
+        verdict = "PASS" if d["ok"] else "FAIL"
+        print(f"  {tag} {verdict}  [{d['nid']}]")
+        if d["missing"]:
+            print(f"        missing: {d['missing']}")
+        if d["undefined"]:
+            print(f"        undefined: {d['undefined']}")
+        for k, r in d["invalid"]:
+            print(f"        invalid: {k} ({r})")
+        for r, dr, lbs in d["undefined_rel"]:
+            print(f"        undefined rel: {r} ({dr}, {lbs})")
+        if d["missing_rel"]:
+            print(f"        missing rel: {d['missing_rel']}")
+        for r, dr, actual, expected in d["invalid_rel"]:
+            print(f"        invalid rel: {r} ({dr}, expected {expected}, got {actual})")
+
+
+def _detail_record(nid, v):
+    return {
+        "nid": nid,
+        "ok": not v,
+        "missing": [p.label for p in v.missing_properties],
+        "undefined": list(v.undefined_properties),
+        "invalid": list(v.invalid_properties),
+        "undefined_rel": list(v.undefined_relationships),
+        "missing_rel": [m.label for m in v.missing_relationships],
+        "invalid_rel": list(v.invalid_relationships),
+    }
+
+
+@invoke.task(pre=[setup.env])
+def validate(c, type="", size=5, all=False, fmt="text"):
+    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). Exits non-zero on violations."""
+    forbidden = _forbidden_labels()
+    had_violations = False
+    report = []
+
+    with NeuroBase() as nb:
+        if type:
+            _reject_if_forbidden(type)
+            present = _present_labels(nb)
+            allowed = set(_knowledge_labels(nb))
+            if type not in present:
+                diagnosis = "No instances" if type in allowed else "Unknown type"
+                print(f"{terminal_style.FAIL} {diagnosis}: {type}", file=sys.stderr)
+                raise SystemExit(1)
+            if type not in allowed:
+                print(f"{terminal_style.WARN} Undefined type: {type}", file=sys.stderr)
+            targets = [type]
+        else:
+            knowledge = set(_knowledge_labels(nb))
+            present = _present_labels(nb)
+            targets = sorted((knowledge & present) - forbidden)
+
+        for lb in targets:
+            try:
+                metaprops = Metaproperties.from_ontology(nb, lb)
+                metarels = Metarelationships.from_ontology(nb, lb)
+            except Exception as e:
+                print(f"{terminal_style.FAIL} {lb}: schema load failed ({e})", file=sys.stderr)
+                had_violations = True
+                continue
+
+            count = _count_label(nb, lb)
+            results = []
+            for row in _iter_nodes_for_validation(nb, lb, size, all):
+                v = Violations()
+                metaprops.validate_properties(row["props"], v)
+                if row.get("nid") and metarels:
+                    metarels.validate_relationships(nb, row["nid"], v)
+                results.append((_node_id(row.get("nid"), row["props"]), v))
+
+            entry = {
+                "label": lb,
+                "count": count,
+                "sampled": len(results),
+                "pass": sum(1 for _, v in results if not v),
+                "fail": sum(1 for _, v in results if v),
+            }
+            if all:
+                entry["violations"] = _aggregate_violations([(n, v) for n, v in results if v])
+            else:
+                entry["details"] = [_detail_record(nid, v) for nid, v in results]
+
+            if entry["fail"]:
+                had_violations = True
+
+            if fmt == "text":
+                _print_validation_entry(entry, all)
+            report.append(entry)
+
+    if fmt == "json":
+        print(json.dumps(report, indent=2, default=str))
+
+    if had_violations:
+        raise SystemExit(1)
 
 
 @invoke.task(pre=[setup.env])
