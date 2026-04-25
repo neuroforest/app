@@ -103,7 +103,33 @@ Reads the file and merges on `neuro.id`. Relationships are merged between the re
 
 ## Low-level I/O
 
-The `neuro.base.nfx` module provides pure read/write functions with no database dependency:
+The `neuro.base.nfx` module provides pure read/write/validate helpers over the `Nfx` value object. No database dependency.
 
-- `nfx.read(path)` — returns the parsed JSON dict
-- `nfx.write(path, nodes, relationships, nid="", name="", description="", version="", dependencies=None)` — writes to file, returns the data dict
+```python
+from neuro.base import nfx
+from neuro.base.nfx import Nfx
+
+doc = nfx.read(path)              # → Nfx (frozen dataclass)
+doc.nid, doc.name, doc.version    # attribute access; "" when absent
+doc.dependencies                  # tuple of (nid, version) pairs
+doc.dep_nids, doc.node_nids       # convenience projections
+
+nfx.write(path, doc)              # serialize Nfx to canonical text
+nfx.dumps(doc)                    # same, returning str
+
+# Construct from dict (raises NfxViolation on malformed nid / dep "nid@ver"):
+Nfx.from_dict({"nid": "...", "nodes": [...], "relationships": [...]})
+doc.to_dict()                     # round-trips to canonical dict
+
+# Validate referential integrity (unresolved/foreign rels, invalid nids):
+report = nfx.validate(doc, dependency_nids=...)
+
+# Walk the dep DAG (returns nids of all transitively-reachable dep nodes):
+nids = nfx.dependency_node_nids(doc, resolve=lambda nid: Nfx | None)
+
+# Format-level lint on the *raw* dict (key order, unknown keys); use before
+# parse since `Nfx` discards unknowns:
+lint = nfx.lint_format(json.loads(path.read_text()))
+```
+
+`Nfx` is frozen; mutate via `dataclasses.replace(doc, version="1.4")`.
