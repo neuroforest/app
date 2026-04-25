@@ -480,7 +480,7 @@ def _print_validation_entry(entry, all_mode, example_cap=5):
         for r, dr, actual, expected in d["invalid_rel"]:
             print(f"        invalid rel: {r} ({dr}, expected {expected}, got {actual})")
         for w in d.get("warnings", []):
-            print(f"        {terminal_style.WARN} warning: {w}")
+            print(f"        {terminal_style.YELLOW}{w}{terminal_style.RESET}")
 
 
 def _detail_record(nid, v):
