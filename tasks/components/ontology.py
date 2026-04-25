@@ -44,8 +44,15 @@ def import_(c, ontology=""):
         for path in targets:
             name = nfx.read(path).name or path.stem
             with terminal_components.step(name) as status:
-                def on_import(dep_name, imported):
-                    status.log(f"  {'▸' if imported else '-'} {dep_name}{'' if imported else ' (loaded)'}")
+                seen = set()
+                def on_import(dep_name, imported, depth=1):
+                    if dep_name in seen:
+                        return
+                    seen.add(dep_name)
+                    indent = "  " * depth
+                    marker = "▸" if imported else "-"
+                    suffix = "" if imported else " (loaded)"
+                    status.log(f"{indent}{marker} {dep_name}{suffix}")
                 nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
 
 
