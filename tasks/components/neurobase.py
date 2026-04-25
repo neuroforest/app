@@ -9,6 +9,7 @@ import invoke
 import neo4j
 
 from neuro.base.api import NeuroBase
+from neuro.base.index import OntologyIndex
 from neuro.base.schema import Metaproperties, Metarelationships, Violations
 from neuro.utils import docker_tools
 from neuro.utils import build_utils, internal_utils, network_utils, terminal_components, terminal_style
@@ -412,6 +413,7 @@ def _aggregate_violations(pairs):
         "undefined_relationships": {},
         "missing_relationships": {},
         "invalid_relationships": {},
+        "warnings": {},
     }
     for nid, v in pairs:
         for p in v.missing_properties:
@@ -428,15 +430,18 @@ def _aggregate_violations(pairs):
             agg["invalid_relationships"].setdefault(
                 f"{rel} ({direction}, expected {expected})", []
             ).append(nid)
+        for w in v.warnings:
+            agg["warnings"].setdefault(w, []).append(nid)
     return agg
 
 
 def _print_validation_entry(entry, all_mode, example_cap=5):
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
+    warn_part = f", {entry['warn']} warn" if entry.get("warn") else ""
     header = (
         f"{B}{entry['label']}{RST} "
         f"{DIM}({entry['count']:,} nodes — "
-        f"{entry['pass']} pass, {entry['fail']} fail){RST}"
+        f"{entry['pass']} pass, {entry['fail']} fail{warn_part}){RST}"
     )
     print(f"\n{header}")
 
@@ -449,6 +454,7 @@ def _print_validation_entry(entry, all_mode, example_cap=5):
             ("undefined rel", "undefined_relationships"),
             ("missing rel", "missing_relationships"),
             ("invalid rel", "invalid_relationships"),
+            ("warn", "warnings"),
         )
         for tag, key in kinds:
             for k, nids in sorted(agg[key].items()):
@@ -473,6 +479,8 @@ def _print_validation_entry(entry, all_mode, example_cap=5):
             print(f"        missing rel: {d['missing_rel']}")
         for r, dr, actual, expected in d["invalid_rel"]:
             print(f"        invalid rel: {r} ({dr}, expected {expected}, got {actual})")
+        for w in d.get("warnings", []):
+            print(f"        {terminal_style.WARN} warning: {w}")
 
 
 def _detail_record(nid, v):
@@ -485,12 +493,14 @@ def _detail_record(nid, v):
         "undefined_rel": list(v.undefined_relationships),
         "missing_rel": [m.label for m in v.missing_relationships],
         "invalid_rel": list(v.invalid_relationships),
+        "warnings": list(v.warnings),
     }
 
 
 @invoke.task(pre=[setup.env])
-def validate(c, type="", size=5, all=False, fmt="text"):
-    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). Exits non-zero on violations."""
+def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
+    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). Exits non-zero on violations."""
+    OntologyIndex(*internal_utils.get_path_list("ONTOLOGY"))
     forbidden = _forbidden_labels()
     had_violations = False
     report = []
@@ -525,7 +535,7 @@ def validate(c, type="", size=5, all=False, fmt="text"):
             results = []
             for row in _iter_nodes_for_validation(nb, lb, size, all):
                 v = Violations()
-                metaprops.validate_properties(row["props"], v)
+                metaprops.validate_properties(row["props"], v, strict=strict)
                 if row.get("nid") and metarels:
                     metarels.validate_relationships(nb, row["nid"], v)
                 results.append((_node_id(row.get("nid"), row["props"]), v))
@@ -538,9 +548,10 @@ def validate(c, type="", size=5, all=False, fmt="text"):
                 "fail": sum(1 for _, v in results if v),
             }
             if all:
-                entry["violations"] = _aggregate_violations([(n, v) for n, v in results if v])
+                entry["violations"] = _aggregate_violations([(n, v) for n, v in results if v or v.warnings])
             else:
                 entry["details"] = [_detail_record(nid, v) for nid, v in results]
+            entry["warn"] = sum(1 for _, v in results if v.warnings)
 
             if entry["fail"]:
                 had_violations = True
