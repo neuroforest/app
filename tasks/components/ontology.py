@@ -457,7 +457,7 @@ def test(c, o="", strict=False):
             if not is_meta:
                 nb.clear(confirm=True)
                 nb.metaontology.import_nfx(path, index=idx)
-                valid = nb.metaontology.is_ontology_valid()
+                valid = nb.metaontology.is_ontology_valid(strict=strict)
                 if strict:
                     valid = _validate_instances(nb, path) and valid
                 dep_errors = idx.check_dependency_versions(path)
