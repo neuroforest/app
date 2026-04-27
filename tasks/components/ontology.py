@@ -57,8 +57,8 @@ def import_(c, ontology=""):
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def render(c, ontology="", independent=False, bare=False):
-    """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes."""
+def render(c, ontology="", independent=False, bare=False, dependants=False):
+    """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes. --dependants: also load ontologies that depend on target."""
     neurobase.start(c)
     ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
     idx = OntologyIndex(*ontology_dirs)
@@ -79,15 +79,16 @@ def render(c, ontology="", independent=False, bare=False):
             target_doc = nfx.read(targets[0])
             target_nid = target_doc.nid
             target_name = target_doc.name or targets[0].stem
-            dependant_paths = _dependant_paths(idx, targets[0], target_nid)
-            if dependant_paths:
-                with terminal_components.step("Dependants") as status:
-                    for p in dependant_paths:
-                        dep_name = nfx.read(p).name or p.stem
-                        status.log(f"  ▸ {dep_name}")
-                        nb.metaontology.import_nfx(p, index=idx)
             _tag_dependencies(nb, target_name)
-            _tag_dependants(nb, target_name)
+            if dependants:
+                dependant_paths = _dependant_paths(idx, targets[0], target_nid)
+                if dependant_paths:
+                    with terminal_components.step("Dependants") as status:
+                        for p in dependant_paths:
+                            dep_name = nfx.read(p).name or p.stem
+                            status.log(f"  ▸ {dep_name}")
+                            nb.metaontology.import_nfx(p, index=idx)
+                _tag_dependants(nb, target_name)
 
         if bare:
             _strip_properties(nb)
