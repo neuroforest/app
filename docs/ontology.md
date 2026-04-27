@@ -74,7 +74,7 @@ Supports `+` operator to merge results across multiple labels.
 - `is_valid_node(node)` — validates a node's labels and properties against the ontology, returns a `Violations` object
 - `info(label)` — returns an `OntologyNodeInfo` for the given label
 
-**`OntologyNodeInfo`** — Queries and displays the full ontology profile for a node label: its lineage (`SUBCLASS_OF` chain), metaproperties (inherited through lineage), and relationships. Used by the NQL `info` command.
+**`OntologyNodeInfo`** — Queries and displays the full ontology profile for a node label: its lineage (`SUBCLASS_OF` chain), metaproperties (inherited through lineage), and relationships.
 
 **`Validator`** — Base class for ontology validation. Provides `get_metaproperties(node_label)` which queries the ontology graph to resolve all properties (including inherited ones) for a given label.
 
