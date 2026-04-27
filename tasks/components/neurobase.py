@@ -316,17 +316,24 @@ def overview(c, fmt="text"):
         present = _present_labels(nb)
         knowledge = set(_knowledge_labels(nb))
         data_types = set(_data_type_labels(nb))
+        ontology_loaded = bool(knowledge or data_types)
 
-        types = sorted((present & knowledge) - forbidden)
-        empty = sorted(knowledge - present - forbidden)
-        data = sorted((present & data_types) - forbidden)
-        orphans = sorted(present - knowledge - data_types - forbidden - meta)
+        if ontology_loaded:
+            types = sorted((present & knowledge) - forbidden)
+            empty = sorted(knowledge - present - forbidden)
+            data = sorted((present & data_types) - forbidden)
+            orphans = sorted(present - knowledge - data_types - forbidden - meta)
+        else:
+            types = sorted(present - forbidden - meta)
+            empty = []
+            data = []
+            orphans = []
 
         type_counts = {lb: _count_label(nb, lb) for lb in types}
 
         rel_present = _present_rel_types(nb)
         rel_knowledge = set(_knowledge_rel_types(nb))
-        relations = sorted(rel_present & rel_knowledge)
+        relations = sorted(rel_present & rel_knowledge) if ontology_loaded else sorted(rel_present)
         rel_counts = {r: _count_rel_type(nb, r) for r in relations}
 
         result = {
@@ -344,9 +351,10 @@ def overview(c, fmt="text"):
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
     total_nodes = sum(type_counts.values())
     total_edges = sum(rel_counts.values())
+    suffix = "" if ontology_loaded else f" {DIM}(ontology not loaded){RST}"
     print(
         f"{DIM}{len(types)} types · {total_nodes} nodes · "
-        f"{len(relations)} relations · {total_edges} edges{RST}"
+        f"{len(relations)} relations · {total_edges} edges{RST}{suffix}"
     )
 
     if types:
