@@ -136,8 +136,30 @@ def _dependant_paths(idx, target_path, target_nid):
     return paths
 
 
+def _topo_targets(idx, target_path, metaontology_nid):
+    """Topologically ordered paths for a single-target run: metaontology
+    first, then transitive deps deps-before-dependents, ending with the target."""
+    target_doc = nfx.read(target_path)
+
+    def _resolve_doc(nid):
+        p = idx.resolve(nid)
+        return nfx.read(p) if p else None
+
+    tree = nfx.NfxTree(target_doc, _resolve_doc)
+    paths = []
+    for nid in tree.topo_order():
+        if nid == metaontology_nid:
+            continue
+        p = idx.resolve(nid)
+        if p:
+            paths.append(p)
+    return [idx.metaontology_path] + paths
+
+
 def _validate_instances(nb, path):
-    """Validate instance nodes in an NFX file against the loaded ontology."""
+    """Validate instance nodes in an NFX file, appending per-node violations
+    onto `nb.metaontology.violations` so the caller's gating and printing
+    pick them up uniformly."""
 
     class _Node:
         def __init__(self, labels, properties):
@@ -146,27 +168,23 @@ def _validate_instances(nb, path):
 
     doc = nfx.read(path)
     ontology_labels = set(json.loads(os.environ["ONTOLOGY_OBJECTS"]))
-    failed = []
 
     for entry in doc.nodes:
         if any(label in ontology_labels for label in entry["labels"]):
             continue
-        props = {"neuro.id": entry["nid"], **entry.get("properties", {})}
-        node = _Node(entry["labels"], props)
-        violations = ObjectValidator(nb, node).get_violations()
+        entry_props = entry.get("properties", {})
+        node_props = {"neuro.id": entry["nid"], **entry_props}
+        violations = ObjectValidator(nb, _Node(entry["labels"], node_props)).get_violations()
         if violations:
             identifier = (
-                entry.get("properties", {}).get("identifier")
-                or entry.get("properties", {}).get("name")
+                entry_props.get("identifier")
+                or entry_props.get("name")
+                or entry_props.get("label")
                 or entry["nid"]
             )
-            failed.append((identifier, ":".join(entry["labels"]), violations))
-
-    for identifier, label_str, violations in failed:
-        print(f"  {terminal_style.FAIL} {label_str} {identifier}")
-        print(f"  {repr(violations)}")
-
-    return not failed
+            nb.metaontology.violations.violations.append(
+                (identifier, ":".join(entry["labels"]), violations)
+            )
 
 
 @invoke.task(pre=[setup.env])
@@ -439,7 +457,11 @@ def test(c, o="", strict=False):
     idx = OntologyIndex(*ontology_dirs)
     metaontology_nid = nfx.read(idx.metaontology_path).nid
     if o:
-        targets = _resolve_target(idx, o)
+        target_path = idx.resolve(o)
+        if not target_path:
+            print(f"{terminal_style.FAIL} Ontology not found: {o}")
+            raise SystemExit(1)
+        targets = _topo_targets(idx, target_path, metaontology_nid)
     else:
         targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
 
@@ -457,11 +479,11 @@ def test(c, o="", strict=False):
             if not is_meta:
                 nb.clear(confirm=True)
                 nb.metaontology.import_nfx(path, index=idx)
-                valid = nb.metaontology.is_ontology_valid(strict=strict)
+                nb.metaontology.is_ontology_valid(strict=strict)
                 if strict:
-                    valid = _validate_instances(nb, path) and valid
+                    _validate_instances(nb, path)
                 dep_errors = idx.check_dependency_versions(path)
-                if not valid or dep_errors:
+                if nb.metaontology.violations or dep_errors:
                     failures.extend(str(v) for v in nb.metaontology.violations)
                     failures.extend(str(err) for err in dep_errors)
                 warnings = list(nb.metaontology.violations.warnings)
