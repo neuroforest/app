@@ -27,9 +27,20 @@ The ontology is stored in Neo4j as a graph of its own, using three node types an
 (OntologyNode)-[:HAS_RELATIONSHIP]->(OntologyRelationship)
     Declares a relationship type on a node.
 
+(OntologyNode)-[:REQUIRE_RELATIONSHIP]->(OntologyRelationship)
+    Subclass of HAS_RELATIONSHIP. The source node is required to emit at
+    least one such relationship; absence is flagged at validate time.
+
 (OntologyRelationship)-[:HAS_TARGET]->(OntologyNode)
     Specifies the target node type for a relationship.
+
+(OntologyRelationship)-[:REQUIRE_TARGET]->(OntologyNode)
+    Subclass of HAS_TARGET. The target node is required to receive at
+    least one such relationship; absence is flagged at validate time
+    (analogous to a SHACL inverse-path minCount 1, or an ER weak entity).
 ```
+
+The required-edge subclasses are checked direction-aware: `REQUIRE_RELATIONSHIP` flags a missing *outgoing* edge on source instances; `REQUIRE_TARGET` flags a missing *incoming* edge on target instances. Both inherit through `SUBCLASS_OF*0..` on their respective node ends.
 
 Properties are inherited through `SUBCLASS_OF` chains. If `Species` is a subclass of `Tiddler`, it inherits all of `Tiddler`'s required and optional properties.
 
@@ -45,6 +56,7 @@ Properties are inherited through `SUBCLASS_OF` chains. If `Species` is a subclas
 
 - `undefined_labels` — labels not found as `OntologyNode` in the graph
 - `missing_properties` — required properties (`REQUIRE_PROPERTY`) that are absent
+- `missing_relationships` — required relationships absent: outgoing edges flagged via `REQUIRE_RELATIONSHIP`, incoming edges via `REQUIRE_TARGET`
 - `undefined_properties` — properties present on the node but not defined in the ontology
 - `invalid_properties` — properties with values that fail type checks
 
