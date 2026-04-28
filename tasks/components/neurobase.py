@@ -98,6 +98,9 @@ def _count_label(nb, label):
 
 
 def _sample_props(nb, label, size):
+    if size is None:
+        query = f"MATCH (n:`{label}`) RETURN properties(n) AS props"
+        return [r["props"] for r in nb.get_data(query)]
     query = f"MATCH (n:`{label}`) RETURN properties(n) AS props LIMIT $size"
     return [r["props"] for r in nb.get_data(query, {"size": size})]
 
@@ -576,8 +579,10 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
 
 
 @invoke.task(pre=[setup.env])
-def sample(c, type="", size=3, rels=True, count=True, fmt="text"):
-    """Sample knowledge nodes per type. --type: one type. --size: samples per type. --no-count/--no-rels: fast mode."""
+def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
+    """Sample knowledge nodes per type. --type: one type. --size: samples per type. --all: every instance (overrides --size). --no-count/--no-rels: fast mode."""
+    if all:
+        size = None
     forbidden = _forbidden_labels()
     with NeuroBase() as nb:
         if type:
