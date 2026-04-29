@@ -97,12 +97,23 @@ def _count_label(nb, label):
     return nb.get_data(f"MATCH (n:`{label}`) RETURN count(n) AS count")[0]["count"]
 
 
+_ID_KEYS = ("uuid", "neuro.id", "id")
+
+
+def _id_sort_key(props):
+    ident = next((props[k] for k in _ID_KEYS if k in props), "")
+    return str(ident)
+
+
 def _sample_props(nb, label, size):
     if size is None:
         query = f"MATCH (n:`{label}`) RETURN properties(n) AS props"
-        return [r["props"] for r in nb.get_data(query)]
-    query = f"MATCH (n:`{label}`) RETURN properties(n) AS props LIMIT $size"
-    return [r["props"] for r in nb.get_data(query, {"size": size})]
+        rows = [r["props"] for r in nb.get_data(query)]
+    else:
+        query = f"MATCH (n:`{label}`) RETURN properties(n) AS props, rand() AS r ORDER BY r LIMIT $size"
+        rows = [r["props"] for r in nb.get_data(query, {"size": size})]
+    rows.sort(key=_id_sort_key)
+    return rows
 
 
 def _rel_summary(nb, label, forbidden):
@@ -202,6 +213,12 @@ def count(c):
 @invoke.task(pre=[setup.env])
 def clear(c, confirmed=False):
     """Clear all data from the test database after confirmation."""
+    if os.environ.get("ENVIRONMENT") == "PRODUCTION":
+        if not terminal_components.bool_prompt(
+            f"{terminal_style.WARNING} ENVIRONMENT=PRODUCTION. Really clear?",
+            default=False,
+        ):
+            raise SystemExit("Aborting clear.")
     base_name = os.getenv("BASE_NAME")
     start(c)
     with NeuroBase() as nb:
@@ -615,7 +632,7 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
         return
 
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
-    id_keys = ("uuid", "neuro.id", "id")
+    id_keys = _ID_KEYS
     for entry in report:
         header = f"{B}{entry['label']}{RST}"
         if count:
