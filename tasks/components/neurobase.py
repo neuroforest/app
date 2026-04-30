@@ -116,29 +116,40 @@ def _sample_props(nb, label, size):
     return rows
 
 
-def _rel_summary(nb, label, forbidden):
-    forbidden_list = list(forbidden)
-    out_query = f"""
-    MATCH (n:`{label}`)-[r]->(b)
-    WHERE NONE(lb IN labels(b) WHERE lb IN $forbidden)
-    WITH type(r) AS rel, [lb IN labels(b) WHERE NOT lb IN $forbidden] AS lbs, count(*) AS cnt
-    RETURN rel, lbs, cnt
-    ORDER BY cnt DESC
-    LIMIT 10
+def _sample_with_rels(nb, label, size, forbidden):
+    fl = list(forbidden)
+    limit_clause = "WITH n, rand() AS _r ORDER BY _r LIMIT $size" if size is not None else ""
+    params = {"fb": fl}
+    if size is not None:
+        params["size"] = size
+    query = f"""
+    MATCH (n:`{label}`)
+    {limit_clause}
+    CALL (n) {{
+      OPTIONAL MATCH (n)-[r]->(b)
+      WHERE NONE(lb IN labels(b) WHERE lb IN $fb)
+      WITH r, b WHERE r IS NOT NULL
+      RETURN collect({{
+        rel: type(r),
+        labels: [lb IN labels(b) WHERE NOT lb IN $fb],
+        id: coalesce(b.`neuro.id`, b.uuid, b.title, b.id)
+      }}) AS outs
+    }}
+    CALL (n) {{
+      OPTIONAL MATCH (a)-[r]->(n)
+      WHERE NONE(lb IN labels(a) WHERE lb IN $fb)
+      WITH r, a WHERE r IS NOT NULL
+      RETURN collect({{
+        rel: type(r),
+        labels: [lb IN labels(a) WHERE NOT lb IN $fb],
+        id: coalesce(a.`neuro.id`, a.uuid, a.title, a.id)
+      }}) AS ins
+    }}
+    RETURN properties(n) AS props, outs, ins
     """
-    in_query = f"""
-    MATCH (a)-[r]->(n:`{label}`)
-    WHERE NONE(lb IN labels(a) WHERE lb IN $forbidden)
-      AND NOT $label IN labels(a)
-    WITH type(r) AS rel, [lb IN labels(a) WHERE NOT lb IN $forbidden] AS lbs, count(*) AS cnt
-    RETURN rel, lbs, cnt
-    ORDER BY cnt DESC
-    LIMIT 10
-    """
-    return {
-        "out": nb.get_data(out_query, {"forbidden": forbidden_list, "label": label}),
-        "in": nb.get_data(in_query, {"forbidden": forbidden_list, "label": label}),
-    }
+    rows = nb.get_data(query, params)
+    rows.sort(key=lambda row: _id_sort_key(row["props"]))
+    return rows
 
 
 def verify_neo4j(timeout=32):
@@ -326,12 +337,50 @@ def delete(c):
             subprocess.run(["docker", "volume", "rm", vol], capture_output=build_utils.quiet())
 
 
-@invoke.task(pre=[setup.env])
-def overview(c, fmt="text"):
-    """Summarize the neurobase: types, data types, relations, with counts."""
+def _lineage(nb, label):
+    query = """
+    MATCH p=(n:OntologyNode {label: $label})-[:SUBCLASS_OF*0..]->(a:OntologyNode)
+    RETURN a.label AS label, length(p) AS depth
+    ORDER BY depth
+    """
+    return [r["label"] for r in nb.get_data(query, {"label": label})]
+
+
+def _direct_subclasses(nb, label):
+    query = """
+    MATCH (c:OntologyNode)-[:SUBCLASS_OF]->(:OntologyNode {label: $label})
+    RETURN c.label AS label
+    ORDER BY label
+    """
+    return [r["label"] for r in nb.get_data(query, {"label": label})]
+
+
+def _instance_key_counts(nb, label):
+    query = f"MATCH (n:`{label}`) UNWIND keys(n) AS k RETURN k, count(*) AS c"
+    return {r["k"]: r["c"] for r in nb.get_data(query)}
+
+
+def _rel_live_counts(nb, label, forbidden):
+    fl = list(forbidden)
+    out_query = f"""
+    MATCH (n:`{label}`)-[r]->(b)
+    WHERE NONE(lb IN labels(b) WHERE lb IN $fb)
+    RETURN type(r) AS rel, count(*) AS c
+    """
+    in_query = f"""
+    MATCH (a)-[r]->(n:`{label}`)
+    WHERE NONE(lb IN labels(a) WHERE lb IN $fb)
+      AND NOT $label IN labels(a)
+    RETURN type(r) AS rel, count(*) AS c
+    """
+    out = {r["rel"]: r["c"] for r in nb.get_data(out_query, {"fb": fl})}
+    inc = {r["rel"]: r["c"] for r in nb.get_data(in_query, {"fb": fl, "label": label})}
+    return out, inc
+
+
+def _overview(fmt):
     forbidden = _forbidden_labels()
     meta = _meta_labels()
-    result = {}
     with NeuroBase() as nb:
         present = _present_labels(nb)
         knowledge = set(_knowledge_labels(nb))
@@ -356,13 +405,13 @@ def overview(c, fmt="text"):
         relations = sorted(rel_present & rel_knowledge) if ontology_loaded else sorted(rel_present)
         rel_counts = {r: _count_rel_type(nb, r) for r in relations}
 
-        result = {
-            "types": [{"label": lb, "count": type_counts[lb]} for lb in types],
-            "empty": empty,
-            "data_types": data,
-            "orphans": orphans,
-            "relations": [{"type": r, "count": rel_counts[r]} for r in relations],
-        }
+    result = {
+        "types": [{"label": lb, "count": type_counts[lb]} for lb in types],
+        "empty": empty,
+        "data_types": data,
+        "orphans": orphans,
+        "relations": [{"type": r, "count": rel_counts[r]} for r in relations],
+    }
 
     if fmt == "json":
         print(json.dumps(result, indent=2))
@@ -395,6 +444,122 @@ def overview(c, fmt="text"):
         w = max(len(r) for r in relations)
         for r in relations:
             print(f"  {r:<{w}}  {rel_counts[r]}")
+
+
+@invoke.task(pre=[setup.env])
+def info(c, type="", fmt="text"):
+    """Without --type: neurobase summary. With --type: schema, live counts, property usage, class tree."""
+    if not type:
+        _overview(fmt)
+        return
+    _reject_if_forbidden(type)
+    forbidden = _forbidden_labels()
+
+    with NeuroBase() as nb:
+        present = _present_labels(nb)
+        knowledge = set(_knowledge_labels(nb))
+        if type not in present and type not in knowledge:
+            print(f"{terminal_style.FAIL} Unknown type: {type}", file=sys.stderr)
+            raise SystemExit(1)
+        if type not in knowledge:
+            print(f"{terminal_style.WARN} Undefined type: {type}", file=sys.stderr)
+
+        lineage = _lineage(nb, type)
+        subclasses = _direct_subclasses(nb, type)
+
+        try:
+            metaprops = Metaproperties.from_ontology(nb, type)
+        except Exception as e:
+            print(f"{terminal_style.WARN} schema (properties) load failed: {e}", file=sys.stderr)
+            metaprops = {}
+        try:
+            metarels = Metarelationships.from_ontology(nb, type)
+        except Exception as e:
+            print(f"{terminal_style.WARN} schema (relationships) load failed: {e}", file=sys.stderr)
+            metarels = {}
+
+        count = _count_label(nb, type) if type in present else 0
+        if count:
+            key_counts = _instance_key_counts(nb, type)
+            out_counts, in_counts = _rel_live_counts(nb, type, forbidden)
+        else:
+            key_counts, out_counts, in_counts = {}, {}, {}
+
+    defined_keys = set(metaprops.keys()) | set(_ID_KEYS)
+    undefined = sorted(set(key_counts) - defined_keys)
+
+    properties = [
+        {
+            "label": mp.label,
+            "type": mp.property_type,
+            "required": mp.is_required(),
+            "defined_on": mp.node,
+            "usage": key_counts.get(mp.label, 0),
+        }
+        for mp in sorted(metaprops.values(), key=lambda x: x.label)
+    ]
+
+    relationships = []
+    for mr in sorted(metarels.values(), key=lambda x: (x.direction(type) or "", x.label)):
+        d = mr.direction(type)
+        live = (out_counts if d == "outgoing" else in_counts).get(mr.label, 0)
+        relationships.append({
+            "label": mr.label,
+            "direction": d,
+            "source": mr.source,
+            "target": mr.target,
+            "source_required": mr.is_source_required(),
+            "target_required": mr.is_target_required(),
+            "live_count": live,
+        })
+
+    result = {
+        "label": type,
+        "count": count,
+        "lineage": lineage,
+        "subclasses": subclasses,
+        "properties": properties,
+        "undefined_properties": undefined,
+        "relationships": relationships,
+    }
+
+    if fmt == "json":
+        print(json.dumps(result, indent=2, default=str))
+        return
+
+    B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
+    print(f"{B}{type}{RST} {DIM}({count} nodes){RST}")
+
+    if len(lineage) > 1:
+        print(f"\n{B}Lineage{RST}")
+        print("  " + " ➜  ".join(lineage))
+    if subclasses:
+        print(f"\n{B}Subclasses{RST} ({len(subclasses)}): {', '.join(subclasses)}")
+
+    if properties:
+        print(f"\n{B}Properties{RST}")
+        wl = max(len(p["label"]) for p in properties)
+        wt = max(len(p["type"]) for p in properties)
+        for p in properties:
+            req = "*" if p["required"] else " "
+            inh = "" if p["defined_on"] == type else f" {DIM}from {p['defined_on']}{RST}"
+            usage = f"  {DIM}used {p['usage']}/{count}{RST}" if count else ""
+            print(f"  {req} {p['label']:<{wl}}  {p['type']:<{wt}}{usage}{inh}")
+
+    if undefined:
+        print(f"\n{B}Undefined keys in instances{RST} ({len(undefined)}): {', '.join(undefined)}")
+
+    if relationships:
+        print(f"\n{B}Relationships{RST}")
+        for r in relationships:
+            if r["direction"] == "outgoing":
+                req = "*" if r["source_required"] else " "
+                arrow = f"(:{type}) -[:{r['label']}]-> (:{r['target'] or '?'})"
+            else:
+                req = "*" if r["target_required"] else " "
+                arrow = f"(:{r['source'] or '?'}) -[:{r['label']}]-> (:{type})"
+            tail = f"  × {r['live_count']}" if count else ""
+            print(f"  {req} {arrow}{tail}")
 
 
 def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
@@ -620,11 +785,13 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
 
         report = []
         for lb in targets:
-            entry = {"label": lb, "samples": _sample_props(nb, lb, size)}
+            if rels:
+                samples = _sample_with_rels(nb, lb, size, forbidden)
+            else:
+                samples = [{"props": p, "outs": [], "ins": []} for p in _sample_props(nb, lb, size)]
+            entry = {"label": lb, "samples": samples}
             if count:
                 entry["count"] = _count_label(nb, lb)
-            if rels:
-                entry["rels"] = _rel_summary(nb, lb, forbidden)
             report.append(entry)
 
     if fmt == "json":
@@ -638,7 +805,8 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
         if count:
             header += f" {DIM}({entry['count']}){RST}"
         print(f"\n{header}")
-        for i, props in enumerate(entry["samples"], 1):
+        for i, sample in enumerate(entry["samples"], 1):
+            props = sample["props"]
             ident = next((props[k] for k in id_keys if k in props), None)
             tag = f"{DIM}[{i}]{RST}"
             if ident is not None:
@@ -649,12 +817,14 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
                 if k in id_keys:
                     continue
                 print(f"      {k}: {_fmt_value(props[k])}")
+            if rels and (sample["outs"] or sample["ins"]):
+                print(f"      {DIM}rels{RST}")
+                for r in sample["outs"]:
+                    target = ":".join(r["labels"]) or "?"
+                    tid = r.get("id") or "?"
+                    print(f"        -[:{r['rel']}]-> (:{target}) {DIM}[{tid}]{RST}")
+                for r in sample["ins"]:
+                    source = ":".join(r["labels"]) or "?"
+                    sid = r.get("id") or "?"
+                    print(f"        <-[:{r['rel']}]- (:{source}) {DIM}[{sid}]{RST}")
             print()
-        if rels and (entry["rels"]["out"] or entry["rels"]["in"]):
-            print(f"  {DIM}relationships{RST}")
-            for r in entry["rels"]["out"]:
-                target = ":".join(r["lbs"]) or "?"
-                print(f"    (:{entry['label']}) -[:{r['rel']}]-> (:{target}) × {r['cnt']}")
-            for r in entry["rels"]["in"]:
-                source = ":".join(r["lbs"]) or "?"
-                print(f"    (:{source}) -[:{r['rel']}]-> (:{entry['label']}) × {r['cnt']}")
