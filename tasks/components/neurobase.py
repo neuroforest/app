@@ -207,9 +207,12 @@ def start(c):
         print(f"{terminal_style.FAIL} NeuroBase container does not exist: {base_name}")
         raise SystemExit(1)
 
+    if docker_tools.container_running(base_name):
+        print(f"{terminal_style.SUCCESS} Already running: {base_name}")
+        return
+
     with terminal_components.step(f"Start NeuroBase instance: {base_name}"):
-        if not docker_tools.container_running(base_name):
-            subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
+        subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
         network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=32)
         verify_neo4j()
 
