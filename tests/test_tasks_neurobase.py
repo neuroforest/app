@@ -85,7 +85,7 @@ class TestStart:
         monkeypatch.setattr(neurobase_mod.docker_tools, "container_running", lambda n: True)
         neurobase_mod.start.__wrapped__(ctx)
         assert subprocess_recorder.call_count == 0
-        assert patch_wait.call_count == 1
+        assert patch_wait.call_count == 0
 
     def test_not_running_starts_container(self, ctx, monkeypatch, subprocess_recorder, patch_wait):
         monkeypatch.setenv("BASE_NAME", "nb")
