@@ -18,7 +18,7 @@ MODES = {
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test(c, mode="integration", location="neuro/tests", pytest_args=""):
+def test(c, mode="integration", pytest_args=""):
     """Run neuro tests. Modes: unit, integration (default), e2e."""
     setup.nenv(c)
     if mode not in MODES:
@@ -27,17 +27,17 @@ def test(c, mode="integration", location="neuro/tests", pytest_args=""):
         tw5.bundle(c)
         neurobase.clear(c, confirmed=True)
     extra = shlex.split(pytest_args) if pytest_args else []
-    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "pytest"), location] + MODES[mode] + extra)
+    result = subprocess.run([os.path.join(setup.get_nenv_dir(), "bin", "pytest"), "neuro/tests"] + MODES[mode] + extra)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test_branch(c, branch_name, mode="e2e", location="neuro/tests", pytest_args=""):
+def test_branch(c, branch_name, mode="e2e", pytest_args=""):
     """Set neuro branch and run tests. Modes: unit, integration, e2e (default)."""
     setup.branch(c, branch_name, components=["neuro"])
-    test(c, mode, location, pytest_args)
+    test(c, mode, pytest_args)
 
 
 @invoke.task(pre=[setup.env])
