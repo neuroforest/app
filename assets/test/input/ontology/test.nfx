@@ -36,6 +36,16 @@
             "nid": "4a558b92-ae34-4f94-ae53-5e466d34d31c",
             "labels": ["String"],
             "properties": {"label": "code"}
+        },
+        {
+            "nid": "f3c8a7e2-1d5b-4a9c-b8e0-6f2d4c9b1a3e",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "TestRequireRel"}
+        },
+        {
+            "nid": "2b9d8c1f-5e6a-4b7c-9d8e-3f1a2b5c7d9e",
+            "labels": ["OntologyRelationship"],
+            "properties": {"label": "POINTS_TO"}
         }
     ],
     "relationships": [
@@ -55,6 +65,11 @@
             "type": "SUBCLASS_OF"
         },
         {
+            "from": "f3c8a7e2-1d5b-4a9c-b8e0-6f2d4c9b1a3e",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
             "from": "a7ee0e84-eb7b-4835-bcd8-711af2e4510c",
             "to": "56e47243-e022-4dd6-a27e-6234ec8346f9",
             "type": "REQUIRE_PROPERTY"
@@ -68,6 +83,16 @@
             "from": "49995c01-9716-4b5d-bb1b-0049192536fa",
             "to": "4a558b92-ae34-4f94-ae53-5e466d34d31c",
             "type": "UNIQUE_PROPERTY"
+        },
+        {
+            "from": "f3c8a7e2-1d5b-4a9c-b8e0-6f2d4c9b1a3e",
+            "to": "2b9d8c1f-5e6a-4b7c-9d8e-3f1a2b5c7d9e",
+            "type": "REQUIRE_RELATIONSHIP"
+        },
+        {
+            "from": "2b9d8c1f-5e6a-4b7c-9d8e-3f1a2b5c7d9e",
+            "to": "7b9de9ba-27ed-4375-b713-5863537bfd7c",
+            "type": "HAS_TARGET"
         }
     ]
 }
