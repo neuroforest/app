@@ -1,0 +1,73 @@
+{
+    "nid": "e75a8385-4d8f-43ad-8df0-31124369d0bd",
+    "name": "Test",
+    "description": "Minimal fixture for validation tests",
+    "version": "1.0",
+    "dependencies": [
+        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@2.6"
+    ],
+    "nodes": [
+        {
+            "nid": "a7ee0e84-eb7b-4835-bcd8-711af2e4510c",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "TestRequire"}
+        },
+        {
+            "nid": "7b9de9ba-27ed-4375-b713-5863537bfd7c",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "TestKey"}
+        },
+        {
+            "nid": "49995c01-9716-4b5d-bb1b-0049192536fa",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "TestUnique"}
+        },
+        {
+            "nid": "56e47243-e022-4dd6-a27e-6234ec8346f9",
+            "labels": ["String"],
+            "properties": {"label": "name"}
+        },
+        {
+            "nid": "9fe8d155-18e0-41b5-b6d5-be9b45631195",
+            "labels": ["String"],
+            "properties": {"label": "id"}
+        },
+        {
+            "nid": "4a558b92-ae34-4f94-ae53-5e466d34d31c",
+            "labels": ["String"],
+            "properties": {"label": "code"}
+        }
+    ],
+    "relationships": [
+        {
+            "from": "a7ee0e84-eb7b-4835-bcd8-711af2e4510c",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "7b9de9ba-27ed-4375-b713-5863537bfd7c",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "49995c01-9716-4b5d-bb1b-0049192536fa",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "a7ee0e84-eb7b-4835-bcd8-711af2e4510c",
+            "to": "56e47243-e022-4dd6-a27e-6234ec8346f9",
+            "type": "REQUIRE_PROPERTY"
+        },
+        {
+            "from": "7b9de9ba-27ed-4375-b713-5863537bfd7c",
+            "to": "9fe8d155-18e0-41b5-b6d5-be9b45631195",
+            "type": "HAS_KEY"
+        },
+        {
+            "from": "49995c01-9716-4b5d-bb1b-0049192536fa",
+            "to": "4a558b92-ae34-4f94-ae53-5e466d34d31c",
+            "type": "UNIQUE_PROPERTY"
+        }
+    ]
+}
