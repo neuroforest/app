@@ -21,7 +21,22 @@
             "nid": "f81293be-27cd-4f3d-bd02-e88f24661d73",
             "labels": ["TestUnique"],
             "properties": {"code": "C1"}
+        },
+        {
+            "nid": "1f2e3d4c-5b6a-4798-8c9d-0e1f2a3b4c5d",
+            "labels": ["TestKey"],
+            "properties": {"id": "K2"}
+        },
+        {
+            "nid": "8a5b2c1d-9e3f-4a6b-8c7d-1e2f3a4b5c6d",
+            "labels": ["TestRequireRel"]
         }
     ],
-    "relationships": []
+    "relationships": [
+        {
+            "from": "8a5b2c1d-9e3f-4a6b-8c7d-1e2f3a4b5c6d",
+            "to": "1f2e3d4c-5b6a-4798-8c9d-0e1f2a3b4c5d",
+            "type": "POINTS_TO"
+        }
+    ]
 }

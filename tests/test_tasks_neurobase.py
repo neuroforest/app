@@ -87,3 +87,19 @@ def test_report(test_ontology, capsys):
 
     assert by_label["TestRequire"]["unique"] == []
     assert by_label["TestRequire"]["unique_fail"] == 0
+
+
+def test_required_relationship(test_ontology, capsys):
+    _load(test_ontology, "test_fail.nfx")
+    with pytest.raises(SystemExit):
+        neurobase.validate.__wrapped__(MockContext(), fmt="json")
+    out = capsys.readouterr().out
+
+    import json
+    report = json.loads(out)
+    by_label = {e["label"]: e for e in report}
+
+    rrr = by_label["TestRequireRel"]
+    assert rrr["count"] == 1
+    assert rrr["fail"] == 1
+    assert [d["missing_rel"] for d in rrr["details"]] == [["POINTS_TO"]]
