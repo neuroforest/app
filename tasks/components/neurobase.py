@@ -634,12 +634,29 @@ def _aggregate_violations(pairs):
 def _print_validation_entry(entry, all_mode, example_cap=5):
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
     warn_part = f", {entry['warn']} warn" if entry.get("warn") else ""
+    uniq_part = f", {entry['unique_fail']} unique" if entry.get("unique_fail") else ""
     header = (
         f"{B}{entry['label']}{RST} "
         f"{DIM}({entry['count']:,} nodes — "
-        f"{entry['pass']} pass, {entry['fail']} fail{warn_part}){RST}"
+        f"{entry['pass']} pass, {entry['fail']} fail{warn_part}{uniq_part}){RST}"
     )
     print(f"\n{header}")
+
+    for u in entry.get("unique", []):
+        if not u["duplicates"]:
+            continue
+        groups = u["duplicates"]
+        total_dupes = sum(g["count"] for g in groups)
+        print(
+            f"  unique {B}{u['property']}{RST} via {u['via']}"
+            f"  × {len(groups)} group(s), {total_dupes} nodes"
+        )
+        for g in groups[:example_cap]:
+            ids = ", ".join(str(i) for i in g["ids"])
+            more = "" if g["count"] <= len(g["ids"]) else f", +{g['count'] - len(g['ids'])} more"
+            print(f"    {DIM}{g['value']!r}{RST} × {g['count']}: [{ids}{more}]")
+        if len(groups) > example_cap:
+            print(f"    {DIM}+{len(groups) - example_cap} more group(s){RST}")
 
     if all_mode:
         agg = entry["violations"]
@@ -679,6 +696,38 @@ def _print_validation_entry(entry, all_mode, example_cap=5):
             print(f"        {terminal_style.YELLOW}{w}{terminal_style.RESET}")
 
 
+def _unique_property_labels(nb, label):
+    """Properties marked UNIQUE_PROPERTY (or any subclass, e.g. HAS_KEY) for this node label.
+
+    Walks SUBCLASS_OF on both the node lineage and the relationship-type lineage,
+    so a HAS_KEY edge declared on an ancestor is honored.
+    """
+    query = """
+    MATCH (n:OntologyNode {label: $label})-[:SUBCLASS_OF*0..]->(on:OntologyNode)
+    MATCH (or:OntologyRelationship)-[:SUBCLASS_OF*0..]->
+        (:OntologyRelationship {label: "UNIQUE_PROPERTY"})
+    MATCH (on)-[r]->(p)
+    WHERE type(r) = or.label AND p.label IS NOT NULL
+    RETURN DISTINCT p.label AS property, type(r) AS via, on.label AS defined_on
+    ORDER BY property
+    """
+    return nb.get_data(query, {"label": label})
+
+
+def _find_duplicate_values(nb, label, prop, id_cap=5):
+    """Groups of `label` instances sharing the same value of `prop`."""
+    query = f"""
+    MATCH (n:`{label}`)
+    WHERE n.`{prop}` IS NOT NULL
+    WITH n.`{prop}` AS value,
+         collect(coalesce(n.`neuro.id`, n.uuid, n.title, n.id)) AS ids
+    WHERE size(ids) > 1
+    RETURN value, size(ids) AS count, ids[..$cap] AS ids
+    ORDER BY count DESC, value
+    """
+    return nb.get_data(query, {"cap": id_cap})
+
+
 def _detail_record(nid, v):
     return {
         "nid": nid,
@@ -695,7 +744,7 @@ def _detail_record(nid, v):
 
 @invoke.task(pre=[setup.env])
 def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
-    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). Exits non-zero on violations."""
+    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). Per-type uniqueness (UNIQUE_PROPERTY and subclasses, e.g. HAS_KEY) is always checked across all instances. Exits non-zero on violations."""
     OntologyIndex(*internal_utils.get_path_list("ONTOLOGY"))
     forbidden = _forbidden_labels()
     had_violations = False
@@ -749,7 +798,20 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
                 entry["details"] = [_detail_record(nid, v) for nid, v in results]
             entry["warn"] = sum(1 for _, v in results if v.warnings)
 
-            if entry["fail"]:
+            unique_report = []
+            if count:
+                for spec in _unique_property_labels(nb, lb):
+                    dups = _find_duplicate_values(nb, lb, spec["property"])
+                    unique_report.append({
+                        "property": spec["property"],
+                        "via": spec["via"],
+                        "defined_on": spec["defined_on"],
+                        "duplicates": dups,
+                    })
+            entry["unique"] = unique_report
+            entry["unique_fail"] = sum(1 for u in unique_report if u["duplicates"])
+
+            if entry["fail"] or entry["unique_fail"]:
                 had_violations = True
 
             if fmt == "text":

@@ -1,0 +1,27 @@
+{
+    "nid": "78dbf59b-749b-43ef-bd2c-e0b4efccc955",
+    "name": "TestPass",
+    "description": "Clean instances of Test types — should validate without violations",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "e53770f7-e6e3-4d01-a1a2-70fb1caa2a36",
+            "labels": ["TestRequire"],
+            "properties": {"name": "alpha"}
+        },
+        {
+            "nid": "05b44a46-10a7-4ad4-a0f0-849328a27148",
+            "labels": ["TestKey"],
+            "properties": {"id": "K1"}
+        },
+        {
+            "nid": "f81293be-27cd-4f3d-bd02-e88f24661d73",
+            "labels": ["TestUnique"],
+            "properties": {"code": "C1"}
+        }
+    ],
+    "relationships": []
+}

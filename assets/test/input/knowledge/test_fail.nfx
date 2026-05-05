@@ -1,0 +1,36 @@
+{
+    "nid": "3bca8b54-4a2a-4ef1-8c64-7f9f192ab3bb",
+    "name": "TestFail",
+    "description": "Broken instances exercising each violation kind",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "db12734b-eaf7-4adb-a02d-d46c773196c4",
+            "labels": ["TestRequire"]
+        },
+        {
+            "nid": "f6a0dc4e-eb93-4e3a-98f8-592729806e52",
+            "labels": ["TestKey"],
+            "properties": {"id": "DUP"}
+        },
+        {
+            "nid": "c36fb3aa-c836-496e-ac83-0a1730b47c69",
+            "labels": ["TestKey"],
+            "properties": {"id": "DUP"}
+        },
+        {
+            "nid": "a4402914-43f4-4475-9b6c-e9c8d587a72e",
+            "labels": ["TestUnique"],
+            "properties": {"code": "DUP"}
+        },
+        {
+            "nid": "45ce81da-4ec6-4b53-a07f-1bacc7c1c6d1",
+            "labels": ["TestUnique"],
+            "properties": {"code": "DUP"}
+        }
+    ],
+    "relationships": []
+}
