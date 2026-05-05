@@ -144,10 +144,9 @@ class TestTest:
         with pytest.raises(SystemExit):
             neuro_mod.test.__wrapped__(ctx, mode="unit")
 
-    def test_passes_location_and_args(self, ctx, patch_subprocess):
-        neuro_mod.test.__wrapped__(ctx, mode="unit", location="neuro/tests/core", pytest_args="-v")
+    def test_passes_pytest_args(self, ctx, patch_subprocess):
+        neuro_mod.test.__wrapped__(ctx, mode="unit", pytest_args="-v")
         args = patch_subprocess.last_args[0]
-        assert "neuro/tests/core" in args
         assert "-v" in args
 
 
@@ -168,4 +167,4 @@ class TestTestBranch:
 
     def test_passes_pytest_args(self, ctx, patch_branch, patch_test):
         neuro_mod.test_branch.__wrapped__(ctx, branch_name="dev", pytest_args="-v")
-        assert patch_test.last_args[3] == "-v"
+        assert patch_test.last_args[2] == "-v"
