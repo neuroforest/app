@@ -1,6 +1,6 @@
 {
   "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
-  "version": "2.5",
+  "version": "2.6",
   "name": "Metaontology",
   "description": "Self-describing schema for NeuroBase ontology",
   "nodes": [
@@ -149,6 +149,13 @@
       "labels": ["OntologyRelationship", "Metaontology"],
       "properties": {
         "label": "HAS_KEY"
+      }
+    },
+    {
+      "nid": "9e946292-3160-4f9e-8893-b1369a509b43",
+      "labels": ["OntologyRelationship", "Metaontology"],
+      "properties": {
+        "label": "UNIQUE_PROPERTY"
       }
     },
     {
@@ -341,6 +348,16 @@
     {
       "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
       "to": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
+      "type": "SUBCLASS_OF"
+    },
+    {
+      "from": "9e946292-3160-4f9e-8893-b1369a509b43",
+      "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+      "type": "SUBCLASS_OF"
+    },
+    {
+      "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
+      "to": "9e946292-3160-4f9e-8893-b1369a509b43",
       "type": "SUBCLASS_OF"
     }
   ]
