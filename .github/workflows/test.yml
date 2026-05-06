@@ -56,3 +56,4 @@ jobs:
         env:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           NEO4J_PASSWORD: testpass
+          ONTOLOGY: assets/ontology:assets/test/input/ontology
