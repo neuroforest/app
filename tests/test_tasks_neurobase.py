@@ -9,6 +9,7 @@ import json
 import pytest
 from invoke import MockContext
 
+from neuro.base import NeuroBase
 from neuro.utils.internal_utils import get_path
 from tasks.components import neurobase
 from tasks.components.ontology import render
@@ -101,3 +102,9 @@ def test_required_relationship_violation(test_ontology, capsys):
     assert entry["count"] == 1
     assert entry["fail"] == 1
     assert [d["missing_rel"] for d in entry["details"]] == [["POINTS_TO"]]
+
+
+def test_start():
+    neurobase.start(MockContext())
+    with NeuroBase() as nb:
+        assert nb.get_data("RETURN 1 AS ok")[0]["ok"] == 1
