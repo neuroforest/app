@@ -1,16 +1,12 @@
 {
     "nid": "3bca8b54-4a2a-4ef1-8c64-7f9f192ab3bb",
-    "name": "TestFail",
-    "description": "Broken instances exercising each violation kind",
+    "name": "TestUniqueFail",
+    "description": "Duplicate values for HAS_KEY and UNIQUE_PROPERTY",
     "version": "1.0",
     "dependencies": [
         "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
     ],
     "nodes": [
-        {
-            "nid": "db12734b-eaf7-4adb-a02d-d46c773196c4",
-            "labels": ["TestRequire"]
-        },
         {
             "nid": "f6a0dc4e-eb93-4e3a-98f8-592729806e52",
             "labels": ["TestKey"],
@@ -30,10 +26,6 @@
             "nid": "45ce81da-4ec6-4b53-a07f-1bacc7c1c6d1",
             "labels": ["TestUnique"],
             "properties": {"code": "DUP"}
-        },
-        {
-            "nid": "9e8d7c6b-5a4f-4e3d-8c2b-1a09f8e7d6c5",
-            "labels": ["TestRequireRel"]
         }
     ],
     "relationships": []
