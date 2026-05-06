@@ -1,8 +1,11 @@
 """Integration tests for `nde neurobase.validate`.
 
-Uses the Test ontology (assets/test/input/ontology/test.nfx) and the
-test_pass / test_fail knowledge fixtures (assets/test/input/knowledge/).
+Uses the Test ontology (assets/test/input/ontology/test.nfx) and per-concern
+knowledge fixtures under assets/test/input/knowledge/ — one shared `test-pass.nfx`
+plus `<concern>-fail.nfx` files that isolate a single violation kind.
 """
+import json
+
 import pytest
 from invoke import MockContext
 
@@ -23,6 +26,13 @@ def _load(nb, filename):
     nb.nodes.import_nfx(KNOWLEDGE / filename, validate=False)
 
 
+def _validate_report(nb, fixture):
+    _load(nb, fixture)
+    with pytest.raises(SystemExit) as exc:
+        neurobase.validate.__wrapped__(MockContext(), fmt="json")
+    assert exc.value.code == 1
+
+
 def test_has_key(test_ontology):
     found = neurobase._unique_property_labels(test_ontology, "TestKey")
     assert {(p["property"], p["via"]) for p in found} == {("id", "HAS_KEY")}
@@ -38,7 +48,7 @@ def test_no_unique(test_ontology):
 
 
 def test_duplicates(test_ontology):
-    _load(test_ontology, "test_fail.nfx")
+    _load(test_ontology, "unique-fail.nfx")
     dups = neurobase._find_duplicate_values(test_ontology, "TestKey", "id")
     assert len(dups) == 1
     assert dups[0]["value"] == "DUP"
@@ -46,32 +56,19 @@ def test_duplicates(test_ontology):
 
 
 def test_no_duplicates(test_ontology):
-    _load(test_ontology, "test_pass.nfx")
+    _load(test_ontology, "test-pass.nfx")
     assert neurobase._find_duplicate_values(test_ontology, "TestKey", "id") == []
     assert neurobase._find_duplicate_values(test_ontology, "TestUnique", "code") == []
 
 
 def test_pass(test_ontology):
-    _load(test_ontology, "test_pass.nfx")
+    _load(test_ontology, "test-pass.nfx")
     neurobase.validate.__wrapped__(MockContext(), fmt="json")
 
 
-def test_fail(test_ontology):
-    _load(test_ontology, "test_fail.nfx")
-    with pytest.raises(SystemExit) as exc:
-        neurobase.validate.__wrapped__(MockContext(), fmt="json")
-    assert exc.value.code == 1
-
-
-def test_report(test_ontology, capsys):
-    _load(test_ontology, "test_fail.nfx")
-    with pytest.raises(SystemExit):
-        neurobase.validate.__wrapped__(MockContext(), fmt="json")
-    out = capsys.readouterr().out
-
-    import json
-    report = json.loads(out)
-    by_label = {e["label"]: e for e in report}
+def test_unique_violation(test_ontology, capsys):
+    _validate_report(test_ontology, "unique-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
 
     key_unique = by_label["TestKey"]["unique"]
     assert len(key_unique) == 1
@@ -85,21 +82,22 @@ def test_report(test_ontology, capsys):
     assert code_unique[0]["via"] == "UNIQUE_PROPERTY"
     assert by_label["TestUnique"]["unique_fail"] == 1
 
-    assert by_label["TestRequire"]["unique"] == []
-    assert by_label["TestRequire"]["unique_fail"] == 0
+
+def test_required_property_violation(test_ontology, capsys):
+    _validate_report(test_ontology, "required-property-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
+
+    entry = by_label["TestRequire"]
+    assert entry["count"] == 1
+    assert entry["fail"] == 1
+    assert [d["missing"] for d in entry["details"]] == [["name"]]
 
 
-def test_required_relationship(test_ontology, capsys):
-    _load(test_ontology, "test_fail.nfx")
-    with pytest.raises(SystemExit):
-        neurobase.validate.__wrapped__(MockContext(), fmt="json")
-    out = capsys.readouterr().out
+def test_required_relationship_violation(test_ontology, capsys):
+    _validate_report(test_ontology, "required-relationship-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
 
-    import json
-    report = json.loads(out)
-    by_label = {e["label"]: e for e in report}
-
-    rrr = by_label["TestRequireRel"]
-    assert rrr["count"] == 1
-    assert rrr["fail"] == 1
-    assert [d["missing_rel"] for d in rrr["details"]] == [["POINTS_TO"]]
+    entry = by_label["TestRequireRel"]
+    assert entry["count"] == 1
+    assert entry["fail"] == 1
+    assert [d["missing_rel"] for d in entry["details"]] == [["POINTS_TO"]]

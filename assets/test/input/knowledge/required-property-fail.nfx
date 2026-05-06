@@ -1,0 +1,16 @@
+{
+    "nid": "7c8d9e0f-1a2b-4c3d-8e5f-6a7b8c9d0e1f",
+    "name": "TestRequiredPropertyFail",
+    "description": "Instance missing a REQUIRE_PROPERTY value",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "db12734b-eaf7-4adb-a02d-d46c773196c4",
+            "labels": ["TestRequire"]
+        }
+    ],
+    "relationships": []
+}
