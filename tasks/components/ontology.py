@@ -444,9 +444,9 @@ def count(c):
 @invoke.task(pre=[setup.env])
 def clear(c):
     """Remove all ontology nodes from the database."""
-    if os.environ.get("ENVIRONMENT") == "PRODUCTION":
+    if os.environ.get("ENV") == "PRODUCTION":
         if not terminal_components.bool_prompt(
-            f"{terminal_style.WARNING} ENVIRONMENT=PRODUCTION. Really clear ontology?",
+            f"{terminal_style.WARNING} ENV=PRODUCTION. Really clear ontology?",
             default=False,
         ):
             raise SystemExit("Aborting clear.")

@@ -227,9 +227,9 @@ def count(c):
 @invoke.task(pre=[setup.env])
 def clear(c, confirmed=False):
     """Clear all data from the test database after confirmation."""
-    if os.environ.get("ENVIRONMENT") == "PRODUCTION":
+    if os.environ.get("ENV") == "PRODUCTION":
         if not terminal_components.bool_prompt(
-            f"{terminal_style.WARNING} ENVIRONMENT=PRODUCTION. Really clear?",
+            f"{terminal_style.WARNING} ENV=PRODUCTION. Really clear?",
             default=False,
         ):
             raise SystemExit("Aborting clear.")

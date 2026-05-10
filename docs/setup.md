@@ -18,7 +18,7 @@ Environment loading and branch management.
     invoke setup.env --environment=TESTING
 
 1. Resolves `APP_DIR` via `internal_utils.get_path("app")`
-2. Sets `ENVIRONMENT` if provided
+2. Sets `ENV` if provided
 3. Loads config via `neuro.utils.config.main()`
 4. Changes working directory to `APP_DIR`
 
