@@ -39,9 +39,9 @@ def env(c, environment=None):
     """Load config and chdir to APP_DIR."""
     nf_dir = internal_utils.get_path("app")
     if environment:
-        os.environ["ENVIRONMENT"] = environment
+        os.environ["ENV"] = environment
     config.main()
-    env_name = os.environ.get("ENVIRONMENT", "DEVELOP")
+    env_name = os.environ.get("ENV", "DEVELOP")
     if env_name != "PRODUCTION" and not build_utils.quiet():
         terminal_style.header(f"Environment [{env_name}] {nf_dir}")
     try:
@@ -95,7 +95,7 @@ def branch(c, branch_name, components):
 @invoke.task(pre=[env])
 def init(c):
     """Initialize per-user XDG directories and config for production installs."""
-    if os.environ.get("ENVIRONMENT") != "PRODUCTION":
+    if os.environ.get("ENV") != "PRODUCTION":
         return
 
     username = getpass.getuser()
@@ -136,7 +136,7 @@ def init(c):
         http_port, bolt_port = network_utils.get_free_ports(2)
 
     env_content = (
-        f"ENVIRONMENT=PRODUCTION\n"
+        f"ENV=PRODUCTION\n"
         f"NEO4J_PASSWORD={password}\n"
         f"\n"
         f"# Per-user NeuroBase container\n"

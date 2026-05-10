@@ -45,7 +45,7 @@ Tasks read environment from dotenv files. Loading order:
 
 1. `app/.env` — repo defaults (relative paths, committed)
 2. `$NF_CONFIG/env` — user-wide overrides
-3. `$NF_CONFIG/env.{ENVIRONMENT}` — environment-specific overrides
+3. `$NF_CONFIG/env.{ENV}` — environment-specific overrides
 
 `NF_CONFIG` defaults to `~/.config/neuroforest/`. Use `env.develop` there for local overrides (e.g. absolute paths).
 

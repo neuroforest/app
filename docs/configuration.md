@@ -39,7 +39,7 @@ All tasks depend on `setup.env` as a pre-task. It loads config and changes to `A
 | `TEST_PORT` | `8069` | Test server port |
 | `LOGGING` | `WARNING` | Log level |
 | `LOGGING_FORMAT` | `%(levelname)s %(name)s: %(message)s` | Log format string |
-| `ENVIRONMENT` | `DEVELOP` | Active environment (`DEVELOP`, `TESTING`, `PRODUCTION`) |
+| `ENV` | `DEVELOP` | Active environment (`DEVELOP`, `TESTING`, `PRODUCTION`) |
 
 ### Paths
 

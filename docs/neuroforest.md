@@ -103,7 +103,7 @@ invoke app.stop      # closes desktop and stops neurobase
     invoke test.local -c app -c neuro   # run specific components
     invoke app.test                     # run app tests only
 
-All test tasks set `ENVIRONMENT=TESTING`, which loads `.env.testing` instead of `.env`.
+All test tasks set `ENV=TESTING`, which loads `.env.testing` instead of `.env`.
 
 See [configuration.md](configuration.md) for environment variable reference.
 

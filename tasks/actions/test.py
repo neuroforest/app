@@ -80,5 +80,5 @@ def ruff(c, ruff_args=""):
 @invoke.task(pre=[setup.env])
 def production(c):
     """Build desktop and run production tests (stub)."""
-    os.environ["ENVIRONMENT"] = "TESTING"
+    os.environ["ENV"] = "TESTING"
     print("Production tests not yet implemented.")
