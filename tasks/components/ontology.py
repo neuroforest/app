@@ -483,17 +483,24 @@ def test(c, o="", strict=False):
             failures = []
             warnings = []
 
-            if not is_meta:
-                nb.clear(confirm=True)
-                nb.metaontology.import_nfx(path, index=idx)
-                nb.metaontology.is_ontology_valid(strict=strict)
-                if strict:
-                    _validate_instances(nb, path)
-                dep_errors = idx.check_dependency_versions(path)
-                if nb.metaontology.violations or dep_errors:
-                    failures.extend(str(v) for v in nb.metaontology.violations)
-                    failures.extend(str(err) for err in dep_errors)
-                warnings = list(nb.metaontology.violations.warnings)
+            nb.clear(confirm=True)
+            nb.metaontology.import_nfx(path, index=idx)
+            nb.metaontology.is_ontology_valid(strict=strict)
+            if strict and not is_meta:
+                _validate_instances(nb, path)
+            dep_errors = idx.check_dependency_versions(path)
+            lint = nfx.lint_format(json.loads(path.read_text()))
+            if (nb.metaontology.violations or dep_errors
+                    or lint["unknown_keys"] or lint["key_order"] or lint["empty"]):
+                failures.extend(str(v) for v in nb.metaontology.violations)
+                failures.extend(str(err) for err in dep_errors)
+                for u in lint["unknown_keys"]:
+                    failures.append(f"{u['where']} has unknown keys {u['keys']}")
+                for ko in lint["key_order"]:
+                    failures.append(f"{ko['where']} key order {ko['keys']} not canonical")
+                for f in lint["empty"]:
+                    failures.append(f"{f!r} is empty — omit the key instead")
+            warnings = list(nb.metaontology.violations.warnings)
 
             test_path = _plugin_test_path(path)
             if test_path:
