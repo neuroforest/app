@@ -137,7 +137,7 @@ def _dependant_paths(idx, target_path, target_nid):
     return paths
 
 
-def _topo_targets(idx, target_path, metaontology_nid):
+def topo_targets(idx, target_path, metaontology_nid):
     """Topologically ordered paths for a single-target run: metaontology
     first, then transitive deps deps-before-dependents, ending with the target."""
     target_doc = nfx.read(target_path)
@@ -157,10 +157,12 @@ def _topo_targets(idx, target_path, metaontology_nid):
     return [idx.metaontology_path] + paths
 
 
-def _validate_instances(nb, path):
-    """Validate instance nodes in an NFX file, appending per-node violations
-    onto `nb.metaontology.violations` so the caller's gating and printing
-    pick them up uniformly."""
+def validate_knowledge(nb, path):
+    """Validate knowledge (instance) nodes in an NFX file against the loaded
+    ontology, appending per-node violations onto `nb.metaontology.violations`
+    so the caller's gating and printing pick them up uniformly. Entries whose
+    labels are ontology objects (`OntologyNode`/`OntologyRelationship`/…) are
+    skipped — only instance nodes are checked."""
 
     class _Node:
         def __init__(self, labels, properties):
@@ -468,7 +470,7 @@ def test(c, o="", strict=False):
         if not target_path:
             print(f"{terminal_style.FAIL} Ontology not found: {o}")
             raise SystemExit(1)
-        targets = _topo_targets(idx, target_path, metaontology_nid)
+        targets = topo_targets(idx, target_path, metaontology_nid)
     else:
         targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
 
@@ -487,7 +489,7 @@ def test(c, o="", strict=False):
             nb.metaontology.import_nfx(path, index=idx)
             nb.metaontology.is_ontology_valid(strict=strict)
             if strict and not is_meta:
-                _validate_instances(nb, path)
+                validate_knowledge(nb, path)
             dep_errors = idx.check_dependency_versions(path)
             lint = nfx.lint_format(json.loads(path.read_text()))
             if (nb.metaontology.violations or dep_errors
