@@ -1,364 +1,418 @@
 {
-  "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
-  "version": "2.6",
-  "name": "Metaontology",
-  "description": "Self-describing schema for NeuroBase ontology",
-  "nodes": [
-    {
-      "nid": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "OntologyObject"
-      }
-    },
-    {
-      "nid": "0ae156da-b906-4c98-ba08-1ef350919697",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "Metaontology"
-      }
-    },
-    {
-      "nid": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "OntologyProperty"
-      }
-    },
-    {
-      "nid": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "OntologyNode"
-      }
-    },
-    {
-      "nid": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "OntologyRelationship"
-      }
-    },
-    {
-      "nid": "9f866828-db25-43b7-b9ff-dc33e12dd038",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "Object"
-      }
-    },
-    {
-      "nid": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "Node"
-      }
-    },
-    {
-      "nid": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "String"
-      }
-    },
-    {
-      "nid": "8b1486e5-4f2a-42c8-a9eb-de863946f8de",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "Label"
-      }
-    },
-    {
-      "nid": "51960fca-ad0f-41e6-9e3a-7e00e126a06c",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "Uuid"
-      }
-    },
-    {
-      "nid": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "labels": ["OntologyNode", "Metaontology"],
-      "properties": {
-        "label": "OntologyMetadata"
-      }
-    },
-    {
-      "nid": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "SUBCLASS_OF"
-      }
-    },
-    {
-      "nid": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "HAS_PROPERTY"
-      }
-    },
-    {
-      "nid": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "HAS_TARGET"
-      }
-    },
-    {
-      "nid": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "HAS_RELATIONSHIP"
-      }
-    },
-    {
-      "nid": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "REQUIRE_PROPERTY"
-      }
-    },
-    {
-      "nid": "b7e3f1a2-9c4d-4e8b-a5f6-7d2c1e0b3a94",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "REQUIRE_RELATIONSHIP"
-      }
-    },
-    {
-      "nid": "4c4c6331-cc73-4e28-b601-4ee46bf5ef82",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "REQUIRE_TARGET"
-      }
-    },
-    {
-      "nid": "c0dd5826-ebb5-4057-8025-4eeacc212070",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "DEPENDS_ON"
-      }
-    },
-    {
-      "nid": "304b6f3a-9651-403f-83f8-bed6ad80db59",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "DEFINES"
-      }
-    },
-    {
-      "nid": "76c95c29-d276-42cc-9bf2-749dac176ed4",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "HAS_KEY"
-      }
-    },
-    {
-      "nid": "9e946292-3160-4f9e-8893-b1369a509b43",
-      "labels": ["OntologyRelationship", "Metaontology"],
-      "properties": {
-        "label": "UNIQUE_PROPERTY"
-      }
-    },
-    {
-      "nid": "22e79a7c-422c-4539-9f8f-a8dcaccb167b",
-      "labels": ["Label", "Metaontology"],
-      "properties": {
-        "label": "label"
-      }
-    },
-    {
-      "nid": "a4b69730-ce33-4999-8183-3aa343e13ead",
-      "labels": ["Uuid", "Metaontology"],
-      "properties": {
-        "label": "neuro.id"
-      }
-    },
-    {
-      "nid": "a9c310de-b980-4566-a179-eedbaa1ce4ec",
-      "labels": ["String", "Metaontology"],
-      "properties": {
-        "label": "name"
-      }
-    },
-    {
-      "nid": "97ae8df0-4ee7-4634-b26e-75a085c90249",
-      "labels": ["String", "Metaontology"],
-      "properties": {
-        "label": "version"
-      }
-    },
-    {
-      "nid": "204af6f7-4cb3-4d5d-8391-199365d96ad6",
-      "labels": ["String", "Metaontology"],
-      "properties": {
-        "label": "description"
-      }
-    }
-  ],
-  "relationships": [
-    {
-      "to": "9f866828-db25-43b7-b9ff-dc33e12dd038",
-      "from": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
-      "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "from": "0ae156da-b906-4c98-ba08-1ef350919697",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "from": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "from": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
-      "from": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
-      "from": "8b1486e5-4f2a-42c8-a9eb-de863946f8de",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
-      "from": "51960fca-ad0f-41e6-9e3a-7e00e126a06c",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
-      "from": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
-      "from": "b7e3f1a2-9c4d-4e8b-a5f6-7d2c1e0b3a94",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
-      "from": "4c4c6331-cc73-4e28-b601-4ee46bf5ef82",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "to": "22e79a7c-422c-4539-9f8f-a8dcaccb167b",
-      "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "type": "REQUIRE_PROPERTY"
-    },
-    {
-      "to": "a4b69730-ce33-4999-8183-3aa343e13ead",
-      "from": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
-      "type": "REQUIRE_PROPERTY"
-    },
-    {
-      "to": "97ae8df0-4ee7-4634-b26e-75a085c90249",
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "type": "REQUIRE_PROPERTY"
-    },
-    {
-      "to": "a9c310de-b980-4566-a179-eedbaa1ce4ec",
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "type": "HAS_PROPERTY"
-    },
-    {
-      "to": "204af6f7-4cb3-4d5d-8391-199365d96ad6",
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "type": "HAS_PROPERTY"
-    },
-    {
-      "to": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
-      "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
-      "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "to": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
-      "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "to": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
-      "from": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "to": "c0dd5826-ebb5-4057-8025-4eeacc212070",
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "from": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
-      "type": "HAS_TARGET"
-    },
-    {
-      "to": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
-      "from": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
-      "type": "HAS_TARGET"
-    },
-    {
-      "to": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
-      "from": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
-      "type": "HAS_TARGET"
-    },
-    {
-      "to": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
-      "from": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
-      "type": "HAS_TARGET"
-    },
-    {
-      "to": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "from": "c0dd5826-ebb5-4057-8025-4eeacc212070",
-      "type": "HAS_TARGET"
-    },
-    {
-      "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
-      "to": "304b6f3a-9651-403f-83f8-bed6ad80db59",
-      "type": "HAS_RELATIONSHIP"
-    },
-    {
-      "from": "304b6f3a-9651-403f-83f8-bed6ad80db59",
-      "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
-      "type": "HAS_TARGET"
-    },
-    {
-      "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
-      "to": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "from": "9e946292-3160-4f9e-8893-b1369a509b43",
-      "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
-      "type": "SUBCLASS_OF"
-    },
-    {
-      "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
-      "to": "9e946292-3160-4f9e-8893-b1369a509b43",
-      "type": "SUBCLASS_OF"
-    }
-  ]
+    "type": "metaontology",
+    "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
+    "version": "3.0",
+    "name": "Metaontology",
+    "description": "Self-describing schema for NeuroBase ontology",
+    "nodes": [
+        {
+            "nid": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "OntologyObject"
+            }
+        },
+        {
+            "nid": "0ae156da-b906-4c98-ba08-1ef350919697",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Metaontology"
+            }
+        },
+        {
+            "nid": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "OntologyProperty"
+            }
+        },
+        {
+            "nid": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "OntologyNode"
+            }
+        },
+        {
+            "nid": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "OntologyRelationship"
+            }
+        },
+        {
+            "nid": "9f866828-db25-43b7-b9ff-dc33e12dd038",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Object"
+            }
+        },
+        {
+            "nid": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Node"
+            }
+        },
+        {
+            "nid": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "String"
+            }
+        },
+        {
+            "nid": "8b1486e5-4f2a-42c8-a9eb-de863946f8de",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Label"
+            }
+        },
+        {
+            "nid": "51960fca-ad0f-41e6-9e3a-7e00e126a06c",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Uuid"
+            }
+        },
+        {
+            "nid": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Metadata"
+            }
+        },
+        {
+            "nid": "66984f28-bb96-403b-ba96-0dc3421cb6df",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "OntologyMetadata"
+            }
+        },
+        {
+            "nid": "025736f3-5e4c-44fa-aa51-4678b22763ba",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "KnowledgeMetadata"
+            }
+        },
+        {
+            "nid": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "SUBCLASS_OF"
+            }
+        },
+        {
+            "nid": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "HAS_PROPERTY"
+            }
+        },
+        {
+            "nid": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "HAS_TARGET"
+            }
+        },
+        {
+            "nid": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "HAS_RELATIONSHIP"
+            }
+        },
+        {
+            "nid": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "REQUIRE_PROPERTY"
+            }
+        },
+        {
+            "nid": "b7e3f1a2-9c4d-4e8b-a5f6-7d2c1e0b3a94",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "REQUIRE_RELATIONSHIP"
+            }
+        },
+        {
+            "nid": "4c4c6331-cc73-4e28-b601-4ee46bf5ef82",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "REQUIRE_TARGET"
+            }
+        },
+        {
+            "nid": "c0dd5826-ebb5-4057-8025-4eeacc212070",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "DEPENDS_ON"
+            }
+        },
+        {
+            "nid": "304b6f3a-9651-403f-83f8-bed6ad80db59",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "DEFINES"
+            }
+        },
+        {
+            "nid": "400ee192-b658-4596-a07b-f8e8403613db",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "DEFINES"
+            }
+        },
+        {
+            "nid": "76c95c29-d276-42cc-9bf2-749dac176ed4",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "HAS_KEY"
+            }
+        },
+        {
+            "nid": "9e946292-3160-4f9e-8893-b1369a509b43",
+            "labels": ["OntologyRelationship", "Metaontology"],
+            "properties": {
+                "label": "UNIQUE_PROPERTY"
+            }
+        },
+        {
+            "nid": "22e79a7c-422c-4539-9f8f-a8dcaccb167b",
+            "labels": ["Label", "Metaontology"],
+            "properties": {
+                "label": "label"
+            }
+        },
+        {
+            "nid": "a4b69730-ce33-4999-8183-3aa343e13ead",
+            "labels": ["Uuid", "Metaontology"],
+            "properties": {
+                "label": "neuro.id"
+            }
+        },
+        {
+            "nid": "a9c310de-b980-4566-a179-eedbaa1ce4ec",
+            "labels": ["String", "Metaontology"],
+            "properties": {
+                "label": "name"
+            }
+        },
+        {
+            "nid": "97ae8df0-4ee7-4634-b26e-75a085c90249",
+            "labels": ["String", "Metaontology"],
+            "properties": {
+                "label": "version"
+            }
+        },
+        {
+            "nid": "204af6f7-4cb3-4d5d-8391-199365d96ad6",
+            "labels": ["String", "Metaontology"],
+            "properties": {
+                "label": "description"
+            }
+        },
+        {
+            "nid": "607a779d-cf57-4003-8535-1c0d60701c9f",
+            "labels": ["String", "Metaontology"],
+            "properties": {
+                "label": "type"
+            }
+        }
+    ],
+    "relationships": [
+        {
+            "from": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "to": "9f866828-db25-43b7-b9ff-dc33e12dd038",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "0ae156da-b906-4c98-ba08-1ef350919697",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
+            "to": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "025736f3-5e4c-44fa-aa51-4678b22763ba",
+            "to": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
+            "to": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "8b1486e5-4f2a-42c8-a9eb-de863946f8de",
+            "to": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "51960fca-ad0f-41e6-9e3a-7e00e126a06c",
+            "to": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
+            "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "b7e3f1a2-9c4d-4e8b-a5f6-7d2c1e0b3a94",
+            "to": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "4c4c6331-cc73-4e28-b601-4ee46bf5ef82",
+            "to": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "to": "22e79a7c-422c-4539-9f8f-a8dcaccb167b",
+            "type": "REQUIRE_PROPERTY"
+        },
+        {
+            "from": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "to": "a4b69730-ce33-4999-8183-3aa343e13ead",
+            "type": "REQUIRE_PROPERTY"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "97ae8df0-4ee7-4634-b26e-75a085c90249",
+            "type": "REQUIRE_PROPERTY"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "607a779d-cf57-4003-8535-1c0d60701c9f",
+            "type": "REQUIRE_PROPERTY"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "a9c310de-b980-4566-a179-eedbaa1ce4ec",
+            "type": "HAS_PROPERTY"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "204af6f7-4cb3-4d5d-8391-199365d96ad6",
+            "type": "HAS_PROPERTY"
+        },
+        {
+            "from": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "to": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
+            "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
+            "to": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
+            "to": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "to": "c0dd5826-ebb5-4057-8025-4eeacc212070",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "59f3276b-51a1-4cbe-834d-29aa6c2f9a8b",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+            "to": "cd982be1-cd08-4ed2-8044-6790d4b2ded0",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "bf23bffd-8a6f-43af-a3e0-74f0a3e0f9d8",
+            "to": "0e8273db-bcdf-40fe-bd6d-e298acb2fc46",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "afbae7c2-bbbd-4623-8270-1bb85e5771e1",
+            "to": "a9fc72e0-bdd1-4ce0-8bf4-e6c2845ffa44",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "c0dd5826-ebb5-4057-8025-4eeacc212070",
+            "to": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "66984f28-bb96-403b-ba96-0dc3421cb6df",
+            "to": "304b6f3a-9651-403f-83f8-bed6ad80db59",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "304b6f3a-9651-403f-83f8-bed6ad80db59",
+            "to": "ac6d8635-b41f-43cf-ae1a-3ab5904d7d9a",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "025736f3-5e4c-44fa-aa51-4678b22763ba",
+            "to": "400ee192-b658-4596-a07b-f8e8403613db",
+            "type": "HAS_RELATIONSHIP"
+        },
+        {
+            "from": "400ee192-b658-4596-a07b-f8e8403613db",
+            "to": "9f866828-db25-43b7-b9ff-dc33e12dd038",
+            "type": "HAS_TARGET"
+        },
+        {
+            "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
+            "to": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "9e946292-3160-4f9e-8893-b1369a509b43",
+            "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "76c95c29-d276-42cc-9bf2-749dac176ed4",
+            "to": "9e946292-3160-4f9e-8893-b1369a509b43",
+            "type": "SUBCLASS_OF"
+        }
+    ]
 }
