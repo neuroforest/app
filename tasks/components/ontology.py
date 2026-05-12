@@ -9,7 +9,6 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
-from neuro.base.ontology import ObjectValidator
 from neuro.utils import internal_utils, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase
@@ -155,39 +154,6 @@ def topo_targets(idx, target_path, metaontology_nid):
         if p:
             paths.append(p)
     return [idx.metaontology_path] + paths
-
-
-def validate_knowledge(nb, path):
-    """Validate knowledge (instance) nodes in an NFX file against the loaded
-    ontology, appending per-node violations onto `nb.metaontology.violations`
-    so the caller's gating and printing pick them up uniformly. Entries whose
-    labels are ontology objects (`OntologyNode`/`OntologyRelationship`/…) are
-    skipped — only instance nodes are checked."""
-
-    class _Node:
-        def __init__(self, labels, properties):
-            self.labels = labels
-            self.properties = properties
-
-    doc = nfx.read(path)
-    ontology_labels = set(json.loads(os.environ["ONTOLOGY_OBJECTS"]))
-
-    for entry in doc.nodes:
-        if any(label in ontology_labels for label in entry["labels"]):
-            continue
-        entry_props = entry.get("properties", {})
-        node_props = {"neuro.id": entry["nid"], **entry_props}
-        violations = ObjectValidator(nb, _Node(entry["labels"], node_props)).get_violations()
-        if violations:
-            identifier = (
-                entry_props.get("identifier")
-                or entry_props.get("name")
-                or entry_props.get("label")
-                or entry["nid"]
-            )
-            nb.metaontology.violations.violations.append(
-                (identifier, ":".join(entry["labels"]), violations)
-            )
 
 
 @invoke.task(pre=[setup.env])
@@ -459,7 +425,8 @@ def clear(c):
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, o="", strict=False):
     """Validate each ontology against the metaontology and run its plugin
-       validators together. -o: target file, --strict: also validate instances.
+       validators together. -o: target file, --strict: also flag property
+       types that have no registered validator.
     """
     neurobase.clear(c, confirmed=True)
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
@@ -480,7 +447,6 @@ def test(c, o="", strict=False):
         for path in targets:
             doc = nfx.read(path)
             name = doc.name or path.stem
-            is_meta = doc.nid == metaontology_nid
 
             failures = []
             warnings = []
@@ -488,8 +454,6 @@ def test(c, o="", strict=False):
             nb.clear(confirm=True)
             nb.metaontology.import_nfx(path, index=idx)
             nb.metaontology.is_ontology_valid(strict=strict)
-            if strict and not is_meta:
-                validate_knowledge(nb, path)
             dep_errors = idx.check_dependency_versions(path)
             lint = nfx.lint_format(json.loads(path.read_text()))
             if (nb.metaontology.violations or dep_errors

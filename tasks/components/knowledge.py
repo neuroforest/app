@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -6,9 +7,55 @@ import invoke
 from neuro.base import NeuroBase, nfx
 from neuro.base.index import KnowledgeIndex, OntologyIndex
 from neuro.base.metaontology import OntologyViolations
+from neuro.base.ontology import ObjectValidator
 from neuro.utils import internal_utils, terminal_components, terminal_style
+
 from tasks.actions import setup
 from tasks.components import neurobase, ontology as ontology_tasks
+
+
+def validate_knowledge(nb, path):
+    """Validate knowledge (instance) nodes in an NFX file against the loaded
+    ontology, appending per-node violations onto `nb.metaontology.violations`
+    so the caller's gating and printing pick them up uniformly. Entries whose
+    labels are ontology objects (`OntologyNode`/`OntologyRelationship`/…) or
+    any SUBCLASS_OF descendant of those are skipped — only instance nodes are
+    checked."""
+
+    class _Node:
+        def __init__(self, labels, properties):
+            self.labels = labels
+            self.properties = properties
+
+    doc = nfx.read(path)
+    roots = json.loads(os.environ["ONTOLOGY_OBJECTS"])
+    rows = nb.get_data(
+        """
+        UNWIND $roots AS root
+        MATCH (r:OntologyNode {label: root})
+        MATCH (sub)-[:SUBCLASS_OF*0..]->(r)
+        RETURN DISTINCT sub.label AS label
+        """,
+        {"roots": roots},
+    )
+    ontology_labels = {r["label"] for r in rows}
+
+    for entry in doc.nodes:
+        if any(label in ontology_labels for label in entry["labels"]):
+            continue
+        entry_props = entry.get("properties", {})
+        node_props = {"neuro.id": entry["nid"], **entry_props}
+        violations = ObjectValidator(nb, _Node(entry["labels"], node_props)).get_violations()
+        if violations:
+            identifier = (
+                entry_props.get("identifier")
+                or entry_props.get("name")
+                or entry_props.get("label")
+                or entry["nid"]
+            )
+            nb.metaontology.violations.violations.append(
+                (identifier, ":".join(entry["labels"]), violations)
+            )
 
 
 @invoke.task(pre=[setup.env])
@@ -95,7 +142,7 @@ def test(c, knowledge=""):
                 nb.metaontology.import_nfx(dep_path, index=onto_idx)
                 imported.add(dep_path)
             nb.metaontology.violations = OntologyViolations()
-            ontology_tasks.validate_knowledge(nb, path)
+            validate_knowledge(nb, path)
             violations = list(nb.metaontology.violations.violations)
             if violations:
                 print(f"{terminal_style.FAIL} {name}")
