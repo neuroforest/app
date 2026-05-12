@@ -36,7 +36,7 @@ def _resolve_target(idx, ontology):
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, ontology=""):
     """Import ontology into neurobase."""
-    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
     targets = _resolve_target(idx, ontology)
@@ -60,7 +60,7 @@ def import_(c, ontology=""):
 def render(c, ontology="", independent=False, bare=False, dependants=False):
     """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes. --dependants: also load ontologies that depend on target."""
     neurobase.start(c)
-    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
     targets = _resolve_target(idx, ontology)
@@ -192,8 +192,8 @@ def validate_knowledge(nb, path):
 
 @invoke.task(pre=[setup.env])
 def index(c, tree=False, ontology=""):
-    """Show discovered ontologies from ONTOLOGY search path. --tree: dependency graph. -o/--ontology: ontology details."""
-    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    """Show discovered ontologies from PLUGINS search path. --tree: dependency graph. -o/--ontology: ontology details."""
+    ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
     if ontology:
@@ -303,10 +303,10 @@ def _index_info(idx, ontology_name):
 
 
 def _version_history(path):
-    """Extract (version, date) pairs from git tags '<name>/<version>' across all ONTOLOGY repos."""
+    """Extract (version, date) pairs from git tags '<name>/<version>' across all PLUGINS repos."""
     name = (nfx.read(path).name or Path(path).stem).lower()
     repos = set()
-    for d in internal_utils.get_path_list("ONTOLOGY"):
+    for d in internal_utils.get_path_list("PLUGINS"):
         try:
             root = subprocess.run(
                 ["git", "-C", str(d), "rev-parse", "--show-toplevel"],
@@ -462,7 +462,7 @@ def test(c, o="", strict=False):
        validators together. -o: target file, --strict: also validate instances.
     """
     neurobase.clear(c, confirmed=True)
-    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
     metaontology_nid = nfx.read(idx.metaontology_path).nid
     if o:
@@ -535,7 +535,7 @@ def test(c, o="", strict=False):
 @invoke.task(pre=[setup.env])
 def rehash(c, ontology=""):
     """Recompute sha256(validators.py) and update the `hash` field in dir-form .nfx files. -o: target one ontology."""
-    ontology_dirs = internal_utils.get_path_list("ONTOLOGY")
+    ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
     targets = _resolve_target(idx, ontology)
 

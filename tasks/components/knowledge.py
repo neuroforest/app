@@ -14,7 +14,7 @@ from tasks.components import neurobase, ontology as ontology_tasks
 @invoke.task(pre=[setup.env])
 def index(c, knowledge=""):
     """Show discovered knowledge .nfx files. -k/--knowledge: details for one."""
-    roots = internal_utils.get_path_list("ONTOLOGY")
+    roots = internal_utils.get_path_list("PLUGINS")
     idx = KnowledgeIndex(*roots)
 
     if knowledge:
@@ -61,7 +61,7 @@ def _index_info(idx, name):
 def test(c, knowledge=""):
     """Validate knowledge nodes against the loaded ontology. -k: target one file."""
     neurobase.clear(c, confirmed=True)
-    roots = internal_utils.get_path_list("ONTOLOGY")
+    roots = internal_utils.get_path_list("PLUGINS")
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 

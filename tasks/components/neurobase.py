@@ -745,7 +745,7 @@ def _detail_record(nid, v):
 @invoke.task(pre=[setup.env])
 def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
     """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). Per-type uniqueness (UNIQUE_PROPERTY and subclasses, e.g. HAS_KEY) is always checked across all instances. Exits non-zero on violations."""
-    OntologyIndex(*internal_utils.get_path_list("ONTOLOGY"))
+    OntologyIndex(*internal_utils.get_path_list("PLUGINS"))
     forbidden = _forbidden_labels()
     had_violations = False
     report = []
