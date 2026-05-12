@@ -423,10 +423,9 @@ def clear(c):
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test(c, o="", strict=False):
+def test(c, o=""):
     """Validate each ontology against the metaontology and run its plugin
-       validators together. -o: target file, --strict: also flag property
-       types that have no registered validator.
+       validators together. -o: target file.
     """
     neurobase.clear(c, confirmed=True)
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
@@ -453,7 +452,7 @@ def test(c, o="", strict=False):
 
             nb.clear(confirm=True)
             nb.metaontology.import_nfx(path, index=idx)
-            nb.metaontology.is_ontology_valid(strict=strict)
+            nb.metaontology.is_ontology_valid()
             dep_errors = idx.check_dependency_versions(path)
             lint = nfx.lint_format(json.loads(path.read_text()))
             if (nb.metaontology.violations or dep_errors

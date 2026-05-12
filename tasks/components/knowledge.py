@@ -1,10 +1,9 @@
-import json
 import os
 from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx
+from neuro.base import NeuroBase, nfx, schema
 from neuro.base.index import KnowledgeIndex, OntologyIndex
 from neuro.base.metaontology import OntologyViolations
 from neuro.base.ontology import ObjectValidator
@@ -17,10 +16,10 @@ from tasks.components import neurobase, ontology as ontology_tasks
 def validate_knowledge(nb, path):
     """Validate knowledge (instance) nodes in an NFX file against the loaded
     ontology, appending per-node violations onto `nb.metaontology.violations`
-    so the caller's gating and printing pick them up uniformly. Entries whose
-    labels are ontology objects (`OntologyNode`/`OntologyRelationship`/…) or
-    any SUBCLASS_OF descendant of those are skipped — only instance nodes are
-    checked."""
+    so the caller's gating and printing pick them up uniformly. Nodes whose
+    labels don't resolve to any known ontology-object subclass are classified
+    via `schema.TypeRegistry` and aggregated as undefined property /
+    relationship / node types — typo'd type labels fail loudly."""
 
     class _Node:
         def __init__(self, labels, properties):
@@ -28,34 +27,40 @@ def validate_knowledge(nb, path):
             self.properties = properties
 
     doc = nfx.read(path)
-    roots = json.loads(os.environ["ONTOLOGY_OBJECTS"])
-    rows = nb.get_data(
-        """
-        UNWIND $roots AS root
-        MATCH (r:OntologyNode {label: root})
-        MATCH (sub)-[:SUBCLASS_OF*0..]->(r)
-        RETURN DISTINCT sub.label AS label
-        """,
-        {"roots": roots},
-    )
-    ontology_labels = {r["label"] for r in rows}
+    registry = schema.TypeRegistry(nb)
+
+    edge_map: dict[str, set[str]] = {}
+    for rel in doc.relationships:
+        edge_map.setdefault(rel["to"], set()).add(rel["type"])
+
+    undefined: dict[str, dict[str, str]] = {"property": {}, "relationship": {}, "node": {}}
 
     for entry in doc.nodes:
-        if any(label in ontology_labels for label in entry["labels"]):
-            continue
+        labels = entry["labels"]
         entry_props = entry.get("properties", {})
+        identifier = (
+            entry_props.get("identifier")
+            or entry_props.get("name")
+            or entry_props.get("label")
+            or entry["nid"]
+        )
+
+        kind = registry.classify_undefined(labels, edge_map.get(entry["nid"], set()))
+        if kind is not None:
+            type_label = labels[0] if labels else "?"
+            undefined[kind].setdefault(type_label, identifier)
+            continue
+
         node_props = {"neuro.id": entry["nid"], **entry_props}
-        violations = ObjectValidator(nb, _Node(entry["labels"], node_props)).get_violations()
+        violations = ObjectValidator(nb, _Node(labels, node_props)).get_violations()
         if violations:
-            identifier = (
-                entry_props.get("identifier")
-                or entry_props.get("name")
-                or entry_props.get("label")
-                or entry["nid"]
-            )
             nb.metaontology.violations.violations.append(
-                (identifier, ":".join(entry["labels"]), violations)
+                (identifier, ":".join(labels), violations)
             )
+
+    nb.metaontology.violations.undefined_property_types.extend(sorted(undefined["property"].items()))
+    nb.metaontology.violations.undefined_relationship_types.extend(sorted(undefined["relationship"].items()))
+    nb.metaontology.violations.undefined_node_types.extend(sorted(undefined["node"].items()))
 
 
 @invoke.task(pre=[setup.env])
