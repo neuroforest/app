@@ -132,7 +132,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(b) WHERE NOT lb IN $fb],
-        id: coalesce(b.`neuro.id`, b.uuid, b.title, b.id)
+        id: coalesce(b.uuid, b.`neuro.id`, b.id)
       }}) AS outs
     }}
     CALL (n) {{
@@ -142,7 +142,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(a) WHERE NOT lb IN $fb],
-        id: coalesce(a.`neuro.id`, a.uuid, a.title, a.id)
+        id: coalesce(a.uuid, a.`neuro.id`, a.id)
       }}) AS ins
     }}
     RETURN properties(n) AS props, outs, ins
@@ -872,14 +872,14 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
         print(f"\n{header}")
         for i, sample in enumerate(entry["samples"], 1):
             props = sample["props"]
-            ident = next((props[k] for k in id_keys if k in props), None)
+            ident_key = next((k for k in id_keys if k in props), None)
             tag = f"{DIM}[{i}]{RST}"
-            if ident is not None:
-                print(f"  {tag} {ident}")
+            if ident_key is not None:
+                print(f"  {tag} {DIM}({ident_key}){RST} {B}{props[ident_key]}{RST}")
             else:
                 print(f"  {tag}")
             for k in sorted(props):
-                if k in id_keys:
+                if k == ident_key:
                     continue
                 print(f"      {k}: {_fmt_value(props[k])}")
             if rels and (sample["outs"] or sample["ins"]):
