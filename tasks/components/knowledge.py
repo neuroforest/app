@@ -10,7 +10,7 @@ from neuro.base.ontology import ObjectValidator
 from neuro.utils import internal_utils, terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase, ontology as ontology_tasks
+from tasks.components import neurobase, nfx as nfx_tasks
 
 
 def validate_knowledge(nb, path):
@@ -70,7 +70,8 @@ def index(c, knowledge=""):
     idx = KnowledgeIndex(*roots)
 
     if knowledge:
-        _index_info(idx, knowledge)
+        onto_idx = OntologyIndex(*roots)
+        _index_info(idx, onto_idx, knowledge)
         return
 
     app_dir = Path(os.environ["APP_DIR"])
@@ -86,7 +87,7 @@ def index(c, knowledge=""):
     terminal_components.table(rows, header=("Name", "Version", "NID", "Path"))
 
 
-def _index_info(idx, name):
+def _index_info(idx, onto_idx, name):
     path = idx.resolve(name)
     if not path:
         print(f"{terminal_style.FAIL} Knowledge not found: {name}")
@@ -102,10 +103,7 @@ def _index_info(idx, name):
     print(f"  {DIM}{path}{RST}")
     print(f"\nNodes: {len(doc.nodes)}")
     print(f"Relationships: {len(doc.relationships)}")
-    if doc.dependencies:
-        print("\nDependencies:")
-        for dep_nid, dep_ver in doc.dependencies:
-            print(f"  {dep_nid}@{dep_ver}")
+    nfx_tasks.print_dependencies(onto_idx, doc)
     print()
 
 
@@ -117,14 +115,7 @@ def test(c, knowledge=""):
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 
-    if knowledge:
-        path = know_idx.resolve(knowledge)
-        if not path:
-            print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
-            raise SystemExit(1)
-        targets = [path]
-    else:
-        targets = know_idx.all_targets()
+    targets = nfx_tasks.resolve_target(know_idx, knowledge, kind="Knowledge")
 
     if not targets:
         print(f"{terminal_style.WARNING} No knowledge .nfx files found.")
@@ -141,7 +132,7 @@ def test(c, knowledge=""):
             # `topo_targets` returns metaontology-first transitive ontology
             # deps; the knowledge file's own nid is already filtered out
             # because it's not in OntologyIndex.
-            for dep_path in ontology_tasks.topo_targets(onto_idx, path, metaontology_nid):
+            for dep_path in nfx_tasks.topo_targets(onto_idx, path, metaontology_nid):
                 if dep_path in imported:
                     continue
                 nb.metaontology.import_nfx(dep_path, index=onto_idx)
@@ -160,3 +151,37 @@ def test(c, knowledge=""):
 
     if failed:
         raise SystemExit(1)
+
+
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
+def render(c, knowledge=""):
+    """Load knowledge (and its ontology dependencies) into neurobase and print Neo4j browser link. -k: target one file."""
+    neurobase.start(c)
+    roots = internal_utils.get_path_list("PLUGINS")
+    onto_idx = OntologyIndex(*roots)
+    know_idx = KnowledgeIndex(*roots)
+
+    targets = nfx_tasks.resolve_target(know_idx, knowledge, kind="Knowledge")
+
+    if not targets:
+        print(f"{terminal_style.WARNING} No knowledge .nfx files found.")
+        return
+
+    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
+    with NeuroBase() as nb:
+        nb.clear(confirm=True)
+        imported = set()
+        for path in targets:
+            doc = nfx.read(path)
+            name = doc.name or path.stem
+            for dep_path in nfx_tasks.topo_targets(onto_idx, path, metaontology_nid):
+                if dep_path in imported:
+                    continue
+                dep_name = nfx.read(dep_path).name or dep_path.stem
+                with terminal_components.step(dep_name):
+                    nb.metaontology.import_nfx(dep_path, index=onto_idx)
+                imported.add(dep_path)
+            with terminal_components.step(name):
+                nb.nodes.import_nfx(path)
+
+    nfx_tasks.print_browser_url()
