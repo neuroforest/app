@@ -180,7 +180,7 @@ def index(c, tree=False, ontology=""):
         rows.append((
             doc.name or path.stem,
             doc.version,
-            doc.nid,
+            (doc.nid or "")[:8],
             rel,
         ))
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
