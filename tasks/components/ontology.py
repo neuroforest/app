@@ -11,7 +11,7 @@ from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import internal_utils, terminal_components, terminal_style
 from tasks.actions import setup
-from tasks.components import neurobase
+from tasks.components import neurobase, nfx as nfx_tasks
 
 
 def _plugin_test_path(ontology_path):
@@ -21,24 +21,13 @@ def _plugin_test_path(ontology_path):
 
 
 
-def _resolve_target(idx, ontology):
-    """Resolve a single ontology target, or return all targets if empty."""
-    if ontology:
-        path = idx.resolve(ontology)
-        if not path:
-            print(f"{terminal_style.FAIL} Ontology not found: {ontology}")
-            raise SystemExit(1)
-        return [path]
-    return idx.all_targets()
-
-
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, ontology=""):
     """Import ontology into neurobase."""
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
-    targets = _resolve_target(idx, ontology)
+    targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
     with NeuroBase() as nb:
         for path in targets:
             name = nfx.read(path).name or path.stem
@@ -62,7 +51,7 @@ def render(c, ontology="", independent=False, bare=False, dependants=False):
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
-    targets = _resolve_target(idx, ontology)
+    targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
     with NeuroBase() as nb:
         nb.clear(confirm=True)
 
@@ -92,8 +81,7 @@ def render(c, ontology="", independent=False, bare=False, dependants=False):
         if bare:
             _strip_properties(nb)
 
-    http_port = os.environ["NEO4J_PORT_HTTP"]
-    print(f"\n  http://localhost:{http_port}/browser/")
+    nfx_tasks.print_browser_url()
 
 
 def _tag_dependencies(nb, target_name):
@@ -134,26 +122,6 @@ def _dependant_paths(idx, target_path, target_nid):
         if target_nid in nfx.read(p).dep_nids:
             paths.append(p)
     return paths
-
-
-def topo_targets(idx, target_path, metaontology_nid):
-    """Topologically ordered paths for a single-target run: metaontology
-    first, then transitive deps deps-before-dependents, ending with the target."""
-    target_doc = nfx.read(target_path)
-
-    def _resolve_doc(nid):
-        p = idx.resolve(nid)
-        return nfx.read(p) if p else None
-
-    tree = nfx.NfxTree(target_doc, _resolve_doc)
-    paths = []
-    for nid in tree.topo_order():
-        if nid == metaontology_nid:
-            continue
-        p = idx.resolve(nid)
-        if p:
-            paths.append(p)
-    return [idx.metaontology_path] + paths
 
 
 @invoke.task(pre=[setup.env])
@@ -232,20 +200,7 @@ def _index_info(idx, ontology_name):
         print(f"  {DIM}Properties{RST}:  {len(non_types)}")
 
     # Dependencies
-    if doc.dependencies:
-        print("\nDependencies:")
-        for dep_nid, dep_ver in doc.dependencies:
-            dep_path = idx.resolve(dep_nid)
-            if dep_path:
-                dep_doc = nfx.read(dep_path)
-                dep_name = dep_doc.name or dep_path.stem
-                actual_ver = dep_doc.version or "?"
-                if actual_ver == dep_ver:
-                    print(f"  {terminal_style.SUCCESS} {dep_name}@{dep_ver}")
-                else:
-                    print(f"  {terminal_style.FAIL} {dep_name}@{dep_ver} (found {actual_ver})")
-            else:
-                print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
+    nfx_tasks.print_dependencies(idx, doc)
 
     # Dependants
     dependants = []
@@ -436,7 +391,7 @@ def test(c, o=""):
         if not target_path:
             print(f"{terminal_style.FAIL} Ontology not found: {o}")
             raise SystemExit(1)
-        targets = topo_targets(idx, target_path, metaontology_nid)
+        targets = nfx_tasks.topo_targets(idx, target_path, metaontology_nid)
     else:
         targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
 
@@ -500,7 +455,7 @@ def rehash(c, ontology=""):
     """Recompute sha256(validators.py) and update the `hash` field in dir-form .nfx files. -o: target one ontology."""
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
-    targets = _resolve_target(idx, ontology)
+    targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
 
     touched = 0
     for path in targets:
