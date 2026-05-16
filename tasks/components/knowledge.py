@@ -81,7 +81,7 @@ def index(c, knowledge=""):
             rel = os.path.relpath(path, app_dir)
         except ValueError:
             rel = str(path)
-        rows.append((doc.name or path.stem, doc.version, doc.nid, rel))
+        rows.append((doc.name or path.stem, doc.version, (doc.nid or "")[:8], rel))
     rows.sort(key=lambda r: r[0])
     terminal_components.table(rows, header=("Name", "Version", "NID", "Path"))
 
