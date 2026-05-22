@@ -369,20 +369,25 @@ def _instance_key_counts(nb, label):
 
 
 def _rel_live_counts(nb, label, forbidden):
+    """Per-(rel_type, peer_label) live counts. Peer label is unwound from the
+    node's labels, so the same edge appears under each of the peer's labels;
+    the caller looks up by the specific peer defined in the metarelationship."""
     fl = list(forbidden)
     out_query = f"""
     MATCH (n:`{label}`)-[r]->(b)
     WHERE NONE(lb IN labels(b) WHERE lb IN $fb)
-    RETURN type(r) AS rel, count(*) AS c
+    UNWIND labels(b) AS pl
+    RETURN type(r) AS rel, pl AS peer, count(*) AS c
     """
     in_query = f"""
     MATCH (a)-[r]->(n:`{label}`)
     WHERE NONE(lb IN labels(a) WHERE lb IN $fb)
       AND NOT $label IN labels(a)
-    RETURN type(r) AS rel, count(*) AS c
+    UNWIND labels(a) AS pl
+    RETURN type(r) AS rel, pl AS peer, count(*) AS c
     """
-    out = {r["rel"]: r["c"] for r in nb.get_data(out_query, {"fb": fl})}
-    inc = {r["rel"]: r["c"] for r in nb.get_data(in_query, {"fb": fl, "label": label})}
+    out = {(r["rel"], r["peer"]): r["c"] for r in nb.get_data(out_query, {"fb": fl})}
+    inc = {(r["rel"], r["peer"]): r["c"] for r in nb.get_data(in_query, {"fb": fl, "label": label})}
     return out, inc
 
 
@@ -508,9 +513,10 @@ def info(c, type="", fmt="text"):
     ]
 
     relationships = []
-    for mr in sorted(metarels.values(), key=lambda x: (x.direction(type) or "", x.label)):
+    for mr in sorted(metarels.values(), key=lambda x: (x.direction(type) or "", x.label, x.target or "", x.source or "")):
         d = mr.direction(type)
-        live = (out_counts if d == "outgoing" else in_counts).get(mr.label, 0)
+        peer = mr.target if d == "outgoing" else mr.source
+        live = (out_counts if d == "outgoing" else in_counts).get((mr.label, peer), 0)
         relationships.append({
             "label": mr.label,
             "direction": d,
