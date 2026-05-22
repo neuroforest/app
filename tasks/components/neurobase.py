@@ -339,6 +339,11 @@ def delete(c):
         with terminal_components.step(f"Remove volume: {vol}"):
             subprocess.run(["docker", "volume", "rm", vol], capture_output=build_utils.quiet())
 
+    network = f"{base_name}_default"
+    if docker_tools.network_exists(network):
+        with terminal_components.step(f"Remove network: {network}"):
+            subprocess.run(["docker", "network", "rm", network], capture_output=build_utils.quiet())
+
 
 def _lineage(nb, label):
     query = """
