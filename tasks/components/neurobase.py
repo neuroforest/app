@@ -418,7 +418,14 @@ def _overview(fmt):
         relations = sorted(rel_present & rel_knowledge) if ontology_loaded else sorted(rel_present)
         rel_counts = {r: _count_rel_type(nb, r) for r in relations}
 
+    app_name = os.getenv("APP_NAME", "")
+    env = os.getenv("ENV", "")
+    base_name = os.getenv("BASE_NAME", "")
+
     result = {
+        "app_name": app_name,
+        "env": env,
+        "base": base_name,
         "types": [{"label": lb, "count": type_counts[lb]} for lb in types],
         "empty": empty,
         "data_types": data,
@@ -434,6 +441,7 @@ def _overview(fmt):
     total_nodes = sum(type_counts.values())
     total_edges = sum(rel_counts.values())
     suffix = "" if ontology_loaded else f" {DIM}(ontology not loaded){RST}"
+    print(f"{B}{app_name} · {env} · {base_name}{RST}")
     print(
         f"{DIM}{len(types)} types · {total_nodes} nodes · "
         f"{len(relations)} relations · {total_edges} edges{RST}{suffix}"
