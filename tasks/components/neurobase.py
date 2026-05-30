@@ -733,6 +733,16 @@ def _unique_property_labels(nb, label):
     return nb.get_data(query, {"label": label})
 
 
+def _registered_property_keys(nb):
+    """Property keys ever written to the DB (per `db.propertyKeys()`).
+
+    Used to skip uniqueness checks on ontology properties no instance has
+    yet — otherwise Neo4j logs an `01N52` "property does not exist" notice
+    for every such query.
+    """
+    return {r["k"] for r in nb.get_data("CALL db.propertyKeys() YIELD propertyKey AS k RETURN k")}
+
+
 def _find_duplicate_values(nb, label, prop, id_cap=5):
     """Groups of `label` instances sharing the same value of `prop`."""
     query = f"""
@@ -786,6 +796,8 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
             present = _present_labels(nb)
             targets = sorted((knowledge & present) - forbidden)
 
+        registered_keys = _registered_property_keys(nb)
+
         for lb in targets:
             try:
                 metaprops = Metaproperties.from_ontology(nb, lb)
@@ -820,7 +832,12 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
             unique_report = []
             if count:
                 for spec in _unique_property_labels(nb, lb):
-                    dups = _find_duplicate_values(nb, lb, spec["property"])
+                    if spec["property"] not in registered_keys:
+                        # No instance has ever set this property — nothing to dedupe,
+                        # and querying would trigger Neo4j's `01N52` notification.
+                        dups = []
+                    else:
+                        dups = _find_duplicate_values(nb, lb, spec["property"])
                     unique_report.append({
                         "property": spec["property"],
                         "via": spec["via"],
