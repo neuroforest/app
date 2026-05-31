@@ -182,6 +182,6 @@ def render(c, knowledge=""):
                     nb.metaontology.import_nfx(dep_path, index=onto_idx)
                 imported.add(dep_path)
             with terminal_components.step(name):
-                nb.nodes.import_nfx(path)
+                nb.nodes.sync_nfx(path)
 
     nfx_tasks.print_browser_url()
