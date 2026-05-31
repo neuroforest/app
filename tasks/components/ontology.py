@@ -23,7 +23,10 @@ def _plugin_test_path(ontology_path):
 
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, ontology=""):
-    """Import ontology into neurobase."""
+    """Import ontology into neurobase. -o/--ontology required."""
+    if not ontology:
+        print(f"{terminal_style.FAIL} -o/--ontology required")
+        raise SystemExit(1)
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
     idx = OntologyIndex(*ontology_dirs)
 
@@ -32,16 +35,9 @@ def import_(c, ontology=""):
         for path in targets:
             name = nfx.read(path).name or path.stem
             with terminal_components.step(name) as status:
-                seen = set()
-                def on_import(dep_name, imported, depth=1):
-                    if dep_name in seen:
-                        return
-                    seen.add(dep_name)
-                    indent = "  " * depth
-                    marker = "▸" if imported else "-"
-                    suffix = "" if imported else " (loaded)"
-                    status.log(f"{indent}{marker} {dep_name}{suffix}")
-                nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
+                nb.metaontology.import_nfx(
+                    path, index=idx, on_import=nfx_tasks.make_dep_logger(status),
+                )
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

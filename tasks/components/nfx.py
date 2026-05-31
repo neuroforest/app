@@ -11,6 +11,21 @@ from tasks.actions import setup
 from tasks.components import neurobase
 
 
+def make_dep_logger(status):
+    """Return an `on_import(name, imported, depth)` callback that logs each
+    dependency once into a `terminal_components.step` status line."""
+    seen = set()
+    def on_import(dep_name, imported, depth=1):
+        if dep_name in seen:
+            return
+        seen.add(dep_name)
+        indent = "  " * depth
+        marker = "▸" if imported else "-"
+        suffix = "" if imported else " (loaded)"
+        status.log(f"{indent}{marker} {dep_name}{suffix}")
+    return on_import
+
+
 def resolve_target(idx, name, kind="Target"):
     """Resolve a single nfx target by name/nid, or return all targets if name is empty."""
     if name:
