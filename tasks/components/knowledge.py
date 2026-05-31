@@ -107,6 +107,39 @@ def _index_info(idx, onto_idx, name):
     print()
 
 
+@invoke.task(name="import", pre=[setup.env])
+def import_(c, knowledge=""):
+    """Import knowledge into neurobase non-destructively. -k/--knowledge required.
+
+    Missing ontology dependencies are loaded; ones already present at the right
+    version are reused. Knowledge nodes are anchored to a `KnowledgeMetadata`
+    node via `DEFINES` edges; re-running prunes file-absent nodes only within
+    that anchor's slice.
+    """
+    if not knowledge:
+        print(f"{terminal_style.FAIL} -k/--knowledge required")
+        raise SystemExit(1)
+    roots = internal_utils.get_path_list("PLUGINS")
+    onto_idx = OntologyIndex(*roots)
+    know_idx = KnowledgeIndex(*roots)
+
+    path = know_idx.resolve(knowledge)
+    if not path:
+        print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
+        raise SystemExit(1)
+
+    doc = nfx.read(path)
+    name = doc.name or path.stem
+
+    with NeuroBase() as nb:
+        with terminal_components.step(name) as status:
+            nb.metaontology._import_dependencies(
+                doc.dependencies, index=onto_idx,
+                on_import=nfx_tasks.make_dep_logger(status),
+            )
+            nb.nodes.sync_nfx(path)
+
+
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, knowledge=""):
     """Validate knowledge nodes against the loaded ontology. -k: target one file."""
