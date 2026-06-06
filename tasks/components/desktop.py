@@ -31,7 +31,7 @@ def register_protocol(url):
         return
 
     try:
-        tid_title = tw_get.filter_output(f"[search:neuro.id[{uuid}]]")[0]
+        tid_title = tw_get.filter_output(f"[search:nid[{uuid}]]")[0]
         tw_actions.open_tiddler(tid_title)
     except IndexError:
         print(f"Not found: {uuid}")

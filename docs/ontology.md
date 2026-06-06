@@ -9,7 +9,7 @@ The ontology is stored in Neo4j as a graph of its own, using three node types an
 **Node types:**
 
 - `OntologyNode` — defines a class/type (e.g. `Tiddler`, `Species`)
-- `OntologyProperty` — defines a property (e.g. `created`, `neuro.id`)
+- `OntologyProperty` — defines a property (e.g. `created`, `nid`)
 - `OntologyRelationship` — defines a relationship type (e.g. `HAS_PROPERTY`)
 
 **Relationships:**

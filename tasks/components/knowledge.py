@@ -51,7 +51,7 @@ def validate_knowledge(nb, path):
             undefined[kind].setdefault(type_label, identifier)
             continue
 
-        node_props = {"neuro.id": entry["nid"], **entry_props}
+        node_props = {"nid": entry["nid"], **entry_props}
         violations = ObjectValidator(nb, _Node(labels, node_props)).get_violations()
         if violations:
             nb.metaontology.violations.violations.append(
