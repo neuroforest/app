@@ -1,11 +1,11 @@
 {
     "type": "ontology",
     "nid": "e75a8385-4d8f-43ad-8df0-31124369d0bd",
-    "version": "2.0",
+    "version": "2.1",
     "name": "Test",
     "description": "Minimal fixture for validation tests",
     "dependencies": [
-        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@3.0"
+        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@3.1"
     ],
     "nodes": [
         {
