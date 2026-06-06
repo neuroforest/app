@@ -97,7 +97,7 @@ def _count_label(nb, label):
     return nb.get_data(f"MATCH (n:`{label}`) RETURN count(n) AS count")[0]["count"]
 
 
-_ID_KEYS = ("uuid", "neuro.id", "id")
+_ID_KEYS = ("uuid", "nid", "id")
 
 
 def _id_sort_key(props):
@@ -132,7 +132,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(b) WHERE NOT lb IN $fb],
-        id: coalesce(b.uuid, b.`neuro.id`, b.id)
+        id: coalesce(b.uuid, b.nid, b.id)
       }}) AS outs
     }}
     CALL (n) {{
@@ -142,7 +142,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(a) WHERE NOT lb IN $fb],
-        id: coalesce(a.uuid, a.`neuro.id`, a.id)
+        id: coalesce(a.uuid, a.nid, a.id)
       }}) AS ins
     }}
     RETURN properties(n) AS props, outs, ins
@@ -590,8 +590,8 @@ def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
         while True:
             rows = nb.get_data(
                 f"MATCH (n:`{label}`) "
-                f"RETURN properties(n) AS props, n.`neuro.id` AS nid "
-                f"ORDER BY n.`neuro.id` SKIP {skip} LIMIT {batch}"
+                f"RETURN properties(n) AS props, n.nid AS nid "
+                f"ORDER BY n.nid SKIP {skip} LIMIT {batch}"
             )
             if not rows:
                 return
@@ -602,7 +602,7 @@ def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
     else:
         rows = nb.get_data(
             f"MATCH (n:`{label}`) "
-            f"RETURN properties(n) AS props, n.`neuro.id` AS nid "
+            f"RETURN properties(n) AS props, n.nid AS nid "
             f"LIMIT {size}"
         )
         yield from rows
@@ -611,7 +611,7 @@ def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
 def _node_id(nid, props):
     return (
         nid
-        or props.get("neuro.id")
+        or props.get("nid")
         or props.get("uuid")
         or props.get("title")
         or props.get("id")
@@ -748,7 +748,7 @@ def _find_duplicate_values(nb, label, prop, id_cap=5):
     MATCH (n:`{label}`)
     WHERE n.`{prop}` IS NOT NULL
     WITH n.`{prop}` AS value,
-         collect(coalesce(n.`neuro.id`, n.uuid, n.title, n.id)) AS ids
+         collect(coalesce(n.nid, n.uuid, n.title, n.id)) AS ids
     WHERE size(ids) > 1
     RETURN value, size(ids) AS count, ids[..$cap] AS ids
     ORDER BY count DESC, value

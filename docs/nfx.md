@@ -51,9 +51,9 @@ Graph interchange format for nodes and relationships.
 
 | Field        | Type     | Description                                                  |
 |--------------|----------|--------------------------------------------------------------|
-| `nid`        | `string` | UUID v4 identifying the node (stored as `neuro.id` in Neo4j) |
+| `nid`        | `string` | UUID v4 identifying the node (stored as `nid` in Neo4j) |
 | `labels`     | `list`   | Neo4j labels (e.g. `["Tiddler"]`)                            |
-| `properties` | `dict`   | Node properties (excludes `neuro.id`). Omitted when empty.   |
+| `properties` | `dict`   | Node properties (excludes `nid`). Omitted when empty.   |
 
 ### Relationship
 
@@ -75,8 +75,8 @@ nb.nodes.export_nfx(path, label="Tiddler", name="My Export")
 # Export nodes by custom Cypher (must return nid, labels, properties columns)
 nb.nodes.export_nfx(path, query="""
     MATCH (n:Taxon)
-    WHERE n.`neuro.id` IS NOT NULL
-    RETURN n.`neuro.id` as nid, labels(n) as labels, properties(n) as properties
+    WHERE n.`nid` IS NOT NULL
+    RETURN n.`nid` as nid, labels(n) as labels, properties(n) as properties
 """)
 
 # Export all ontology instances (all SUBCLASS_OF descendants of OntologyNode,
@@ -87,7 +87,7 @@ nb.ontology.export_nfx(path)
 nb.metaontology.export_nfx(path)
 ```
 
-`export_nfx` writes matched nodes and their inter-node relationships to the file. `neuro.id` is extracted to the `nid` field and removed from `properties`.
+`export_nfx` writes matched nodes and their inter-node relationships to the file. `nid` is extracted to the `nid` field and removed from `properties`.
 
 ### Import
 
@@ -99,7 +99,7 @@ nb.nodes.import_nfx(path)
 nb.metaontology.import_nfx(path)
 ```
 
-Reads the file and merges on `neuro.id`. Relationships are merged between the referenced nodes. Existing data is updated, not duplicated. Also creates/updates an `OntologyMetadata` node from the top-level fields and wires `DEPENDS_ON` edges to declared dependencies.
+Reads the file and merges on `nid`. Relationships are merged between the referenced nodes. Existing data is updated, not duplicated. Also creates/updates an `OntologyMetadata` node from the top-level fields and wires `DEPENDS_ON` edges to declared dependencies.
 
 ## Low-level I/O
 
