@@ -1,7 +1,7 @@
 {
     "type": "metaontology",
     "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
-    "version": "3.0",
+    "version": "3.1",
     "name": "Metaontology",
     "description": "Self-describing schema for NeuroBase ontology",
     "nodes": [
@@ -191,7 +191,7 @@
             "nid": "a4b69730-ce33-4999-8183-3aa343e13ead",
             "labels": ["Uuid", "Metaontology"],
             "properties": {
-                "label": "neuro.id"
+                "label": "nid"
             }
         },
         {
