@@ -649,10 +649,17 @@ def _aggregate_violations(pairs):
     return agg
 
 
-def _print_validation_entry(entry, all_mode, example_cap=5):
+def _print_validation_entry(entry, all_mode, example_cap=5, expand=False):
     B, RST, DIM = terminal_style.BOLD, terminal_style.RESET, terminal_style.DIM
     warn_part = f", {entry['warn']} warn" if entry.get("warn") else ""
     uniq_part = f", {entry['unique_fail']} unique" if entry.get("unique_fail") else ""
+    clean = not entry["fail"] and not entry["unique_fail"] and not entry.get("warn")
+    if clean and not expand:
+        print(
+            f"{terminal_style.SUCCESS} {B}{entry['label']}{RST} "
+            f"{DIM}({entry['count']:,} nodes — {entry['pass']} pass){RST}"
+        )
+        return
     header = (
         f"{B}{entry['label']}{RST} "
         f"{DIM}({entry['count']:,} nodes — "
@@ -771,8 +778,8 @@ def _detail_record(nid, v):
 
 
 @invoke.task(pre=[setup.env])
-def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
-    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). Per-type uniqueness (UNIQUE_PROPERTY and subclasses, e.g. HAS_KEY) is always checked across all instances. Exits non-zero on violations."""
+def validate(c, type="", size=5, all=False, strict=False, fmt="text", expand=False):
+    """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). --expand: show per-node detail for every type (by default clean types collapse to one line and only failing/warning types expand). Per-type uniqueness (UNIQUE_PROPERTY and subclasses, e.g. HAS_KEY) is always checked across all instances. Exits non-zero on violations."""
     OntologyIndex(*internal_utils.get_path_list("PLUGINS"))
     forbidden = _forbidden_labels()
     had_violations = False
@@ -850,7 +857,7 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text"):
                 had_violations = True
 
             if fmt == "text":
-                _print_validation_entry(entry, all)
+                _print_validation_entry(entry, all, expand=expand)
             report.append(entry)
 
     if fmt == "json":
