@@ -1,7 +1,7 @@
 {
     "type": "metaontology",
     "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
-    "version": "3.1",
+    "version": "3.2",
     "name": "Metaontology",
     "description": "Self-describing schema for NeuroBase ontology",
     "nodes": [
@@ -59,6 +59,13 @@
             "labels": ["OntologyNode", "Metaontology"],
             "properties": {
                 "label": "String"
+            }
+        },
+        {
+            "nid": "a3fec615-eb72-4341-bf94-a31d86ed9b50",
+            "labels": ["OntologyNode", "Metaontology"],
+            "properties": {
+                "label": "Color"
             }
         },
         {
@@ -221,6 +228,13 @@
             "properties": {
                 "label": "type"
             }
+        },
+        {
+            "nid": "193850ec-ac5c-4099-9ec8-7d6f1711d9bf",
+            "labels": ["Color", "Metaontology"],
+            "properties": {
+                "label": "color"
+            }
         }
     ],
     "relationships": [
@@ -285,6 +299,11 @@
             "type": "SUBCLASS_OF"
         },
         {
+            "from": "a3fec615-eb72-4341-bf94-a31d86ed9b50",
+            "to": "e2b7a579-8302-4b76-85c1-b0c9434749b3",
+            "type": "SUBCLASS_OF"
+        },
+        {
             "from": "d15d98ce-08cc-4a64-93b3-31cf9e10c6eb",
             "to": "34ad2cab-eacb-42c7-9a44-4fecbb02fbf1",
             "type": "SUBCLASS_OF"
@@ -327,6 +346,11 @@
         {
             "from": "2ecba86b-0a85-426e-9b42-a46b34d4eb5f",
             "to": "204af6f7-4cb3-4d5d-8391-199365d96ad6",
+            "type": "HAS_PROPERTY"
+        },
+        {
+            "from": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "to": "193850ec-ac5c-4099-9ec8-7d6f1711d9bf",
             "type": "HAS_PROPERTY"
         },
         {
