@@ -5,7 +5,7 @@
     "name": "Test",
     "description": "Minimal fixture for validation tests",
     "dependencies": [
-        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@3.1"
+        "a6b459b4-70a8-4977-86d2-18d6a4c8d466@3.2"
     ],
     "nodes": [
         {
