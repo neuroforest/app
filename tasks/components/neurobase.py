@@ -168,21 +168,48 @@ def verify_neo4j(timeout=32):
             if time.monotonic() >= deadline:
                 print(f"Neo4j inaccessible: {uri}")
                 base_name = os.getenv("BASE_NAME")
-                logs = subprocess.run(
-                    ["docker", "logs", "--tail", "50", base_name],
-                    capture_output=True, text=True,
-                )
-                print(logs.stdout)
-                print(logs.stderr)
+                # Only a local base has a container here to read logs from;
+                # for a remote one this would just report "No such container".
+                if _is_local_uri(uri):
+                    logs = subprocess.run(
+                        ["docker", "logs", "--tail", "50", base_name],
+                        capture_output=True, text=True,
+                    )
+                    print(logs.stdout)
+                    print(logs.stderr)
                 sys.exit(1)
             time.sleep(0.5)
         finally:
             driver.close()
 
 
+def _is_local_uri(uri):
+    """True when NEO4J_URI points at this machine.
+
+    The docker tasks below reason about a *local* container, but NEO4J_URI may
+    name a base on another host (e.g. ibase on zz-imi). Without this check
+    `start` probes localhost, finds nothing, and builds a stray local container
+    instead of using the remote base.
+    """
+    host = uri.split("://", 1)[-1].split("/", 1)[0].rsplit(":", 1)[0]
+    return host in {"127.0.0.1", "localhost", "::1", "[::1]", ""}
+
+
+def _require_local(action):
+    """Abort host-level docker actions that cannot apply to a remote base."""
+    uri = os.getenv("NEO4J_URI", "")
+    if not _is_local_uri(uri):
+        base_name = os.getenv("BASE_NAME")
+        raise SystemExit(
+            f"{terminal_style.FAIL} Cannot {action}: '{base_name}' is remote ({uri}). "
+            f"Run this on its host."
+        )
+
+
 @invoke.task(pre=[setup.env])
 def create(c):
     """Create the neurobase docker container if it doesn't exist."""
+    _require_local("create")
     base_name = os.getenv("BASE_NAME")
 
     if docker_tools.container_exists(base_name):
@@ -200,6 +227,15 @@ def start(c):
     """Start the neurobase docker container and wait for Neo4j."""
     base_name = os.getenv("BASE_NAME")
     bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
+
+    # A remote base is not ours to start; only verify we can reach it. Without
+    # this the localhost port probe below would miss it and build a stray
+    # local container under the same BASE_NAME.
+    uri = os.getenv("NEO4J_URI", "")
+    if not _is_local_uri(uri):
+        verify_neo4j()
+        print(f"{terminal_style.SUCCESS} Remote base reachable: {base_name} ({uri})")
+        return
 
     if network_utils.is_port_in_use(bolt_port):
         print(f"{terminal_style.SUCCESS} Already running: {base_name}")
@@ -248,6 +284,7 @@ def clear(c, confirmed=False):
 @invoke.task(pre=[setup.env])
 def stop(c):
     """Stop the neurobase docker container."""
+    _require_local("stop")
     base_name = os.getenv("BASE_NAME")
 
     if not docker_tools.container_running(base_name):
@@ -261,6 +298,7 @@ def stop(c):
 @invoke.task(pre=[setup.env])
 def backup(c):
     """Backup the neurobase docker container and clean up temporary artifacts."""
+    _require_local("backup")
     base_name = os.getenv("BASE_NAME")
     stop(c)
 
@@ -273,6 +311,7 @@ def backup(c):
 @invoke.task(pre=[setup.env])
 def restore(c, backup=None):
     """Restore the neurobase container from a backup."""
+    _require_local("restore")
     base_name = os.getenv("BASE_NAME")
     container = docker_tools.Container(name=base_name)
 
@@ -319,6 +358,7 @@ def query(c, cypher):
 @invoke.task(pre=[setup.env])
 def delete(c):
     """Remove the neurobase container and its associated volumes."""
+    _require_local("delete")
     base_name = os.getenv("BASE_NAME")
     stop(c)
 
