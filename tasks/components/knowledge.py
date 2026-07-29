@@ -137,7 +137,14 @@ def import_(c, knowledge=""):
                 doc.dependencies, index=onto_idx,
                 on_import=nfx_tasks.make_dep_logger(status),
             )
-            nb.nodes.sync_nfx(path)
+            # Every nid reachable through the declared deps — so sync_nfx can tell
+            # a foreign reference stub (owned by a dependency, e.g. an OntologyNode
+            # class the metrics APPLIES_TO) from a node this file owns, and leave
+            # the former's properties (like `color`) intact.
+            dep_nids = nfx.NfxTree(
+                doc, nb.metaontology._resolver(onto_idx),
+            ).all_node_nids(scope="dependencies")
+            nb.nodes.sync_nfx(path, dependency_nids=dep_nids)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
@@ -215,6 +222,9 @@ def render(c, knowledge=""):
                     nb.metaontology.import_nfx(dep_path, index=onto_idx)
                 imported.add(dep_path)
             with terminal_components.step(name):
-                nb.nodes.sync_nfx(path)
+                dep_nids = nfx.NfxTree(
+                    doc, nb.metaontology._resolver(onto_idx),
+                ).all_node_nids(scope="dependencies")
+                nb.nodes.sync_nfx(path, dependency_nids=dep_nids)
 
     nfx_tasks.print_browser_url()
