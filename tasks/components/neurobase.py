@@ -253,10 +253,18 @@ def start(c):
 
 
 @invoke.task(pre=[setup.env])
-def count(c):
-    """Print the number of nodes in the neurobase."""
+def count(c, type=""):
+    """Print the number of nodes in the neurobase, or of a single type with --type."""
     with NeuroBase() as nb:
-        print(nb.count())
+        if not type:
+            print(nb.count())
+            return
+        _reject_if_forbidden(type)
+        n = nb.count(type)
+        if not n and type not in _present_labels(nb) and type not in _knowledge_labels(nb):
+            print(f"{terminal_style.FAIL} Unknown type: {type}", file=sys.stderr)
+            raise SystemExit(1)
+        print(n)
 
 
 @invoke.task(pre=[setup.env])
