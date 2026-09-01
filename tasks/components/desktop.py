@@ -51,6 +51,25 @@ def save_pid(pid):
         f.write(str(pid))
 
 
+def read_pid():
+    """Return the PID stored in the pid file, or None if it is absent or garbage."""
+    try:
+        with open(get_pid_path()) as f:
+            return int(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def is_nw_running(pid):
+    """True if pid is a live NW.js process — a recycled PID counts as dead."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            argv0 = f.read().split(b"\0")[0]
+    except OSError:
+        return False
+    return os.path.basename(argv0.decode(errors="replace")) == "nw"
+
+
 def get_app_dir():
     app_dir = internal_utils.get_path("build")
     if app_dir and not app_dir.is_absolute():
@@ -110,16 +129,12 @@ def run(c):
     app_dir = get_app_dir()
 
     # Check if already running
-    pid_path = get_pid_path()
-    if os.path.isfile(pid_path):
-        with open(pid_path) as f:
-            pid = int(f.read().strip())
-        try:
-            os.kill(pid, 0)
+    pid = read_pid()
+    if pid is not None:
+        if is_nw_running(pid):
             print(f"{terminal_style.SKIP} Already running (PID {pid})")
             return
-        except ProcessLookupError:
-            os.remove(pid_path)
+        os.remove(get_pid_path())
 
     nw_binary = os.path.join(app_dir, "nw")
     if not os.path.isfile(nw_binary):
@@ -162,10 +177,12 @@ def close(c):
         print(f"{terminal_style.SUCCESS} NeuroDesktop already closed (no file)")
         return
 
-    with open(pid_path) as f:
-        pid = int(f.read().strip())
+    pid = read_pid()
 
     try:
+        if pid is None or not is_nw_running(pid):
+            print(f"{terminal_style.SUCCESS} NeuroDesktop already closed (no process)")
+            return
         os.kill(pid, signal.SIGTERM)
         print(f"{terminal_style.SUCCESS} Closed NeuroDesktop (PID {pid})")
     except ProcessLookupError:
