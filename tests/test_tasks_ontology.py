@@ -35,3 +35,23 @@ def test_render_bare(nb):
         RETURN count(DISTINCT p) AS c
     """)[0]["c"]
     assert leftover == 0
+
+
+def test_prune(nb):
+    """Only orphans holding no outside relationship are deleted."""
+    from tasks.components.ontology import prune
+
+    render.__wrapped__(MockContext(), ontology="Metaontology")
+    nb.run_query("""
+        CREATE (isolated:OntologyNode {nid: 'prune-isolated', label: 'Isolated'})
+        CREATE (held:OntologyNode {nid: 'prune-held', label: 'Held'})
+        CREATE (page:EntityPage {nid: 'prune-page', label: 'Page'})
+        CREATE (page)-[:RENDERS]->(held)
+    """)
+
+    prune.__wrapped__(MockContext(), confirmed=True)
+
+    remaining = {r["nid"] for r in nb.get_data(
+        "MATCH (n) WHERE n.nid IN ['prune-isolated', 'prune-held'] RETURN n.nid AS nid"
+    )}
+    assert remaining == {"prune-held"}
