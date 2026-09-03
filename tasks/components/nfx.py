@@ -26,6 +26,45 @@ def make_dep_logger(status):
     return on_import
 
 
+def print_import_report(status, report):
+    """Log the notable parts of an `import_nfx` report into a step's status
+    line. Silent when an import merely rewrote what it declares."""
+    if not report:
+        return
+    for label, claimed_by in report.get("reparented", ()):
+        status.log(f"  ↷ {label} → now defined by {', '.join(claimed_by)}")
+    for label, edges in report.get("orphaned", ()):
+        if edges:
+            status.log(f"  {terminal_style.WARN} {label} orphaned, "
+                       f"{edges} edge(s) from outside the ontology layer")
+        else:
+            status.log(f"  · {label} orphaned")
+    if report.get("edges_pruned"):
+        status.log(f"  − {report['edges_pruned']} edge(s) pruned")
+
+
+def print_dependant_hint(idx, written_nids, skip_paths):
+    """Print the re-import commands for ontologies that depend on anything
+    written this run and were not themselves written.
+
+    Detect and print only — never re-import them here. Re-importing in the same
+    run would let a command aimed at one ontology write to ontologies the user
+    never named (PLAN-2026-143 step 3).
+    """
+    pending = []
+    for path in idx.all_targets():
+        if path in skip_paths:
+            continue
+        doc = nfx.read(path)
+        if written_nids & set(doc.dep_nids):
+            pending.append(doc.name or path.stem)
+    if not pending:
+        return
+    print(f"\n{terminal_style.WARN} Dependents not re-imported:")
+    for name in sorted(pending):
+        print(f"    ontology.import -o {name}")
+
+
 def resolve_target(idx, name, kind="Target"):
     """Resolve a single nfx target by name/nid, or return all targets if name is empty."""
     if name:
@@ -124,7 +163,7 @@ def render(c, name=""):
 
     targets = resolve_target(nfx_idx, name, kind="Nfx")
     if not targets:
-        print(f"{terminal_style.WARNING} No .nfx files found.")
+        print(f"{terminal_style.WARN} No .nfx files found.")
         return
 
     metaontology_nid = nfx.read(onto_idx.metaontology_path).nid

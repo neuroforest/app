@@ -31,13 +31,28 @@ def import_(c, ontology=""):
     idx = OntologyIndex(*ontology_dirs)
 
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
+    written = set()
     with NeuroBase() as nb:
         for path in targets:
-            name = nfx.read(path).name or path.stem
+            doc = nfx.read(path)
+            name = doc.name or path.stem
+            fresh = []
             with terminal_components.step(name) as status:
-                nb.metaontology.import_nfx(
-                    path, index=idx, on_import=nfx_tasks.make_dep_logger(status),
-                )
+                log_dep = nfx_tasks.make_dep_logger(status)
+
+                def on_import(dep_name, imported, depth=1, _fresh=fresh):
+                    if imported:
+                        _fresh.append(dep_name)
+                    log_dep(dep_name, imported, depth)
+
+                report = nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
+                nfx_tasks.print_import_report(status, report)
+            written.add(doc.nid)
+            for dep_name in fresh:
+                dep_path = idx.resolve(dep_name)
+                if dep_path:
+                    written.add(nfx.read(dep_path).nid)
+    nfx_tasks.print_dependant_hint(idx, written - {None, ""}, set(targets))
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
@@ -472,3 +487,58 @@ def rehash(c, ontology=""):
         touched += 1
 
     print(f"\n{touched} file(s) updated")
+
+
+@invoke.task(pre=[setup.env])
+def prune(c, confirmed=False):
+    """Delete orphaned ontology nodes — ones no ontology defines any more.
+
+    `ontology.import` releases a node it stops declaring rather than deleting
+    it, because the set of edges reaching into the ontology layer is open and a
+    delete severs edges no import restores (PLAN-2026-143). This is the
+    deliberate removal path, and it is deliberately narrow: only orphans that
+    hold no relationship to anything outside the ontology layer are deleted.
+    An orphan that still holds such a relationship is reported and left alone —
+    it is exactly the case a blanket delete would destroy silently.
+    --confirmed to actually delete.
+    """
+    with NeuroBase() as nb:
+        rows = nb.get_data("""
+            MATCH (n) WHERE (n:OntologyNode OR n:OntologyRelationship)
+              AND NOT (n)<-[:DEFINES]-(:OntologyMetadata)
+            WITH collect(n.nid) AS orphans
+            UNWIND orphans AS onid
+            MATCH (n {nid: onid})
+            OPTIONAL MATCH (n)-[r]-(o)
+            WHERE NOT any(lbl IN labels(o) WHERE lbl IN
+                    ['OntologyMetadata', 'KnowledgeMetadata'])
+              AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
+              AND NOT o.nid IN orphans
+            RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
+                   count(r) AS held, collect(DISTINCT type(r))[0..4] AS rel_types
+            ORDER BY label
+        """)
+    if not rows:
+        print(f"{terminal_style.SUCCESS} No orphaned ontology nodes")
+        return
+
+    held = [r for r in rows if r["held"]]
+    free = [r for r in rows if not r["held"]]
+    for r in held:
+        print(f"  {terminal_style.WARN} {r['label']}  "
+              f"{terminal_style.DIM}kept — {r['held']} rel(s) outside the ontology "
+              f"layer ({', '.join(r['rel_types'])}){terminal_style.RESET}")
+    for r in free:
+        print(f"  {terminal_style.SKIP} {r['label']}  "
+              f"{terminal_style.DIM}{r['nid']}{terminal_style.RESET}")
+    if held:
+        print(f"\n{len(held)} orphan(s) kept: still connected to the wider graph.")
+    if not free:
+        return
+    if not confirmed:
+        print(f"\n{len(free)} isolated orphan(s) would be deleted. Re-run with --confirmed.")
+        return
+    with NeuroBase() as nb:
+        nb.run_query("MATCH (n) WHERE n.nid IN $nids DETACH DELETE n",
+                     {"nids": [r["nid"] for r in free]})
+    print(f"\n{terminal_style.SUCCESS} {len(free)} isolated orphan(s) deleted")
