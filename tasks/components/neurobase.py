@@ -238,6 +238,15 @@ def start(c):
         return
 
     if network_utils.is_port_in_use(bolt_port):
+        # A busy port is not evidence that our base is behind it. When config
+        # resolved to the wrong app, this printed a cheerful "Already running"
+        # and then answered from a different graph entirely — empty result sets,
+        # no error (issue #13, PLAN-2026-146). Check the identity, not the port.
+        if not docker_tools.container_running(base_name):
+            print(f"{terminal_style.FAIL} Port {bolt_port} is in use, but container "
+                  f"{base_name!r} is not running — refusing to query a base that is "
+                  f"not ours", file=sys.stderr)
+            raise SystemExit(1)
         print(f"{terminal_style.SUCCESS} Already running: {base_name}")
         verify_neo4j()
         return
