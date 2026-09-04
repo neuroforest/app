@@ -242,11 +242,24 @@ def start(c):
         # resolved to the wrong app, this printed a cheerful "Already running"
         # and then answered from a different graph entirely — empty result sets,
         # no error (issue #13, PLAN-2026-146). Check the identity, not the port.
+        #
+        # But "local container" is not the same question as "local URI". A base
+        # reached through an SSH tunnel (sbase: -L 9007:zz-imi:7687) has a
+        # 127.0.0.1 URI, so it never takes the remote bypass above, and no
+        # container by its name will ever run on this host. Refuse only when a
+        # container we own exists and is down — then the port really is someone
+        # else's. When nothing local carries the name, the port is a tunnel to
+        # the base we mean; verify we can reach it and use it.
         if not docker_tools.container_running(base_name):
-            print(f"{terminal_style.FAIL} Port {bolt_port} is in use, but container "
-                  f"{base_name!r} is not running — refusing to query a base that is "
-                  f"not ours", file=sys.stderr)
-            raise SystemExit(1)
+            if docker_tools.container_exists(base_name):
+                print(f"{terminal_style.FAIL} Port {bolt_port} is in use, but container "
+                      f"{base_name!r} is not running — refusing to query a base that is "
+                      f"not ours", file=sys.stderr)
+                raise SystemExit(1)
+            verify_neo4j()
+            print(f"{terminal_style.SUCCESS} Remote base reachable: {base_name} "
+                  f"(tunneled {uri})")
+            return
         print(f"{terminal_style.SUCCESS} Already running: {base_name}")
         verify_neo4j()
         return
