@@ -43,6 +43,92 @@ def print_import_report(status, report):
         status.log(f"  − {report['edges_pruned']} edge(s) pruned")
 
 
+# The one place that says which nodes belong to the ontology layer, shared so
+# `print_orphan_hint` and `ontology.prune` can never disagree about what an
+# orphan is — they did once, and the hint that tells you to run `prune` was
+# blind to exactly the nodes `prune` was.
+#
+# Every kind the layer stores is an `OntologyObject`: classes are
+# `OntologyNode`, relationship types are `OntologyRelationship`, and a property
+# is labelled by its *type* — `Uuid`, `String`, `DateTime`, … — which is why an
+# enumeration of the first two silently skipped a whole third of the layer.
+# Ask the metaontology for the subtree rather than restating it, so a new
+# property type is covered the day it is declared. Leaves `orphans` (a list of
+# nodes) in scope.
+_ORPHAN_SCOPE = """
+    MATCH (root:OntologyNode {label: 'OntologyObject'})
+    MATCH (kind:OntologyNode)-[:SUBCLASS_OF*0..]->(root)
+    WITH collect(DISTINCT kind.label) AS kinds
+    MATCH (n) WHERE any(l IN labels(n) WHERE l IN kinds)
+      AND NOT (n)<-[:DEFINES]-(:OntologyMetadata)
+    WITH collect(n) AS orphans
+"""
+
+# Carries the nodes forward rather than re-matching them by nid: an unlabelled
+# `MATCH (n {nid: ...})` is a full scan of the base, and once per orphan it cost
+# 20s on sbase where the label-scoped pass costs one.
+_ORPHANS = _ORPHAN_SCOPE + """
+    UNWIND orphans AS n
+    RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
+           labels(n)[0] AS kind
+    ORDER BY label
+"""
+
+# Same scope, plus the guard that keeps an orphan still wired into the wider
+# graph. `o IN orphans` compares nodes, so no second lookup is needed.
+_ORPHANS_WITH_EDGES = _ORPHAN_SCOPE + """
+    UNWIND orphans AS n
+    OPTIONAL MATCH (n)-[r]-(o)
+    WHERE NOT any(lbl IN labels(o) WHERE lbl IN
+            ['OntologyMetadata', 'KnowledgeMetadata'])
+      AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
+      AND NOT o IN orphans
+    RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
+           labels(n)[0] AS kind,
+           count(r) AS held, collect(DISTINCT type(r))[0..4] AS rel_types
+    ORDER BY label
+"""
+
+
+def orphan_nodes(nb, with_edges=False):
+    """Every ontology-layer node no `OntologyMetadata` defines any more.
+
+    `with_edges` adds `held` / `rel_types` — how much of the wider graph still
+    reaches the orphan, which is what decides whether it is safe to delete.
+    The hint does not need it and does not pay for it.
+    """
+    return nb.get_data(_ORPHANS_WITH_EDGES if with_edges else _ORPHANS)
+
+
+def print_orphan_hint(nb):
+    """Print the review commands when the graph holds undefined ontology nodes.
+
+    `import_nfx` releases a node it stops declaring rather than deleting it
+    (PLAN-2026-143), and logs each one per-file. In a root import those lines
+    scroll past inside a long dependency tree, so the run ends with no sign
+    that the graph now holds nodes no `.nfx` declares — real drift, invisible.
+
+    Asked of the graph rather than accumulated from the reports: `import_nfx`
+    returns a report only for its own file, and surfaces a nested dependency
+    import as a name through `on_import`. Reading the returned report would
+    therefore miss exactly the common case — a root import whose orphans come
+    from a dependency several levels down.
+
+    Detect and print only, like `print_dependant_hint`: `ontology.prune` is
+    graph-wide while an import is scoped to one closure, and a withdrawal can
+    be in-flight across commits, so the deletion stays a human's call.
+    """
+    rows = orphan_nodes(nb)
+    if not rows:
+        return
+    labels = [r["label"] for r in rows]
+    shown = ", ".join(sorted(set(labels))[:5])
+    print(f"\n{terminal_style.WARN} {len(labels)} node(s) no ontology defines "
+          f"any more: {shown}{' …' if len(set(labels)) > 5 else ''}")
+    print("    ontology.prune             (review)")
+    print("    ontology.prune --confirm   (delete the isolated ones)")
+
+
 def print_dependant_hint(idx, written_nids, skip_paths):
     """Print the re-import commands for ontologies that depend on anything
     written this run and were not themselves written.

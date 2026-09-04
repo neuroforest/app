@@ -52,6 +52,7 @@ def import_(c, ontology=""):
                 dep_path = idx.resolve(dep_name)
                 if dep_path:
                     written.add(nfx.read(dep_path).nid)
+        nfx_tasks.print_orphan_hint(nb)
     nfx_tasks.print_dependant_hint(idx, written - {None, ""}, set(targets))
 
 
@@ -490,7 +491,7 @@ def rehash(c, ontology=""):
 
 
 @invoke.task(pre=[setup.env])
-def prune(c, confirmed=False):
+def prune(c, confirm=False):
     """Delete orphaned ontology nodes — ones no ontology defines any more.
 
     `ontology.import` releases a node it stops declaring rather than deleting
@@ -500,24 +501,16 @@ def prune(c, confirmed=False):
     hold no relationship to anything outside the ontology layer are deleted.
     An orphan that still holds such a relationship is reported and left alone —
     it is exactly the case a blanket delete would destroy silently.
-    --confirmed to actually delete.
+
+    The narrowness is that guard and nothing else. Candidates come from
+    `nfx.orphan_nodes`, which covers every `OntologyObject` subtype — classes,
+    relationship types *and* properties. Enumerating the first two here once
+    made a dropped property invisible to both this task and the hint that
+    points at it (PLAN-2026-148).
+    --confirm to actually delete.
     """
     with NeuroBase() as nb:
-        rows = nb.get_data("""
-            MATCH (n) WHERE (n:OntologyNode OR n:OntologyRelationship)
-              AND NOT (n)<-[:DEFINES]-(:OntologyMetadata)
-            WITH collect(n.nid) AS orphans
-            UNWIND orphans AS onid
-            MATCH (n {nid: onid})
-            OPTIONAL MATCH (n)-[r]-(o)
-            WHERE NOT any(lbl IN labels(o) WHERE lbl IN
-                    ['OntologyMetadata', 'KnowledgeMetadata'])
-              AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
-              AND NOT o.nid IN orphans
-            RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
-                   count(r) AS held, collect(DISTINCT type(r))[0..4] AS rel_types
-            ORDER BY label
-        """)
+        rows = nfx_tasks.orphan_nodes(nb, with_edges=True)
     if not rows:
         print(f"{terminal_style.SUCCESS} No orphaned ontology nodes")
         return
@@ -530,13 +523,13 @@ def prune(c, confirmed=False):
               f"layer ({', '.join(r['rel_types'])}){terminal_style.RESET}")
     for r in free:
         print(f"  {terminal_style.SKIP} {r['label']}  "
-              f"{terminal_style.DIM}{r['nid']}{terminal_style.RESET}")
+              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{terminal_style.RESET}")
     if held:
         print(f"\n{len(held)} orphan(s) kept: still connected to the wider graph.")
     if not free:
         return
-    if not confirmed:
-        print(f"\n{len(free)} isolated orphan(s) would be deleted. Re-run with --confirmed.")
+    if not confirm:
+        print(f"\n{len(free)} isolated orphan(s) would be deleted. Re-run with --confirm.")
         return
     with NeuroBase() as nb:
         nb.run_query("MATCH (n) WHERE n.nid IN $nids DETACH DELETE n",
