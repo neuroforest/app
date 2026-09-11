@@ -55,3 +55,26 @@ def test_prune(nb):
         "MATCH (n) WHERE n.nid IN ['prune-isolated', 'prune-held'] RETURN n.nid AS nid"
     )}
     assert remaining == {"prune-held"}
+
+
+def test_document_failures(tmp_path):
+    """Duplicates are reported from the document, before an import could MERGE them away."""
+    import json
+    import uuid
+    from types import SimpleNamespace
+
+    from tasks.components.ontology import _document_failures
+
+    a, b = str(uuid.uuid4()), str(uuid.uuid4())
+    rel = {"from": a, "to": b, "type": "USES"}
+    data = {"type": "ontology", "nid": str(uuid.uuid4()), "version": "1.0",
+            "nodes": [{"nid": a}, {"nid": b}, {"nid": b}], "relationships": [rel, rel]}
+    path = tmp_path / "dup.nfx"
+    path.write_text(json.dumps(data))
+    idx = SimpleNamespace(resolve=lambda key: None)
+
+    assert _document_failures(idx, path) == [f"duplicate node nid {b}", f"duplicate USES {a} → {b}"]
+
+    data["nodes"], data["relationships"] = [{"nid": a}, {"nid": b}], [rel]
+    path.write_text(json.dumps(data))
+    assert _document_failures(idx, path) == []

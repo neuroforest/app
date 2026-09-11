@@ -9,7 +9,7 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
-from neuro.utils import internal_utils, terminal_components, terminal_style
+from neuro.utils import exceptions, internal_utils, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase, nfx as nfx_tasks
 
@@ -18,6 +18,48 @@ def _plugin_test_path(ontology_path):
     """Return a co-located `test_validators.py` path for an ontology, if any."""
     candidate = Path(ontology_path).parent / "test_validators.py"
     return candidate if candidate.exists() else None
+
+
+def _document_failures(idx, path):
+    """Return defects of the `.nfx` document itself, the same set the pre-commit
+       hook rejects. Must run before import: MERGE collapses duplicates away.
+    """
+    raw = json.loads(Path(path).read_text())
+    doc = nfx.Nfx.from_dict(raw)
+
+    def resolve(nid):
+        dep_path = idx.resolve(nid)
+        return nfx.read(dep_path) if dep_path else None
+
+    try:
+        tree = nfx.NfxTree(doc, resolve)
+    except exceptions.NfxCycle as e:
+        return [f"dependency cycle {' → '.join(e.args[0])}"]
+    report = nfx.validate(doc, dependency_nids=tree.all_node_nids(scope="dependencies"))
+    lint = nfx.lint_format(raw)
+
+    failures = []
+    for bad in report["invalid_nids"]:
+        failures.append(f"invalid nid {bad} (not UUID v4)")
+    for r in report["unresolved"]:
+        failures.append(f"unresolved {r.get('type', '?')} {r['from']} → {r['to']}")
+    for r in report["foreign"]:
+        failures.append(f"foreign {r.get('type', '?')} {r['from']} → {r['to']} (both endpoints external)")
+    for nid in report["duplicate_nids"]:
+        failures.append(f"duplicate node nid {nid}")
+    for r in report["duplicate_relationships"]:
+        failures.append(f"duplicate {r.get('type', '?')} {r['from']} → {r['to']}")
+    for f in report["missing_required"]:
+        failures.append(f"missing required top-level field {f!r}")
+    if report["invalid_type"]:
+        failures.append(f"type {report['invalid_type']!r} not in {list(nfx.ALLOWED_TYPES)}")
+    for u in lint["unknown_keys"]:
+        failures.append(f"{u['where']} has unknown keys {u['keys']}")
+    for ko in lint["key_order"]:
+        failures.append(f"{ko['where']} key order {ko['keys']} not canonical")
+    for f in lint["empty"]:
+        failures.append(f"{f!r} is empty — omit the key instead")
+    return failures
 
 
 
@@ -414,38 +456,29 @@ def test(c, o=""):
             doc = nfx.read(path)
             name = doc.name or path.stem
 
-            failures = []
+            failures = _document_failures(idx, path)
             warnings = []
 
-            nb.clear(confirm=True)
-            nb.metaontology.import_nfx(path, index=idx)
-            nb.metaontology.is_ontology_valid()
-            dep_errors = idx.check_dependency_versions(path)
-            lint = nfx.lint_format(json.loads(path.read_text()))
-            if (nb.metaontology.violations or dep_errors
-                    or lint["unknown_keys"] or lint["key_order"] or lint["empty"]):
+            if not failures:
+                nb.clear(confirm=True)
+                nb.metaontology.import_nfx(path, index=idx)
+                nb.metaontology.is_ontology_valid()
                 failures.extend(str(v) for v in nb.metaontology.violations)
-                failures.extend(str(err) for err in dep_errors)
-                for u in lint["unknown_keys"]:
-                    failures.append(f"{u['where']} has unknown keys {u['keys']}")
-                for ko in lint["key_order"]:
-                    failures.append(f"{ko['where']} key order {ko['keys']} not canonical")
-                for f in lint["empty"]:
-                    failures.append(f"{f!r} is empty — omit the key instead")
-            warnings = list(nb.metaontology.violations.warnings)
+                failures.extend(str(err) for err in idx.check_dependency_versions(path))
+                warnings = list(nb.metaontology.violations.warnings)
 
-            test_path = _plugin_test_path(path)
-            if test_path:
-                result = subprocess.run(
-                    [pytest_bin, "--import-mode=importlib", str(test_path)],
-                    capture_output=True, text=True,
-                )
-                if result.returncode != 0:
-                    output = (result.stdout + result.stderr).rstrip()
-                    if output:
-                        failures.append(output)
-                    else:
-                        failures.append(f"pytest failed (exit {result.returncode})")
+                test_path = _plugin_test_path(path)
+                if test_path:
+                    result = subprocess.run(
+                        [pytest_bin, "--import-mode=importlib", str(test_path)],
+                        capture_output=True, text=True,
+                    )
+                    if result.returncode != 0:
+                        output = (result.stdout + result.stderr).rstrip()
+                        if output:
+                            failures.append(output)
+                        else:
+                            failures.append(f"pytest failed (exit {result.returncode})")
 
             if failures:
                 print(f"{terminal_style.FAIL} {name}")
