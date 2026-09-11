@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import invoke
@@ -432,9 +433,10 @@ def clear(c):
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
-def test(c, o=""):
+def test(c, o="", fmt="text"):
     """Validate each ontology against the metaontology and run its plugin
-       validators together. -o: target file.
+       validators together. -o: target file. --fmt json: one machine-readable
+       record per ontology (path, outcome, duration, failures) on stdout.
     """
     neurobase.clear(c, confirmed=True)
     ontology_dirs = internal_utils.get_path_list("PLUGINS")
@@ -451,10 +453,16 @@ def test(c, o=""):
 
     pytest_bin = os.path.join(setup.get_nenv_dir(), "bin", "pytest")
     failed = []
+    # One record per ontology, so a consumer can say *which* one broke and how
+    # long it took. The text rendering below is unchanged; --fmt json adds the
+    # machine-readable form rather than replacing it, because parsing ✔/✘ off a
+    # terminal-styled stdout is not a contract anyone should depend on.
+    report = []
     with NeuroBase() as nb:
         for path in targets:
             doc = nfx.read(path)
             name = doc.name or path.stem
+            started = time.monotonic()
 
             failures = _document_failures(idx, path)
             warnings = []
@@ -480,16 +488,31 @@ def test(c, o=""):
                         else:
                             failures.append(f"pytest failed (exit {result.returncode})")
 
+            report.append({
+                "name": name,
+                "path": str(path),
+                "outcome": "failed" if failures else "passed",
+                "duration_s": round(time.monotonic() - started, 3),
+                "failure_count": len(failures),
+                "failures": failures,
+                "warnings": [str(w) for w in warnings],
+            })
+
+            if fmt == "text":
+                if failures:
+                    print(f"{terminal_style.FAIL} {name}")
+                    for entry in failures:
+                        for line in entry.splitlines():
+                            print(f"  {line}")
+                else:
+                    print(f"{terminal_style.SUCCESS} {name}")
+                for w in warnings:
+                    print(f"  {w}")
             if failures:
-                print(f"{terminal_style.FAIL} {name}")
-                for entry in failures:
-                    for line in entry.splitlines():
-                        print(f"  {line}")
                 failed.append(name)
-            else:
-                print(f"{terminal_style.SUCCESS} {name}")
-            for w in warnings:
-                print(f"  {w}")
+
+    if fmt == "json":
+        print(json.dumps(report, indent=2, default=str))
 
     if failed:
         raise SystemExit(1)
