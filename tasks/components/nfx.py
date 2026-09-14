@@ -129,19 +129,25 @@ def print_orphan_hint(nb):
     print("    ontology.prune --confirm   (delete the isolated ones)")
 
 
-def print_dependant_hint(idx, written_nids, skip_paths):
+def print_dependant_hint(idx, written_nids):
     """Print the re-import commands for ontologies that depend on anything
     written this run and were not themselves written.
 
     Detect and print only — never re-import them here. Re-importing in the same
     run would let a command aimed at one ontology write to ontologies the user
     never named (PLAN-2026-143 step 3).
+
+    "Not written" is decided by nid, not by which file the operator named: a
+    root import writes its whole closure, and a dependency it just imported
+    fresh is as written as the target. Excluding only the named path made the
+    hint list ontologies the same run had written — a checklist that never
+    converged, since each named ontology then pointed back at the other.
     """
     pending = []
     for path in idx.all_targets():
-        if path in skip_paths:
-            continue
         doc = nfx.read(path)
+        if doc.nid in written_nids:
+            continue
         if written_nids & set(doc.dep_nids):
             pending.append(doc.name or path.stem)
     if not pending:

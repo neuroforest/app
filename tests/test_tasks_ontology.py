@@ -49,7 +49,7 @@ def test_prune(nb):
         CREATE (page)-[:RENDERS]->(held)
     """)
 
-    prune.__wrapped__(MockContext(), confirmed=True)
+    prune.__wrapped__(MockContext(), confirm=True)
 
     remaining = {r["nid"] for r in nb.get_data(
         "MATCH (n) WHERE n.nid IN ['prune-isolated', 'prune-held'] RETURN n.nid AS nid"
@@ -78,3 +78,40 @@ def test_document_failures(tmp_path):
     data["nodes"], data["relationships"] = [{"nid": a}, {"nid": b}], [rel]
     path.write_text(json.dumps(data))
     assert _document_failures(idx, path) == []
+
+
+def test_print_dependant_hint(tmp_path, capsys):
+    """A dependency the same run imported fresh is written, so it is not pending."""
+    import json
+    import subprocess
+    from types import SimpleNamespace
+
+    from tasks.components import nfx as nfx_tasks
+
+    def uuid4():
+        return subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
+
+    root, mid, leaf, outside = uuid4(), uuid4(), uuid4(), uuid4()
+
+    def write(name, nid, deps):
+        path = tmp_path / f"{name}.nfx"
+        path.write_text(json.dumps({
+            "type": "ontology", "nid": nid, "version": "1.0", "name": name,
+            "dependencies": [f"{d}@1.0" for d in deps], "nodes": [],
+        }))
+        return path
+
+    paths = [write("root", root, [mid]), write("mid", mid, [leaf]),
+             write("leaf", leaf, []), write("outside", outside, [leaf])]
+    idx = SimpleNamespace(all_targets=lambda: paths)
+
+    # Importing root writes mid and leaf too. `mid` depends on written `leaf`,
+    # but is itself written — naming it would be a re-import of what just ran.
+    nfx_tasks.print_dependant_hint(idx, {root, mid, leaf})
+    out = capsys.readouterr().out
+    assert "ontology.import -o outside" in out
+    assert "-o mid" not in out and "-o root" not in out
+
+    # Importing the whole closure leaves nothing pending.
+    nfx_tasks.print_dependant_hint(idx, {root, mid, leaf, outside})
+    assert capsys.readouterr().out == ""
