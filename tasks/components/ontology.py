@@ -96,7 +96,7 @@ def import_(c, ontology=""):
                 if dep_path:
                     written.add(nfx.read(dep_path).nid)
         nfx_tasks.print_orphan_hint(nb)
-    nfx_tasks.print_dependant_hint(idx, written - {None, ""}, set(targets))
+    nfx_tasks.print_dependant_hint(idx, written - {None, ""})
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
