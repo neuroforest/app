@@ -1,9 +1,3 @@
-# This tree is a rostered lint unit for sirin-quality-run but ships no
-# pyproject.toml, so its rule set lives here.
-#
-# Declared, not inherited: ruff 0.16 widened its defaults from 59 rules to 413,
-# so upgrading the binary silently redefines what "lint" means here. This is the
-# set that was in force before the version was pinned; widening it is a
-# deliberate commit, one rule family at a time.
-[lint]
-select = ["E4", "E7", "E9", "F"]
+# Inherits the repo-wide rule set — see /ruff.toml at the repo root. A pointer,
+# not a copy, so the trees of this repo cannot drift apart.
+extend = "../ruff.toml"

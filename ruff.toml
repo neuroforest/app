@@ -1,0 +1,16 @@
+# Repo-wide lint configuration — the single source of truth.
+#
+# ruff resolves config per file, from the NEAREST pyproject.toml or ruff.toml
+# above it, and falls back to its built-in defaults when it finds none. Those
+# defaults are not what this fleet lints with: ruff 0.16 enables 413 rules,
+# against the 59 selected here. So a tree with no config above it is not
+# "unlinted" — it is linted to a different, much wider standard, which is the
+# more confusing failure. This file sits at the REPO ROOT so every Python tree
+# resolves to it, including trees added later.
+#
+# The set is declared, never inherited: upgrading the ruff binary would
+# otherwise silently redefine what "lint" means here. Widening it is a
+# deliberate commit, one rule family at a time.
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
