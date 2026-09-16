@@ -554,18 +554,21 @@ def _hold_reason(row):
     if row["held"]:
         reasons.append(f"{row['held']} rel(s) outside the ontology layer "
                        f"({', '.join(row['rel_types'])})")
-    if row["instances"]:
-        instances = f"{row['instances']} live instance(s)"
-        # An instance names its class by label, and two ontologies may define
-        # the same label under different nids — Sirin and Spectroscopy both
-        # declare `Project`. Nothing on the instance says which node it means,
-        # so the count is attributed to both and the class is kept either way.
-        # Say when a surviving twin exists: it is usually the real owner, and
-        # the operator is the only one who can tell.
-        if row.get("twin"):
-            instances += f" — label also defined by {', '.join(row['twin'])}, which stays"
-        reasons.append(instances)
+    # Instances a surviving twin goes on defining hold nothing (`nfx.is_held`),
+    # so they are not a reason — only listed beside the node as it goes.
+    if row["instances"] and not row["twin"]:
+        reasons.append(f"{row['instances']} live instance(s)")
     return "; ".join(reasons)
+
+
+def _free_note(row):
+    """What stays behind when a node goes — its label's instances, if a twin
+    keeps defining them. Said out loud, because the count looks like a reason
+    to keep the node and the operator should see why it was not."""
+    if row.get("instances") and row.get("twin"):
+        return (f" — {row['instances']} instance(s) stay with "
+                f"{', '.join(row['twin'])}")
+    return ""
 
 
 @invoke.task(pre=[setup.env])
@@ -578,8 +581,9 @@ def prune(c, confirm=False):
     deliberate removal path, and it is deliberately narrow: only orphans the
     wider graph has finished with are deleted — no relationship reaching them
     from outside the ontology layer, and no instances still carrying the class
-    as a label. An orphan failing either test is reported and left alone; that
-    is exactly the case a blanket delete would destroy silently.
+    as a label unless another ontology still defines that label. An orphan
+    failing either test is reported and left alone; that is exactly the case a
+    blanket delete would destroy silently.
 
     The narrowness is that guard and nothing else. Candidates come from
     `nfx.orphan_nodes`, which covers every `OntologyObject` subtype — classes,
@@ -594,14 +598,15 @@ def prune(c, confirm=False):
         print(f"{terminal_style.SUCCESS} No orphaned ontology nodes")
         return
 
-    held = [r for r in rows if r["held"] or r["instances"]]
-    free = [r for r in rows if not r["held"] and not r["instances"]]
+    held = [r for r in rows if nfx_tasks.is_held(r)]
+    free = [r for r in rows if not nfx_tasks.is_held(r)]
     for r in held:
         print(f"  {terminal_style.WARN} {r['label']}  "
               f"{terminal_style.DIM}kept — {_hold_reason(r)}{terminal_style.RESET}")
     for r in free:
         print(f"  {terminal_style.SKIP} {r['label']}  "
-              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{terminal_style.RESET}")
+              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{_free_note(r)}"
+              f"{terminal_style.RESET}")
     if held:
         print(f"\n{len(held)} orphan(s) kept: still in use by the wider graph.")
     if not free:
@@ -750,7 +755,8 @@ def delete(c, ontology="", closure=False, confirm=False):
 
     A node is kept, never deleted, when another ontology still defines it, when
     the wider graph still reaches it, or when instances of the class are still
-    in the base. That is `ontology.prune`'s guard, applied here for the same
+    in the base and no surviving ontology defines their label under another
+    nid. That is `ontology.prune`'s guard, applied here for the same
     reason: a delete severs edges no import restores (PLAN-2026-143). Kept
     nodes outlive their ontology as orphans, which is a reported outcome and
     not a failure.
@@ -789,24 +795,12 @@ def delete(c, ontology="", closure=False, confirm=False):
             {"doomed": doomed},
         )
         rows = nb.get_data(_RELEASED, {"doomed": doomed})
-        counts = nfx_tasks.instance_counts(nb, [r["label"] for r in rows])
-        twins = {r["label"]: r["keepers"] for r in nb.get_data(
-            """
-            MATCH (keeper:OntologyMetadata)-[:DEFINES]->(n)
-            WHERE NOT keeper.nid IN $doomed AND n.label IN $labels
-            RETURN n.label AS label, collect(DISTINCT keeper.name) AS keepers
-            """,
-            {"doomed": doomed,
-             "labels": sorted({r["label"] for r in rows if counts.get(r["label"])})},
-        )}
-        for r in rows:
-            r["instances"] = counts.get(r["label"], 0)
-            r["twin"] = twins.get(r["label"], [])
+        nfx_tasks.attach_usage(nb, rows, exclude=doomed)
 
     reparented = [r for r in rows if r["claimed_by"]]
     rest = [r for r in rows if not r["claimed_by"]]
-    held = [r for r in rest if r["held"] or r["instances"]]
-    free = [r for r in rest if not r["held"] and not r["instances"]]
+    held = [r for r in rest if nfx_tasks.is_held(r)]
+    free = [r for r in rest if not nfx_tasks.is_held(r)]
 
     print(f"{terminal_style.WARN} Removing "
           f"{len(removing)} ontolog{'y' if len(removing) == 1 else 'ies'}:")
@@ -822,7 +816,8 @@ def delete(c, ontology="", closure=False, confirm=False):
               f"{terminal_style.DIM}kept — {_hold_reason(r)}{terminal_style.RESET}")
     for r in free:
         print(f"  {terminal_style.SKIP} {r['label']}  "
-              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{terminal_style.RESET}")
+              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{_free_note(r)}"
+              f"{terminal_style.RESET}")
     if held:
         print(f"\n{len(held)} node(s) kept: still in use by the wider graph. "
               f"Each outlives its ontology as an orphan.")

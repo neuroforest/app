@@ -119,18 +119,52 @@ def instance_counts(nb, labels):
             for r in nb.get_data(_INSTANCE_COUNTS, {"labels": labels})}
 
 
+# Two ontologies may declare the same class label under different nids — Sirin
+# and Spectroscopy both declare `Project`. Nothing on an instance says which
+# node it means, so the label count above is attributed to both. But the reason
+# instances hold a class is that deleting it leaves them labelled by a class
+# nothing defines, and while another ontology still defines the label that
+# cannot happen. Counting them anyway made a withdrawn twin undeletable for
+# good: nothing would ever take Sirin's instances away from it (INC-2026-009).
+_TWINS = """
+    MATCH (keeper:OntologyMetadata)-[:DEFINES]->(n:OntologyNode)
+    WHERE n.label IN $labels AND NOT keeper.nid IN $exclude
+    RETURN n.label AS label, collect(DISTINCT keeper.name) AS keepers
+"""
+
+
+def attach_usage(nb, rows, exclude=()):
+    """Stamp `instances` and `twin` on each row.
+
+    `twin` names the ontologies outside `exclude` that still define the row's
+    label; it is only asked for labels with instances, the one case it decides.
+    `exclude` is the set being withdrawn — a twin inside it goes too.
+    """
+    counts = instance_counts(nb, [r["label"] for r in rows])
+    labels = sorted({r["label"] for r in rows if counts.get(r["label"])})
+    twins = {r["label"]: r["keepers"] for r in nb.get_data(
+        _TWINS, {"labels": labels, "exclude": list(exclude)})} if labels else {}
+    for r in rows:
+        r["instances"] = counts.get(r["label"], 0)
+        r["twin"] = twins.get(r["label"], [])
+
+
+def is_held(row):
+    """Whether the wider graph still needs this node: an edge from outside the
+    ontology layer, or instances no surviving twin will go on defining."""
+    return bool(row["held"] or (row["instances"] and not row["twin"]))
+
+
 def orphan_nodes(nb, with_edges=False):
     """Every ontology-layer node no `OntologyMetadata` defines any more.
 
-    `with_edges` adds `held` / `rel_types` / `instances` — how much of the wider
-    graph still reaches the orphan, which is what decides whether it is safe to
-    delete. The hint does not need it and does not pay for it.
+    `with_edges` adds `held` / `rel_types` / `instances` / `twin` — how much of
+    the wider graph still reaches the orphan, which is what decides whether it is
+    safe to delete. The hint does not need it and does not pay for it.
     """
     rows = nb.get_data(_ORPHANS_WITH_EDGES if with_edges else _ORPHANS)
     if with_edges:
-        counts = instance_counts(nb, [r["label"] for r in rows])
-        for r in rows:
-            r["instances"] = counts.get(r["label"], 0)
+        attach_usage(nb, rows)
     return rows
 
 

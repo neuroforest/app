@@ -57,6 +57,29 @@ def test_prune(nb):
     assert remaining == {"prune-held"}
 
 
+def test_prune_twin(nb):
+    """Instances hold an orphan only when no other ontology defines their label."""
+    from tasks.components.ontology import prune
+
+    render.__wrapped__(MockContext(), ontology="Metaontology")
+    nb.run_query("""
+        CREATE (keeper:OntologyMetadata {nid: 'prune-keeper', name: 'keeper'})
+        CREATE (keeper)-[:DEFINES]->(:OntologyNode {nid: 'prune-owner', label: 'Twin'})
+        CREATE (:OntologyNode {nid: 'prune-twin', label: 'Twin'})
+        CREATE (:OntologyNode {nid: 'prune-lonely', label: 'Lonely'})
+        CREATE (:Twin {nid: 'prune-twin-instance'})
+        CREATE (:Lonely {nid: 'prune-lonely-instance'})
+    """)
+
+    prune.__wrapped__(MockContext(), confirm=True)
+
+    remaining = {r["nid"] for r in nb.get_data(
+        "MATCH (n) WHERE n.nid STARTS WITH 'prune-' RETURN n.nid AS nid"
+    )}
+    assert remaining == {"prune-keeper", "prune-owner", "prune-lonely",
+                         "prune-twin-instance", "prune-lonely-instance"}
+
+
 def test_document_failures(tmp_path):
     """Duplicates are reported from the document, before an import could MERGE them away."""
     import json
@@ -168,6 +191,39 @@ def test_delete_keeps_instances(nb):
         {"label": label},
     )[0]
     assert kept == {"nodes": 1, "claimed": 0}       # class node kept, now an orphan
+
+
+def test_delete_twin(nb):
+    """A class whose label another ontology still defines goes with its own —
+       the instances stay defined by the twin, so they cannot hold it."""
+    import subprocess
+
+    from tasks.components.ontology import delete
+
+    def uuid4():
+        return subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
+
+    render.__wrapped__(MockContext(), ontology="Ftir")
+    label = nb.get_data(
+        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n:OntologyNode) "
+        "RETURN n.label AS label ORDER BY label LIMIT 1"
+    )[0]["label"]
+    keeper, owner, instance = uuid4(), uuid4(), uuid4()
+    nb.run_query(
+        f"""
+        CREATE (k:OntologyMetadata {{nid: $keeper, name: 'keeper'}})
+        CREATE (k)-[:DEFINES]->(:OntologyNode {{nid: $owner, label: $label}})
+        CREATE (:{label} {{nid: $instance}})
+        """,
+        {"keeper": keeper, "owner": owner, "instance": instance, "label": label},
+    )
+
+    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+
+    assert nb.count(label=label) == 1                            # the instance survives
+    kept = {r["nid"] for r in nb.get_data(
+        "MATCH (n:OntologyNode {label: $label}) RETURN n.nid AS nid", {"label": label})}
+    assert kept == {owner}                            # Ftir's twin went, the owner stayed
 
 
 def test_doomed_set(nb):
