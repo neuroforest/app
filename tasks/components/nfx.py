@@ -90,14 +90,48 @@ _ORPHANS_WITH_EDGES = _ORPHAN_SCOPE + """
 """
 
 
+# An instance carries its class as a *label* and holds no relationship back to
+# the class node, so the edge test above cannot see it: by that measure a class
+# with ten thousand instances looks exactly as isolated as one with none. A
+# class still carrying instances has to outlive its ontology — delete it and
+# those instances are labelled by a class nothing defines, which is the drift
+# `neurobase.validate` reports as an undefined node type.
+_INSTANCE_COUNTS = """
+    MATCH (i)
+    WHERE any(l IN labels(i) WHERE l IN $labels)
+      AND NOT i:OntologyMetadata
+      AND NOT (i)<-[:DEFINES]-(:OntologyMetadata)
+    RETURN [l IN labels(i) WHERE l IN $labels][0] AS label, count(*) AS instances
+"""
+
+
+def instance_counts(nb, labels):
+    """`label` → live instances, for the class labels given.
+
+    One scan for the whole set, never one per class: the match is unlabelled by
+    necessity (the question *is* which labels are in use), so it is the most
+    expensive thing either caller does. An empty label set short-circuits.
+    """
+    labels = sorted({label for label in labels if label})
+    if not labels:
+        return {}
+    return {r["label"]: r["instances"]
+            for r in nb.get_data(_INSTANCE_COUNTS, {"labels": labels})}
+
+
 def orphan_nodes(nb, with_edges=False):
     """Every ontology-layer node no `OntologyMetadata` defines any more.
 
-    `with_edges` adds `held` / `rel_types` — how much of the wider graph still
-    reaches the orphan, which is what decides whether it is safe to delete.
-    The hint does not need it and does not pay for it.
+    `with_edges` adds `held` / `rel_types` / `instances` — how much of the wider
+    graph still reaches the orphan, which is what decides whether it is safe to
+    delete. The hint does not need it and does not pay for it.
     """
-    return nb.get_data(_ORPHANS_WITH_EDGES if with_edges else _ORPHANS)
+    rows = nb.get_data(_ORPHANS_WITH_EDGES if with_edges else _ORPHANS)
+    if with_edges:
+        counts = instance_counts(nb, [r["label"] for r in rows])
+        for r in rows:
+            r["instances"] = counts.get(r["label"], 0)
+    return rows
 
 
 def print_orphan_hint(nb):

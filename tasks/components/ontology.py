@@ -546,6 +546,28 @@ def rehash(c, ontology=""):
     print(f"\n{touched} file(s) updated")
 
 
+def _hold_reason(row):
+    """Why a node survives a removal, in the operator's terms. Both halves are
+    reported when both apply — an edge from outside is a different problem from
+    a live instance, and the fix differs too."""
+    reasons = []
+    if row["held"]:
+        reasons.append(f"{row['held']} rel(s) outside the ontology layer "
+                       f"({', '.join(row['rel_types'])})")
+    if row["instances"]:
+        instances = f"{row['instances']} live instance(s)"
+        # An instance names its class by label, and two ontologies may define
+        # the same label under different nids — Sirin and Spectroscopy both
+        # declare `Project`. Nothing on the instance says which node it means,
+        # so the count is attributed to both and the class is kept either way.
+        # Say when a surviving twin exists: it is usually the real owner, and
+        # the operator is the only one who can tell.
+        if row.get("twin"):
+            instances += f" — label also defined by {', '.join(row['twin'])}, which stays"
+        reasons.append(instances)
+    return "; ".join(reasons)
+
+
 @invoke.task(pre=[setup.env])
 def prune(c, confirm=False):
     """Delete orphaned ontology nodes — ones no ontology defines any more.
@@ -553,10 +575,11 @@ def prune(c, confirm=False):
     `ontology.import` releases a node it stops declaring rather than deleting
     it, because the set of edges reaching into the ontology layer is open and a
     delete severs edges no import restores (PLAN-2026-143). This is the
-    deliberate removal path, and it is deliberately narrow: only orphans that
-    hold no relationship to anything outside the ontology layer are deleted.
-    An orphan that still holds such a relationship is reported and left alone —
-    it is exactly the case a blanket delete would destroy silently.
+    deliberate removal path, and it is deliberately narrow: only orphans the
+    wider graph has finished with are deleted — no relationship reaching them
+    from outside the ontology layer, and no instances still carrying the class
+    as a label. An orphan failing either test is reported and left alone; that
+    is exactly the case a blanket delete would destroy silently.
 
     The narrowness is that guard and nothing else. Candidates come from
     `nfx.orphan_nodes`, which covers every `OntologyObject` subtype — classes,
@@ -571,17 +594,16 @@ def prune(c, confirm=False):
         print(f"{terminal_style.SUCCESS} No orphaned ontology nodes")
         return
 
-    held = [r for r in rows if r["held"]]
-    free = [r for r in rows if not r["held"]]
+    held = [r for r in rows if r["held"] or r["instances"]]
+    free = [r for r in rows if not r["held"] and not r["instances"]]
     for r in held:
         print(f"  {terminal_style.WARN} {r['label']}  "
-              f"{terminal_style.DIM}kept — {r['held']} rel(s) outside the ontology "
-              f"layer ({', '.join(r['rel_types'])}){terminal_style.RESET}")
+              f"{terminal_style.DIM}kept — {_hold_reason(r)}{terminal_style.RESET}")
     for r in free:
         print(f"  {terminal_style.SKIP} {r['label']}  "
               f"{terminal_style.DIM}{r['kind']} · {r['nid']}{terminal_style.RESET}")
     if held:
-        print(f"\n{len(held)} orphan(s) kept: still connected to the wider graph.")
+        print(f"\n{len(held)} orphan(s) kept: still in use by the wider graph.")
     if not free:
         return
     if not confirm:
@@ -591,3 +613,241 @@ def prune(c, confirm=False):
         nb.run_query("MATCH (n) WHERE n.nid IN $nids DETACH DELETE n",
                      {"nids": [r["nid"] for r in free]})
     print(f"\n{terminal_style.SUCCESS} {len(free)} isolated orphan(s) deleted")
+
+
+def _graph_ontology(nb, key):
+    """Resolve an ontology *in the base*, by nid or name.
+
+    Deliberately not through `OntologyIndex`. The case this task exists for is
+    an ontology whose files belong to a different base entirely, so the file
+    index is the wrong authority for what this graph is holding — and reaching
+    for it would make the stray closure unnameable by the one command meant to
+    remove it.
+    """
+    rows = nb.get_data(
+        """
+        MATCH (m:OntologyMetadata)
+        WHERE m.nid = $key OR toLower(m.name) = toLower($key)
+        RETURN m.nid AS nid, m.name AS name, m.version AS version
+        ORDER BY m.name
+        """,
+        {"key": key},
+    )
+    exact = [r for r in rows if r["nid"] == key or r["name"] == key]
+    return (exact or rows or [None])[0]
+
+
+def _depends_on_doomed(nb, doomed):
+    """Anything outside the delete set still pointing at a metadata node inside
+    it. An ontology that depends on the closure carries `SUBCLASS_OF` into it,
+    so removing it leaves a class hierarchy whose upper half is gone.
+
+    The keeper is deliberately unlabelled and the edge type deliberately
+    unfiltered. `KnowledgeMetadata` pins its ontologies with the same
+    `DEPENDS_ON` — `MetadataAccessor.upsert` writes both — so a check spelled
+    `keeper:OntologyMetadata` would let an ontology be withdrawn out from under
+    a loaded knowledge base, whose nodes are instances of exactly the classes
+    about to go. Nothing else points at an `OntologyMetadata` node today;
+    matching any edge means whatever does tomorrow gets reported instead of
+    severed by the `DETACH DELETE`.
+    """
+    return nb.get_data(
+        """
+        MATCH (keeper)-[r]->(d:OntologyMetadata)
+        WHERE d.nid IN $doomed AND NOT keeper.nid IN $doomed
+        RETURN DISTINCT d.nid AS nid, d.name AS needed, type(r) AS rel,
+               coalesce(keeper.name, keeper.label, keeper.nid) AS keeper,
+               labels(keeper)[0] AS kind
+        ORDER BY keeper, needed
+        """,
+        {"doomed": doomed},
+    )
+
+
+def _doomed_set(nb, target_nid, closure):
+    """The `OntologyMetadata` nids this run removes.
+
+    Without `--closure` that is the target alone. With it, the target plus every
+    dependency nothing outside the set still needs — the `DEPENDS_ON` graph
+    garbage-collected, the way a package manager drops the dependencies a
+    removed package alone pulled in.
+
+    Run to a fixed point, because rescuing one ontology rescues everything it in
+    turn depends on. That is what separates a foreign root's own closure from
+    the shared bases underneath it: withdrawing `Sbase` from a base whose own
+    root still stands on `Metaontology`, `Math` and `Time` must take the first
+    and leave the rest (INC-2026-009).
+
+    The Metaontology is excluded outright rather than left to that walk. In a
+    base holding nothing but the target's own closure there is no ontology
+    outside the set to rescue it, so the collection would be correct and still
+    wrong: taking the layer's root out from under everything is
+    `ontology.clear`'s job, not a side effect of withdrawing one ontology.
+    """
+    if not closure:
+        return [target_nid]
+    rows = nb.get_data(
+        """
+        MATCH (t:OntologyMetadata {nid: $nid})-[:DEPENDS_ON*0..]->(d:OntologyMetadata)
+        WHERE d.name <> "Metaontology"
+        RETURN collect(DISTINCT d.nid) AS nids
+        """,
+        {"nid": target_nid},
+    )
+    doomed = set(rows[0]["nids"]) if rows and rows[0]["nids"] else {target_nid}
+    while True:
+        rescued = {r["nid"] for r in _depends_on_doomed(nb, sorted(doomed))}
+        # The target is never rescued: a dependent of *it* is a blocker the
+        # operator has to resolve, not a dependency this walk over-collected.
+        rescued.discard(target_nid)
+        if not rescued:
+            return sorted(doomed)
+        doomed -= rescued
+
+
+# Fate of every node the doomed ontologies define, decided before anything is
+# written. Same rule as `ontology.prune`: a node the wider graph still reaches
+# is kept and reported, never deleted. `released` is carried forward so the
+# outside-edge test is a comparison against nodes already in hand rather than a
+# second scan, and so an edge *within* the doomed closure does not count as the
+# wider graph holding on.
+_RELEASED = """
+    MATCH (m:OntologyMetadata)-[:DEFINES]->(n)
+    WHERE m.nid IN $doomed
+    WITH collect(DISTINCT n) AS released
+    UNWIND released AS n
+    WITH released, n,
+         [(keeper:OntologyMetadata)-[:DEFINES]->(n)
+          WHERE NOT keeper.nid IN $doomed | keeper.name] AS claimed_by
+    OPTIONAL MATCH (n)-[r]-(o)
+    WHERE NOT o IN released
+      AND NOT any(lbl IN labels(o) WHERE lbl IN
+            ['OntologyMetadata', 'KnowledgeMetadata'])
+      AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
+    RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
+           labels(n)[0] AS kind, claimed_by,
+           count(r) AS held, collect(DISTINCT type(r))[0..4] AS rel_types
+    ORDER BY label
+"""
+
+
+@invoke.task(pre=[setup.env])
+def delete(c, ontology="", closure=False, confirm=False):
+    """Remove one ontology from the base — its metadata node and the nodes it
+    alone defines. -o/--ontology required (name or nid).
+
+    The withdrawal path for an ontology that should not be in this base at all.
+    Neither existing task can reach one: `ontology.import` only reconciles what
+    a file declares, and `ontology.prune` only sweeps what nothing declares any
+    more — a foreign closure is neither, because its own `DEFINES` edges are
+    perfectly intact. So it sits in the graph, invisible to both
+    (INC-2026-009, where `sip ontology.import -o sbase` wrote fourteen spectro
+    ontologies into Sirin and no reconciling import could take them back out).
+
+    --closure also removes the dependencies the target alone pulled in, keeping
+    every one an ontology outside the set still depends on. --confirm to
+    delete; without it the run only reports.
+
+    A node is kept, never deleted, when another ontology still defines it, when
+    the wider graph still reaches it, or when instances of the class are still
+    in the base. That is `ontology.prune`'s guard, applied here for the same
+    reason: a delete severs edges no import restores (PLAN-2026-143). Kept
+    nodes outlive their ontology as orphans, which is a reported outcome and
+    not a failure.
+    """
+    if not ontology:
+        print(f"{terminal_style.FAIL} -o/--ontology required")
+        raise SystemExit(1)
+
+    with NeuroBase() as nb:
+        target = _graph_ontology(nb, ontology)
+        if not target:
+            print(f"{terminal_style.FAIL} Ontology not in the base: {ontology}")
+            raise SystemExit(1)
+        if target["name"] == "Metaontology":
+            print(f"{terminal_style.FAIL} Refusing to delete the Metaontology — "
+                  f"every other ontology is defined in its terms. "
+                  f"Use ontology.clear to wipe the layer.")
+            raise SystemExit(1)
+
+        doomed = _doomed_set(nb, target["nid"], closure)
+        blocked = _depends_on_doomed(nb, doomed)
+        if blocked:
+            print(f"{terminal_style.FAIL} Still depended on by records that stay:")
+            for r in blocked:
+                print(f"    {r['keeper']} ({r['kind']}) -{r['rel']}→ {r['needed']}")
+            print("\nThese are dependents, which --closure does not cover — it removes "
+                  "dependencies. Withdraw them first, leaves before roots.")
+            raise SystemExit(1)
+
+        removing = nb.get_data(
+            """
+            MATCH (m:OntologyMetadata) WHERE m.nid IN $doomed
+            RETURN m.name AS name, coalesce(m.version, '?') AS version
+            ORDER BY m.name
+            """,
+            {"doomed": doomed},
+        )
+        rows = nb.get_data(_RELEASED, {"doomed": doomed})
+        counts = nfx_tasks.instance_counts(nb, [r["label"] for r in rows])
+        twins = {r["label"]: r["keepers"] for r in nb.get_data(
+            """
+            MATCH (keeper:OntologyMetadata)-[:DEFINES]->(n)
+            WHERE NOT keeper.nid IN $doomed AND n.label IN $labels
+            RETURN n.label AS label, collect(DISTINCT keeper.name) AS keepers
+            """,
+            {"doomed": doomed,
+             "labels": sorted({r["label"] for r in rows if counts.get(r["label"])})},
+        )}
+        for r in rows:
+            r["instances"] = counts.get(r["label"], 0)
+            r["twin"] = twins.get(r["label"], [])
+
+    reparented = [r for r in rows if r["claimed_by"]]
+    rest = [r for r in rows if not r["claimed_by"]]
+    held = [r for r in rest if r["held"] or r["instances"]]
+    free = [r for r in rest if not r["held"] and not r["instances"]]
+
+    print(f"{terminal_style.WARN} Removing "
+          f"{len(removing)} ontolog{'y' if len(removing) == 1 else 'ies'}:")
+    for m in removing:
+        print(f"    {m['name']}@{m['version']}")
+
+    for r in reparented:
+        print(f"  {terminal_style.SKIP} {r['label']}  "
+              f"{terminal_style.DIM}kept — also defined by "
+              f"{', '.join(r['claimed_by'])}{terminal_style.RESET}")
+    for r in held:
+        print(f"  {terminal_style.WARN} {r['label']}  "
+              f"{terminal_style.DIM}kept — {_hold_reason(r)}{terminal_style.RESET}")
+    for r in free:
+        print(f"  {terminal_style.SKIP} {r['label']}  "
+              f"{terminal_style.DIM}{r['kind']} · {r['nid']}{terminal_style.RESET}")
+    if held:
+        print(f"\n{len(held)} node(s) kept: still in use by the wider graph. "
+              f"Each outlives its ontology as an orphan.")
+
+    if not confirm:
+        print(f"\n{len(removing)} ontology record(s) and {len(free)} node(s) "
+              f"would be deleted. Re-run with --confirm.")
+        return
+
+    if os.environ.get("ENV") == "PRODUCTION":
+        if not terminal_components.bool_prompt(
+            f"{terminal_style.WARN} ENV=PRODUCTION. Really delete {target['name']}?",
+            default=False,
+        ):
+            raise SystemExit("Aborting delete.")
+
+    with NeuroBase() as nb:
+        # Metadata first: dropping it releases the `DEFINES` and `DEPENDS_ON`
+        # edges, so the node sweep that follows deletes nodes nothing claims —
+        # the same state `ontology.prune` operates on.
+        nb.run_query("MATCH (m:OntologyMetadata) WHERE m.nid IN $doomed DETACH DELETE m",
+                     {"doomed": doomed})
+        if free:
+            nb.run_query("MATCH (n) WHERE n.nid IN $nids DETACH DELETE n",
+                         {"nids": [r["nid"] for r in free]})
+        print(f"\n{terminal_style.SUCCESS} {len(removing)} ontology record(s) and "
+              f"{len(free)} node(s) deleted")
+        nfx_tasks.print_orphan_hint(nb)

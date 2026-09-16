@@ -115,3 +115,85 @@ def test_print_dependant_hint(tmp_path, capsys):
     # Importing the whole closure leaves nothing pending.
     nfx_tasks.print_dependant_hint(idx, {root, mid, leaf, outside})
     assert capsys.readouterr().out == ""
+
+
+def test_delete(nb):
+    """An ontology's metadata and the nodes it alone defines go; its dependency stays."""
+    import pytest
+
+    from tasks.components.ontology import delete
+
+    render.__wrapped__(MockContext(), ontology="Ftir")
+    ftir_nids = {r["nid"] for r in nb.get_data(
+        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n) RETURN n.nid AS nid"
+    )}
+    assert ftir_nids
+
+    # A dependency cannot go while its dependent stays behind to point at it.
+    with pytest.raises(SystemExit):
+        delete.__wrapped__(MockContext(), ontology="Spectroscopy", confirm=True)
+
+    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+
+    names = {r["name"] for r in nb.get_data("MATCH (m:OntologyMetadata) RETURN m.name AS name")}
+    assert "Ftir" not in names and "Spectroscopy" in names
+    assert nb.get_data("MATCH (n) WHERE n.nid IN $nids RETURN count(n) AS c",
+                       {"nids": list(ftir_nids)})[0]["c"] == 0
+
+
+def test_delete_keeps_instances(nb):
+    """A class still carrying instances outlives its ontology — it has no edge
+       back to them, so only the label check can see they exist."""
+    import subprocess
+
+    from tasks.components.ontology import delete
+
+    render.__wrapped__(MockContext(), ontology="Ftir")
+    label = nb.get_data(
+        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n:OntologyNode) "
+        "RETURN n.label AS label ORDER BY label LIMIT 1"
+    )[0]["label"]
+    nid = subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
+    nb.run_query(f"CREATE (n:{label} {{nid: $nid}})", {"nid": nid})
+
+    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+
+    assert nb.count(label=label) == 1                            # the instance survives
+    kept = nb.get_data(
+        """
+        MATCH (n:OntologyNode {label: $label})
+        WITH n, size([(n)<-[:DEFINES]-(m) | m]) AS defines
+        RETURN count(n) AS nodes, sum(defines) AS claimed
+        """,
+        {"label": label},
+    )[0]
+    assert kept == {"nodes": 1, "claimed": 0}       # class node kept, now an orphan
+
+
+def test_doomed_set(nb):
+    """--closure keeps every dependency something outside the set still needs."""
+    import subprocess
+
+    from tasks.components.ontology import _doomed_set
+
+    def uuid4():
+        return subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
+
+    root, mid, shared, base, keeper = (uuid4() for _ in range(5))
+    nb.run_query(
+        """
+        UNWIND $meta AS m CREATE (:OntologyMetadata {nid: m.nid, name: m.name})
+        WITH 1 AS _
+        UNWIND $deps AS d
+        MATCH (a:OntologyMetadata {nid: d[0]}), (b:OntologyMetadata {nid: d[1]})
+        CREATE (a)-[:DEPENDS_ON]->(b)
+        """,
+        {"meta": [{"nid": n, "name": s} for n, s in
+                  ((root, "root"), (mid, "mid"), (shared, "shared"),
+                   (base, "base"), (keeper, "keeper"))],
+         "deps": [[root, mid], [mid, shared], [shared, base], [keeper, shared]]},
+    )
+
+    assert _doomed_set(nb, root, closure=False) == [root]
+    # `shared` is rescued by `keeper`, and `base` transitively with it.
+    assert _doomed_set(nb, root, closure=True) == sorted([root, mid])
