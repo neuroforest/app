@@ -1,12 +1,13 @@
 import os
+import re
 import shlex
 import subprocess
 
 import invoke
 
-from neuro.utils import internal_utils, build_utils
+from neuro.utils import internal_utils, build_utils, terminal_style
 
-from tasks.actions import setup
+from tasks.actions import pkg, setup
 from tasks.components import tw5, neurobase
 
 
@@ -15,6 +16,54 @@ MODES = {
     "integration": ["-m", "not e2e"],
     "e2e": [],
 }
+
+
+# The version is declared twice and both must move together: pyproject.toml is
+# what the wheel carries, neuro/__init__.py what an importing process reads.
+VERSION_SITES = {
+    ("neuro", "pyproject.toml"): (r'^version = "(.*)"$', 'version = "{}"'),
+    ("neuro", "neuro", "__init__.py"): (r'^__version__ = "(.*)"$', '__version__ = "{}"'),
+}
+
+
+def version_paths():
+    """Return {path: (pattern, template)} for every declared neuro version site."""
+    app_dir = internal_utils.get_path("app")
+    return {app_dir.joinpath(*parts): site for parts, site in VERSION_SITES.items()}
+
+
+def read_versions():
+    """Return {path: version} for every declared neuro version site."""
+    versions = {}
+    for path, (pattern, _) in version_paths().items():
+        match = re.search(pattern, path.read_text(), re.MULTILINE)
+        if not match:
+            raise SystemExit(f"{terminal_style.FAIL} No version found in {path}")
+        versions[path] = match.group(1)
+    return versions
+
+
+@invoke.task(pre=[setup.env])
+def version(c, bump=""):
+    """Show the neuro version. --bump major|minor|patch rewrites pyproject.toml and __init__.py."""
+    versions = read_versions()
+    distinct = set(versions.values())
+    if len(distinct) > 1:
+        for path, declared in versions.items():
+            print(f"{terminal_style.WARN} {path}: {declared}")
+        raise SystemExit(f"{terminal_style.FAIL} Version sites disagree")
+
+    current = distinct.pop()
+    if not bump:
+        print(current)
+        return
+    try:
+        new = build_utils.bump_version(current, bump)
+    except ValueError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    for path, (pattern, template) in version_paths().items():
+        pkg.update_file(path, [(pattern, template.format(new))])
+    print(f"{terminal_style.SUCCESS} neuro {current} ➜ {new}")
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

@@ -1,5 +1,5 @@
 """
-Top-level NeuroForest app tasks: build, run, stop, test.
+Top-level NeuroForest app tasks: version, build, run, stop, test.
 """
 
 import glob
@@ -11,10 +11,26 @@ from pathlib import Path
 
 import invoke
 
-from neuro.utils import internal_utils, terminal_components, terminal_style
+from neuro.utils import build_utils, internal_utils, terminal_components, terminal_style
 
-from tasks.actions import setup
+from tasks.actions import pkg, setup
 from tasks.components import desktop, neurobase, tw5
+
+
+@invoke.task(pre=[setup.env])
+def version(c, bump=""):
+    """Show APP_VERSION. --bump major|minor|patch rewrites it in .env."""
+    current = os.environ["APP_VERSION"]
+    if not bump:
+        print(current)
+        return
+    try:
+        new = build_utils.bump_version(current, bump)
+    except ValueError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    env_path = internal_utils.get_path("app") / ".env"
+    pkg.update_file(env_path, [(r"^APP_VERSION=.*$", f"APP_VERSION={new}")])
+    print(f"{terminal_style.SUCCESS} APP_VERSION {current} ➜ {new}")
 
 
 @invoke.task(pre=[setup.env])
