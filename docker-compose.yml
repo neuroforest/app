@@ -9,9 +9,15 @@ services:
     image: ${NBASE_IMAGE}:${NBASE_VERSION}
     container_name: ${BASE_NAME}
     restart: unless-stopped
+    # Loopback-only by design (PLAN-2026-215 step 0, REP-2026-026 F1). A bare
+    # "<port>:7474" publishes on 0.0.0.0, and Docker's nat/DOCKER chain DNATs it
+    # before any host firewall's input chain is consulted — so the wide bind is
+    # not something a firewall can take back. Nothing reaches these databases
+    # across the network by design: the tailnet ACL denies :7687 everywhere and
+    # its guard test asserts it. Do not drop the 127.0.0.1 prefix.
     ports:
-      - "${NEO4J_PORT_HTTP}:7474"
-      - "${NEO4J_PORT_BOLT}:7687"
+      - "127.0.0.1:${NEO4J_PORT_HTTP}:7474"
+      - "127.0.0.1:${NEO4J_PORT_BOLT}:7687"
     volumes:
       - data:/data
       - logs:/logs
