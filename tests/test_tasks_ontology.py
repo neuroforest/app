@@ -146,20 +146,20 @@ def test_delete(nb):
 
     from tasks.components.ontology import delete
 
-    render.__wrapped__(MockContext(), ontology="Ftir")
+    render.__wrapped__(MockContext(), ontology="TestChild")
     ftir_nids = {r["nid"] for r in nb.get_data(
-        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n) RETURN n.nid AS nid"
+        "MATCH (:OntologyMetadata {name: 'TestChild'})-[:DEFINES]->(n) RETURN n.nid AS nid"
     )}
     assert ftir_nids
 
     # A dependency cannot go while its dependent stays behind to point at it.
     with pytest.raises(SystemExit):
-        delete.__wrapped__(MockContext(), ontology="Spectroscopy", confirm=True)
+        delete.__wrapped__(MockContext(), ontology="Test", confirm=True)
 
-    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+    delete.__wrapped__(MockContext(), ontology="TestChild", confirm=True)
 
     names = {r["name"] for r in nb.get_data("MATCH (m:OntologyMetadata) RETURN m.name AS name")}
-    assert "Ftir" not in names and "Spectroscopy" in names
+    assert "TestChild" not in names and "Test" in names
     assert nb.get_data("MATCH (n) WHERE n.nid IN $nids RETURN count(n) AS c",
                        {"nids": list(ftir_nids)})[0]["c"] == 0
 
@@ -171,15 +171,15 @@ def test_delete_keeps_instances(nb):
 
     from tasks.components.ontology import delete
 
-    render.__wrapped__(MockContext(), ontology="Ftir")
+    render.__wrapped__(MockContext(), ontology="TestChild")
     label = nb.get_data(
-        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n:OntologyNode) "
+        "MATCH (:OntologyMetadata {name: 'TestChild'})-[:DEFINES]->(n:OntologyNode) "
         "RETURN n.label AS label ORDER BY label LIMIT 1"
     )[0]["label"]
     nid = subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
     nb.run_query(f"CREATE (n:{label} {{nid: $nid}})", {"nid": nid})
 
-    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+    delete.__wrapped__(MockContext(), ontology="TestChild", confirm=True)
 
     assert nb.count(label=label) == 1                            # the instance survives
     kept = nb.get_data(
@@ -203,9 +203,9 @@ def test_delete_twin(nb):
     def uuid4():
         return subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
 
-    render.__wrapped__(MockContext(), ontology="Ftir")
+    render.__wrapped__(MockContext(), ontology="TestChild")
     label = nb.get_data(
-        "MATCH (:OntologyMetadata {name: 'Ftir'})-[:DEFINES]->(n:OntologyNode) "
+        "MATCH (:OntologyMetadata {name: 'TestChild'})-[:DEFINES]->(n:OntologyNode) "
         "RETURN n.label AS label ORDER BY label LIMIT 1"
     )[0]["label"]
     keeper, owner, instance = uuid4(), uuid4(), uuid4()
@@ -218,12 +218,12 @@ def test_delete_twin(nb):
         {"keeper": keeper, "owner": owner, "instance": instance, "label": label},
     )
 
-    delete.__wrapped__(MockContext(), ontology="Ftir", confirm=True)
+    delete.__wrapped__(MockContext(), ontology="TestChild", confirm=True)
 
     assert nb.count(label=label) == 1                            # the instance survives
     kept = {r["nid"] for r in nb.get_data(
         "MATCH (n:OntologyNode {label: $label}) RETURN n.nid AS nid", {"label": label})}
-    assert kept == {owner}                            # Ftir's twin went, the owner stayed
+    assert kept == {owner}                            # TestChild's twin went, the owner stayed
 
 
 def test_doomed_set(nb):

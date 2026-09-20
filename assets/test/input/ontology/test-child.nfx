@@ -1,0 +1,44 @@
+{
+    "type": "ontology",
+    "nid": "cf48f00f-3009-496a-9dd3-86d251b2545b",
+    "version": "1.0",
+    "name": "TestChild",
+    "description": "Minimal dependent fixture — depends on Test, so the delete tests have a dependency that must outlive it",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@2.1"
+    ],
+    "nodes": [
+        {
+            "nid": "1ce6195a-15ec-466c-a13d-e97445fb74dd",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "ChildAlpha"}
+        },
+        {
+            "nid": "c3300eed-a974-453e-b5e8-23d061d78043",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "ChildBeta"}
+        },
+        {
+            "nid": "771d7e4f-74d6-4775-86fe-90c56969d4b9",
+            "labels": ["String"],
+            "properties": {"label": "shade"}
+        }
+    ],
+    "relationships": [
+        {
+            "from": "1ce6195a-15ec-466c-a13d-e97445fb74dd",
+            "to": "a7ee0e84-eb7b-4835-bcd8-711af2e4510c",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "c3300eed-a974-453e-b5e8-23d061d78043",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "1ce6195a-15ec-466c-a13d-e97445fb74dd",
+            "to": "771d7e4f-74d6-4775-86fe-90c56969d4b9",
+            "type": "REQUIRE_PROPERTY"
+        }
+    ]
+}
