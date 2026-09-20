@@ -154,12 +154,12 @@ def test_delete(nb):
 
     # A dependency cannot go while its dependent stays behind to point at it.
     with pytest.raises(SystemExit):
-        delete.__wrapped__(MockContext(), ontology="TestParent", confirm=True)
+        delete.__wrapped__(MockContext(), ontology="Test", confirm=True)
 
     delete.__wrapped__(MockContext(), ontology="TestChild", confirm=True)
 
     names = {r["name"] for r in nb.get_data("MATCH (m:OntologyMetadata) RETURN m.name AS name")}
-    assert "TestChild" not in names and "TestParent" in names
+    assert "TestChild" not in names and "Test" in names
     assert nb.get_data("MATCH (n) WHERE n.nid IN $nids RETURN count(n) AS c",
                        {"nids": list(child_nids)})[0]["c"] == 0
 
@@ -223,7 +223,7 @@ def test_delete_twin(nb):
     assert nb.count(label=label) == 1                            # the instance survives
     kept = {r["nid"] for r in nb.get_data(
         "MATCH (n:OntologyNode {label: $label}) RETURN n.nid AS nid", {"label": label})}
-    assert kept == {owner}                            # the child's twin went, the owner stayed
+    assert kept == {owner}                            # TestChild's twin went, the owner stayed
 
 
 def test_doomed_set(nb):
