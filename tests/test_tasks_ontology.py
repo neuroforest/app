@@ -90,7 +90,7 @@ def test_document_failures(tmp_path):
 
     a, b = str(uuid.uuid4()), str(uuid.uuid4())
     rel = {"from": a, "to": b, "type": "USES"}
-    data = {"type": "ontology", "nid": str(uuid.uuid4()), "version": "1.0",
+    data = {"type": "ontology", "nid": str(uuid.uuid4()), "version": "1.0", "name": "Dup",
             "nodes": [{"nid": a}, {"nid": b}, {"nid": b}], "relationships": [rel, rel]}
     path = tmp_path / "dup.nfx"
     path.write_text(json.dumps(data))
