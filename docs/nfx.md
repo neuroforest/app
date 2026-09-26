@@ -88,11 +88,9 @@ nb.nodes.export_nfx(path, type="knowledge", nid=uuid4, name="taxa", version="1.0
 # Export one ontology as a module file, header read off its OntologyMetadata
 nb.ontology.export_nfx(path, name="Filesystem")
 
-# Export every ontology in the base — `path` is a directory, one <name>.nfx each
+# Export every module in the base — `path` is a directory, one <name>.nfx each
+# (ontologies, the metaontology and knowledge modules alike)
 nb.ontology.export_nfx(directory)
-
-# Export the metaontology (schema definition)
-nb.metaontology.export_nfx(path)
 ```
 
 `export_nfx` writes matched nodes and their inter-node relationships to the file. `nid` is extracted to the `nid` field and removed from `properties`.
