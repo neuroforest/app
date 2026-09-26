@@ -68,26 +68,45 @@ Graph interchange format for nodes and relationships.
 
 ### Export
 
+`type` and `nid` are required on the generic exporter: it exports an arbitrary
+query result, so there is no metadata node to read a header off, and a `nid` is
+never minted for you. Every exporter validates before writing and raises rather
+than producing a document the pre-commit lint would reject.
+
 ```python
 # Export nodes filtered by label and/or properties
-nb.nodes.export_nfx(path, label="Tiddler", name="My Export")
+nb.nodes.export_nfx(path, type="knowledge", nid=uuid4, label="Tiddler",
+                    name="my-export", version="1.0")
 
 # Export nodes by custom Cypher (must return nid, labels, properties columns)
-nb.nodes.export_nfx(path, query="""
+nb.nodes.export_nfx(path, type="knowledge", nid=uuid4, name="taxa", version="1.0", query="""
     MATCH (n:Taxon)
     WHERE n.`nid` IS NOT NULL
     RETURN n.`nid` as nid, labels(n) as labels, properties(n) as properties
 """)
 
-# Export all ontology instances (all SUBCLASS_OF descendants of OntologyNode,
-# OntologyRelationship, OntologyProperty)
-nb.ontology.export_nfx(path)
+# Export one ontology as a module file, header read off its OntologyMetadata
+nb.ontology.export_nfx(path, name="Filesystem")
+
+# Export every ontology in the base — `path` is a directory, one <name>.nfx each
+nb.ontology.export_nfx(directory)
 
 # Export the metaontology (schema definition)
 nb.metaontology.export_nfx(path)
 ```
 
 `export_nfx` writes matched nodes and their inter-node relationships to the file. `nid` is extracted to the `nid` field and removed from `properties`.
+
+An ontology export is scoped by what its `OntologyMetadata` node `DEFINES`. A
+relationship goes to the module that may legally declare it — one endpoint its
+own, the other reachable through its dependencies — so a cross-module edge lands
+in the dependent, not in the dependency whose node happens to be the source.
+
+Two things an ontology export cannot recover, both because the graph does not
+hold them: `hash` (run `nde ontology.rehash` afterwards for a dir-form plugin),
+and the *pinned* dependency versions — the emitted pins are each dependency's
+current version in that base. The export is faithful to the base, not to the
+file history.
 
 ### Import
 

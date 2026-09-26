@@ -406,10 +406,19 @@ def info(c, type="", tree=False):
 
 
 @invoke.task(pre=[setup.env])
-def export(c, path):
-    """Export ontology from neurobase to an NFX file."""
+def export(c, path, ontology=""):
+    """Export ontologies from neurobase to NFX files. -o/--ontology: one ontology
+       to <path>; without it, every ontology in the base to <path>/<name>.nfx."""
     with NeuroBase() as nb:
-        nb.ontology.export_nfx(path)
+        try:
+            result = nb.ontology.export_nfx(path, name=ontology)
+        except exceptions.NoOntology as e:
+            print(f"{terminal_style.FAIL} {e}")
+            raise SystemExit(1)
+        docs = [result] if ontology else result
+        for doc in docs:
+            print(f"{terminal_style.SUCCESS} {doc.name} {doc.version} "
+                  f"({len(doc.nodes)} nodes, {len(doc.relationships)} edges)")
 
 
 @invoke.task(pre=[setup.env])
