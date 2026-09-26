@@ -54,6 +54,11 @@ def _document_failures(idx, path):
         failures.append(f"missing required top-level field {f!r}")
     if report["invalid_type"]:
         failures.append(f"type {report['invalid_type']!r} not in {list(nfx.ALLOWED_TYPES)}")
+    if report["untaggable_name"]:
+        failures.append(
+            f"name {report['untaggable_name']!r} cannot form the release tag "
+            f"{report['untaggable_name'].lower()}/{doc.version} — git rejects the ref"
+        )
     for u in lint["unknown_keys"]:
         failures.append(f"{u['where']} has unknown keys {u['keys']}")
     for ko in lint["key_order"]:
