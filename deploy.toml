@@ -32,7 +32,7 @@ run  = "scripts/preflight/neuro-present"
 [[ship]]
 src     = "tasks/"
 dst     = "tasks/"
-exclude = ["__pycache__/", "*.pyc", "ruff.toml"]
+exclude = ["__pycache__/", "*.pyc", ".ruff_cache/", "ruff.toml"]   # dev residue, not the task root
 delete  = true
 [[ship]]
 src     = "assets/"
