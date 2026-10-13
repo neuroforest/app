@@ -1,5 +1,4 @@
 import os
-import re
 import shlex
 import subprocess
 
@@ -7,7 +6,7 @@ import invoke
 
 from neuro.utils import internal_utils, build_utils, terminal_style
 
-from tasks.actions import pkg, setup
+from tasks.actions import setup
 from tasks.components import tw5, neurobase
 
 
@@ -18,52 +17,30 @@ MODES = {
 }
 
 
-# The version is declared twice and both must move together: pyproject.toml is
-# what the wheel carries, neuro/__init__.py what an importing process reads.
-VERSION_SITES = {
-    ("neuro", "pyproject.toml"): (r'^version = "(.*)"$', 'version = "{}"'),
-    ("neuro", "neuro", "__init__.py"): (r'^__version__ = "(.*)"$', '__version__ = "{}"'),
-}
+# The version is one literal, neuro/VERSION (PLAN-2026-321): pyproject.toml reads
+# it as `dynamic`, neuro.__version__ reads the file in a checkout and the installed
+# metadata from a wheel. Moving it is a release, and a release is
+# `deploy neuro --bump patch|minor|major` (rodis): bump, commit, tag, forge, wheel,
+# host, record — so there is nothing left for a task to rewrite.
+VERSION_FILE = ("neuro", "VERSION")
 
 
-def version_paths():
-    """Return {path: (pattern, template)} for every declared neuro version site."""
-    app_dir = internal_utils.get_path("app")
-    return {app_dir.joinpath(*parts): site for parts, site in VERSION_SITES.items()}
-
-
-def read_versions():
-    """Return {path: version} for every declared neuro version site."""
-    versions = {}
-    for path, (pattern, _) in version_paths().items():
-        match = re.search(pattern, path.read_text(), re.MULTILINE)
-        if not match:
-            raise SystemExit(f"{terminal_style.FAIL} No version found in {path}")
-        versions[path] = match.group(1)
-    return versions
+def read_version():
+    """Return the declared neuro version."""
+    path = internal_utils.get_path("app").joinpath(*VERSION_FILE)
+    try:
+        return path.read_text().strip()
+    except OSError as e:
+        raise SystemExit(f"{terminal_style.FAIL} No version file at {path}: {e}")
 
 
 @invoke.task(pre=[setup.env])
 def version(c, bump=""):
-    """Show the neuro version. --bump major|minor|patch rewrites pyproject.toml and __init__.py."""
-    versions = read_versions()
-    distinct = set(versions.values())
-    if len(distinct) > 1:
-        for path, declared in versions.items():
-            print(f"{terminal_style.WARN} {path}: {declared}")
-        raise SystemExit(f"{terminal_style.FAIL} Version sites disagree")
-
-    current = distinct.pop()
-    if not bump:
-        print(current)
-        return
-    try:
-        new = build_utils.bump_version(current, bump)
-    except ValueError as e:
-        raise SystemExit(f"{terminal_style.FAIL} {e}")
-    for path, (pattern, template) in version_paths().items():
-        pkg.update_file(path, [(pattern, template.format(new))])
-    print(f"{terminal_style.SUCCESS} neuro {current} ➜ {new}")
+    """Show the neuro version. A bump is a release: `deploy neuro --bump patch|minor|major`."""
+    if bump:
+        raise SystemExit(f"{terminal_style.FAIL} neuro's version moves only through a release — "
+                         f"run `deploy neuro --bump {bump}` (rodis, PLAN-2026-321)")
+    print(read_version())
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
