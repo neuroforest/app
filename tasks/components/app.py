@@ -11,26 +11,22 @@ from pathlib import Path
 
 import invoke
 
-from neuro.utils import build_utils, internal_utils, terminal_components, terminal_style
+from neuro.utils import internal_utils, terminal_components, terminal_style
 
-from tasks.actions import pkg, setup
+from tasks.actions import setup
 from tasks.components import desktop, neurobase, tw5
 
 
 @invoke.task(pre=[setup.env])
 def version(c, bump=""):
-    """Show APP_VERSION. --bump major|minor|patch rewrites it in .env."""
-    current = os.environ["APP_VERSION"]
-    if not bump:
-        print(current)
-        return
-    try:
-        new = build_utils.bump_version(current, bump)
-    except ValueError as e:
-        raise SystemExit(f"{terminal_style.FAIL} {e}")
-    env_path = internal_utils.get_path("app") / ".env"
-    pkg.update_file(env_path, [(r"^APP_VERSION=.*$", f"APP_VERSION={new}")])
-    print(f"{terminal_style.SUCCESS} APP_VERSION {current} ➜ {new}")
+    """Show the app version. A bump is a release: `deploy nf-app --bump patch|minor|major`."""
+    # One literal, the VERSION file at the app root (PLAN-2026-322), shipped with the
+    # tree; APP_VERSION left .env with it. rodis moves it: bump, commit, tag, forge,
+    # rsync to the host, record — so there is nothing left for a task to rewrite.
+    if bump:
+        raise SystemExit(f"{terminal_style.FAIL} the app's version moves only through a release — "
+                         f"run `deploy nf-app --bump {bump}` (rodis, PLAN-2026-322)")
+    print((internal_utils.get_path("app") / "VERSION").read_text().strip())
 
 
 @invoke.task(pre=[setup.env])

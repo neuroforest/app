@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# The proof the shipped tree is alive, run as rodis's [[health]] after the rsync
+# (PLAN-2026-322). Nothing restarts — the nightly backup timer runs this tree
+# fresh — so the probe is the one moment the deploy itself asks the host:
+#   - the task root loads: `python -m invoke --list` in the shipped tree, on the
+#     venv the timer uses (tasks import neuro from it);
+#   - the shipped VERSION is the one rodis just released.
+# Host, path and venv come from rodis (RODIS_TARGET_*): this repo is public and
+# names no place (PLAN-2026-324).
+set -euo pipefail
+HOST="${RODIS_TARGET_HOST:?RODIS_TARGET_HOST unset — run through rodis, per target}"
+TREE="${RODIS_TARGET_PATH:?RODIS_TARGET_PATH unset — run through rodis, per target}"
+VENV="${RODIS_TARGET_VENV:?RODIS_TARGET_VENV unset — the target declares no venv}"
+WANT="${RODIS_VERSION:?RODIS_VERSION unset — run through rodis}"
+ssh "$HOST" "
+    set -e
+    cd $TREE
+    have=\$(tr -d '[:space:]' < VERSION)
+    [ \"\$have\" = '$WANT' ] || { echo \"  ✘ $TREE/VERSION reads \$have, released $WANT\" >&2; exit 1; }
+    n=\$($VENV/bin/python -m invoke --list 2>&1 | grep -c '^  [a-z]') \
+        || { echo '  ✘ the task root does not load:' >&2; $VENV/bin/python -m invoke --list >&2; exit 1; }
+    echo \"    nf-app \$have — \$n invoke tasks listed from $TREE\"
+"

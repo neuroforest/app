@@ -2,7 +2,6 @@
 Update packages in PKG directory.
 """
 
-import os
 import re
 import subprocess
 
@@ -60,7 +59,8 @@ def update_file(path, replacements):
 @invoke.task(pre=[setup.env])
 def arch(c, package=""):
     """Update PKGBUILD packages in PKG with current app commit and version."""
-    version = os.environ["APP_VERSION"]
+    # One literal, the app's VERSION file (PLAN-2026-322) — no longer an env setting.
+    version = (internal_utils.get_path("app") / "VERSION").read_text().strip()
     commit, short, count = get_app_git_info()
     pkgver = f"{version}.r{count}.{short}"
 

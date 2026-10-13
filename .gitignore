@@ -8,3 +8,8 @@ nenv
 nwjs
 tw5-plugins/**/compiled
 tw5-editions/**/tiddlers
+
+# WHERE the tree lands: host and path, absolute on a named box. This repo is public,
+# so rodis reads them from an untracked overlay beside deploy.toml (PLAN-2026-324);
+# the Sirin deploy-targets seeder holds every value.
+/deploy.local.toml
