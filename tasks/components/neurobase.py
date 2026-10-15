@@ -132,7 +132,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(b) WHERE NOT lb IN $fb],
-        id: coalesce(b.uuid, b.nid, b.id)
+        id: coalesce(b.uuid, b.nid, b.id, b.name)
       }}) AS outs
     }}
     CALL (n) {{
@@ -142,7 +142,7 @@ def _sample_with_rels(nb, label, size, forbidden):
       RETURN collect({{
         rel: type(r),
         labels: [lb IN labels(a) WHERE NOT lb IN $fb],
-        id: coalesce(a.uuid, a.nid, a.id)
+        id: coalesce(a.uuid, a.nid, a.id, a.name)
       }}) AS ins
     }}
     RETURN properties(n) AS props, outs, ins
@@ -150,6 +150,15 @@ def _sample_with_rels(nb, label, size, forbidden):
     rows = nb.get_data(query, params)
     rows.sort(key=lambda row: _id_sort_key(row["props"]))
     return rows
+
+
+def _group_rels(edges):
+    """Group edges by (rel type, other-end labels) → sorted ids, preserving first-seen order."""
+    groups = {}
+    for r in edges:
+        key = (r["rel"], ":".join(r["labels"]) or "?")
+        groups.setdefault(key, []).append(str(r.get("id") or "?"))
+    return {k: sorted(v) for k, v in groups.items()}
 
 
 def verify_neo4j(timeout=32):
@@ -938,8 +947,8 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text", expand=Fal
 
 
 @invoke.task(pre=[setup.env])
-def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
-    """Sample knowledge nodes per type. --type: one type. --size: samples per type. --all: every instance (overrides --size). --no-count/--no-rels: fast mode."""
+def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text", rel_ids=3):
+    """Sample knowledge nodes per type. --type: one type. --size: samples per type. --all: every instance (overrides --size). --no-count/--no-rels: fast mode. --rel-ids: ids shown per grouped relation (0 = all)."""
     if all:
         size = None
     forbidden = _forbidden_labels()
@@ -996,12 +1005,11 @@ def sample(c, type="", size=3, all=False, rels=True, count=True, fmt="text"):
                 print(f"      {k}: {_fmt_value(props[k])}")
             if rels and (sample["outs"] or sample["ins"]):
                 print(f"      {DIM}rels{RST}")
-                for r in sample["outs"]:
-                    target = ":".join(r["labels"]) or "?"
-                    tid = r.get("id") or "?"
-                    print(f"        -[:{r['rel']}]-> (:{target}) {DIM}[{tid}]{RST}")
-                for r in sample["ins"]:
-                    source = ":".join(r["labels"]) or "?"
-                    sid = r.get("id") or "?"
-                    print(f"        <-[:{r['rel']}]- (:{source}) {DIM}[{sid}]{RST}")
+                for arrow, edges in (("-[:{}]-> (:{})", sample["outs"]), ("<-[:{}]- (:{})", sample["ins"])):
+                    for (rel, other), ids in _group_rels(edges).items():
+                        edge = arrow.format(rel, other)
+                        shown = ids if rel_ids == 0 else ids[:rel_ids]
+                        more = f" +{len(ids) - len(shown)}" if len(shown) < len(ids) else ""
+                        count_tag = f" × {len(ids)}" if len(ids) > 1 else ""
+                        print(f"        {edge}{B}{count_tag}{RST} {DIM}[{', '.join(shown)}{more}]{RST}")
             print()
