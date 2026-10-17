@@ -91,9 +91,10 @@ def patch(c, components):
 
 
 @invoke.task(pre=[setup.env, setup.init, neurobase.start, desktop.run])
-def run(c):
-    """Initialize (if needed), start neurobase and launch desktop."""
-    pass
+def run(c, url=""):
+    """Initialize (if needed), start neurobase and launch desktop; --url=neuro://<nid> opens that tiddler."""
+    if url:
+        desktop.register_protocol(url)
 
 
 @invoke.task(pre=[setup.env, neurobase.stop, desktop.close])

@@ -22,13 +22,17 @@ from tasks.components import nwjs
 # Helpers
 # ---------------------------------------------------------------------------
 
-def register_protocol(url):
-    uuid = url.removeprefix("neuro://")
+def register_protocol(url, timeout=60):
+    """Open the tiddler a neuro://<nid> URL names, waiting up to timeout s for NeuroDesktop."""
+    uuid = url.removeprefix("neuro://").strip("/")
     nd_port = os.getenv("PORT")
 
-    if not network_utils.is_port_in_use(nd_port):
-        print("NeuroDesktop not running")
-        return
+    deadline = time.monotonic() + timeout
+    while not network_utils.is_port_in_use(nd_port):
+        if time.monotonic() > deadline:
+            print("NeuroDesktop not running")
+            return
+        time.sleep(1)
 
     try:
         tid_title = tw_get.filter_output(f"[search:nid[{uuid}]]")[0]
@@ -125,7 +129,7 @@ def build(c, build_dir=None):
 
 @invoke.task(pre=[setup.env])
 def run(c):
-    """Launch NW.js desktop app. --protocol=neuro://uuid for deep linking."""
+    """Launch NW.js desktop app. Deep links go through app.run --url=neuro://<nid>."""
     app_dir = get_app_dir()
 
     # Check if already running

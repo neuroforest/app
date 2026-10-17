@@ -48,9 +48,11 @@ Launches the `nw` binary as a background process. Stores PID in `nw.pid`. Exits 
 
 ### Protocol handler
 
-The `register_protocol` function handles `neuro://` deep linking:
+    invoke app.run --url neuro://<nid>
 
-1. Checks if NeuroDesktop is running (via `PORT`)
+`xdg-open neuro://<nid>` resolves to `neurowiki.desktop` (`Exec=neurowiki %u`), whose launcher passes the URL on as `app.run --url`. After the usual start-up, `register_protocol`:
+
+1. Waits up to 60 s for NeuroDesktop to listen on `PORT`
 2. Searches for a tiddler matching the UUID
 3. Opens the tiddler in the running instance
 
