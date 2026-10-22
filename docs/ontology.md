@@ -78,10 +78,11 @@ Supports `+` operator to merge results across multiple labels.
 
 **`Validator`** — Base class for ontology validation. Provides `get_metaproperties(node_label)` which queries the ontology graph to resolve all properties (including inherited ones) for a given label.
 
-**`ObjectValidator`** — Validates a `neuro.core.Object` against the ontology. Runs two checks:
+**`ObjectValidator`** — Validates a `neuro.core.Object` against the ontology. A node may carry several class labels and is an instance of every one, so validation sees them **all at once**, against the union of their schemas (PLAN-2026-368). Runs three checks:
 
 1. `validate_labels()` — verifies each label exists as an `OntologyNode`
-2. `validate_properties()` — checks properties against metaproperties for each valid label
+2. `validate_label_antichain()` — the label set must be mutually incomparable: a label that is an ancestor or descendant of another is redundant (the subclass already implies its ancestors) and is reported in `redundant_labels`. No declared joining class is required.
+3. `validate_properties()` / `validate_relationships()` — checks against the **union** over all valid labels, built by `MetapropertiesUnion.from_ontology` / `Metarelationships.union`. A property is undefined only if *no* label declares it; its value must satisfy *every* declaration (conjunction — two classes declaring it with incompatible types make every value invalid, and the message names both); the required set and the relationship set are the union across labels.
 
 Returns a `Violations` object.
 
@@ -100,15 +101,18 @@ ObjectValidator.validate()
     │           MATCH (n:OntologyNode {label: $label})
     │           → undefined_labels if not found
     │
+    ├── validate_label_antichain()
+    │       Any two labels in SUBCLASS_OF* relation
+    │           → redundant_labels (the subclass already implies the other)
+    │
     └── validate_properties()
-            For each valid label:
-                Validator.get_metaproperties(label)
-                    → resolves SUBCLASS_OF chain
-                    → collects HAS_PROPERTY + REQUIRE_PROPERTY
-                Metaproperties.validate_properties(object.properties)
-                    → missing_properties (required but absent)
-                    → undefined_properties (present but not in schema)
-                    → invalid_properties (wrong type)
+            Over the union of all valid labels:
+                MetapropertiesUnion.from_ontology(labels)
+                    → each label's declarations, kept per label
+                union.validate_properties(object.properties)
+                    → missing_properties (required by any label, absent)
+                    → undefined_properties (declared by no label)
+                    → invalid_properties (fails any declaration; conjunction)
                         │
                         ▼
                     Violations

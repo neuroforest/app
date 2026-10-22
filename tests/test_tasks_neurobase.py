@@ -10,6 +10,7 @@ import pytest
 from invoke import MockContext
 
 from neuro.base import NeuroBase
+from neuro.core.deep.object import Object
 from neuro.utils.internal_utils import get_path
 from tasks.components import neurobase
 from tasks.components.ontology import render
@@ -20,6 +21,14 @@ KNOWLEDGE = get_path("assets") / "test" / "input" / "knowledge"
 @pytest.fixture
 def test_ontology(nb):
     render.__wrapped__(MockContext(), ontology="Test")
+    return nb
+
+
+@pytest.fixture
+def test_ontology_child(nb):
+    """Test plus its dependant TestChild, so ChildAlpha (SUBCLASS_OF TestRequire)
+    is present for the antichain check."""
+    render.__wrapped__(MockContext(), ontology="Test", dependants=True)
     return nb
 
 
@@ -102,6 +111,51 @@ def test_required_relationship_violation(test_ontology, capsys):
     assert entry["count"] == 1
     assert entry["fail"] == 1
     assert [d["missing_rel"] for d in entry["details"]] == [["POINTS_TO"]]
+
+
+def test_multilabel_pass(test_ontology):
+    _load(test_ontology, "multilabel-pass.nfx")
+    # A node labelled [TestRequire, TestKey] validates against the union of both
+    # — no SystemExit. Per-label validation would fail it (each label sees the
+    # other's property as undefined).
+    neurobase.validate.__wrapped__(MockContext(), fmt="json")
+
+
+def test_multilabel_required_union(test_ontology, capsys):
+    _validate_report(test_ontology, "multilabel-required-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
+    for label in ("TestRequire", "TestKey"):
+        entry = by_label[label]
+        assert entry["fail"] == 1
+        assert [d["missing"] for d in entry["details"]] == [["name"]]
+
+
+def test_multilabel_redundant_label(test_ontology_child, capsys):
+    _validate_report(test_ontology_child, "redundant-label-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
+    entry = by_label["ChildAlpha"]
+    assert entry["fail"] == 1
+    assert entry["details"][0]["redundant"] == [["ChildAlpha", "TestRequire"]]
+
+
+def test_multilabel_write_path_accepts_union(test_ontology):
+    # The write path (objects.put → ObjectValidator) validates against the union
+    # of the node's labels, so a two-label node writes without a violation.
+    obj = Object(
+        labels=["TestRequire", "TestKey"],
+        properties={"nid": "2d17c771-dd3f-48fb-bd0e-225bf7ab059f", "name": "w", "id": "WK1"},
+    )
+    test_ontology.objects.put(obj, identifier_key="nid")
+
+
+def test_multilabel_write_path_rejects_redundant(test_ontology_child):
+    obj = Object(
+        labels=["ChildAlpha", "TestRequire"],
+        properties={"nid": "167b753f-0261-4614-a7e7-8d4a44db0239", "name": "w", "shade": "navy"},
+    )
+    with pytest.raises(ValueError) as exc:
+        test_ontology_child.objects.put(obj, identifier_key="nid")
+    assert "redundant label" in str(exc.value)
 
 
 def test_start():

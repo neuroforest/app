@@ -10,7 +10,12 @@ import neo4j
 
 from neuro.base.api import NeuroBase
 from neuro.base.index import OntologyIndex
-from neuro.base.schema import Metaproperties, Metarelationships, Violations
+from neuro.base.schema import (
+    Metaproperties,
+    MetapropertiesUnion,
+    Metarelationships,
+    Violations,
+)
 from neuro.utils import docker_tools
 from neuro.utils import build_utils, internal_utils, network_utils, terminal_components, terminal_style
 
@@ -95,6 +100,23 @@ def _fmt_value(v, max_len=120):
 
 def _count_label(nb, label):
     return nb.get_data(f"MATCH (n:`{label}`) RETURN count(n) AS count")[0]["count"]
+
+
+def _redundant_label_pairs(nb, labels):
+    """(sub, sup) pairs where one of a node's labels is an ancestor/descendant
+    of another — a redundant co-lineal label the subclass already implies
+    (PLAN-2026-368, Q2). Empty for a single-label node."""
+    if len(labels) < 2:
+        return []
+    rows = nb.get_data(
+        """
+        MATCH (sub:OntologyNode)-[:SUBCLASS_OF*1..]->(sup:OntologyNode)
+        WHERE sub.label IN $labels AND sup.label IN $labels
+        RETURN sub.label AS sub, sup.label AS sup
+        """,
+        {"labels": list(labels)},
+    )
+    return [(r["sub"], r["sup"]) for r in rows]
 
 
 _ID_KEYS = ("uuid", "nid", "id")
@@ -584,6 +606,10 @@ def info(c, type="", fmt="text"):
         else:
             key_counts, out_counts, in_counts = {}, {}, {}
 
+    # Advisory and deliberately per-label (PLAN-2026-368 step 4): `info --type`
+    # describes one class, so a key owned only by a co-label on multi-label
+    # instances shows here as "undefined". `validate` is the authority and
+    # judges each node against the union of its labels.
     defined_keys = set(metaprops.keys()) | set(_ID_KEYS)
     undefined = sorted(set(key_counts) - defined_keys)
 
@@ -663,13 +689,15 @@ def info(c, type="", fmt="text"):
 
 
 def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
-    """Yield {"props", "nid"} rows for validation. Streams in batches when all_mode."""
+    """Yield {"props", "nid", "labels"} rows for validation. Streams in batches
+    when all_mode. ``labels`` carries every class label on the node so the
+    caller can validate against the union of them (PLAN-2026-368)."""
     if all_mode:
         skip = 0
         while True:
             rows = nb.get_data(
                 f"MATCH (n:`{label}`) "
-                f"RETURN properties(n) AS props, n.nid AS nid "
+                f"RETURN properties(n) AS props, n.nid AS nid, labels(n) AS labels "
                 f"ORDER BY n.nid SKIP {skip} LIMIT {batch}"
             )
             if not rows:
@@ -681,7 +709,7 @@ def _iter_nodes_for_validation(nb, label, size, all_mode, batch=1000):
     else:
         rows = nb.get_data(
             f"MATCH (n:`{label}`) "
-            f"RETURN properties(n) AS props, n.nid AS nid "
+            f"RETURN properties(n) AS props, n.nid AS nid, labels(n) AS labels "
             f"LIMIT {size}"
         )
         yield from rows
@@ -700,6 +728,7 @@ def _node_id(nid, props):
 
 def _aggregate_violations(pairs):
     agg = {
+        "redundant_labels": {},
         "missing_properties": {},
         "undefined_properties": {},
         "invalid_properties": {},
@@ -709,6 +738,8 @@ def _aggregate_violations(pairs):
         "warnings": {},
     }
     for nid, v in pairs:
+        for sub, sup in v.redundant_labels:
+            agg["redundant_labels"].setdefault(f"{sub} implies {sup}", []).append(nid)
         for p in v.missing_properties:
             agg["missing_properties"].setdefault(p.label, []).append(nid)
         for k in v.undefined_properties:
@@ -765,6 +796,7 @@ def _print_validation_entry(entry, all_mode, example_cap=5, expand=False):
     if all_mode:
         agg = entry["violations"]
         kinds = (
+            ("redundant label", "redundant_labels"),
             ("missing", "missing_properties"),
             ("undefined", "undefined_properties"),
             ("invalid", "invalid_properties"),
@@ -784,6 +816,8 @@ def _print_validation_entry(entry, all_mode, example_cap=5, expand=False):
         tag = terminal_style.SUCCESS if d["ok"] else terminal_style.FAIL
         verdict = "PASS" if d["ok"] else "FAIL"
         print(f"  {tag} {verdict}  [{d['nid']}]")
+        for sub, sup in d.get("redundant", []):
+            print(f"        redundant label: {sub} implies {sup} (same lineage)")
         if d["missing"]:
             print(f"        missing: {d['missing']}")
         if d["undefined"]:
@@ -846,6 +880,7 @@ def _detail_record(nid, v):
     return {
         "nid": nid,
         "ok": not v,
+        "redundant": list(v.redundant_labels),
         "missing": [p.label for p in v.missing_properties],
         "undefined": list(v.undefined_properties),
         "invalid": list(v.invalid_properties),
@@ -882,11 +917,16 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text", expand=Fal
             targets = sorted((knowledge & present) - forbidden)
 
         registered_keys = _registered_property_keys(nb)
+        universe = set(_knowledge_labels(nb))
+        # Per-node schema is the union over the node's full label set, cached by
+        # that set so a sweep never reloads the schema per node (PLAN-2026-368).
+        prop_cache, rel_cache, redundant_cache = {}, {}, {}
 
         for lb in targets:
             try:
-                metaprops = Metaproperties.from_ontology(nb, lb)
-                metarels = Metarelationships.from_ontology(nb, lb)
+                # Fail fast if this label's own schema is unloadable; the union
+                # each node validates against is built per label set below.
+                Metaproperties.from_ontology(nb, lb)
             except Exception as e:
                 print(f"{terminal_style.FAIL} {lb}: schema load failed ({e})", file=sys.stderr)
                 had_violations = True
@@ -895,10 +935,17 @@ def validate(c, type="", size=5, all=False, strict=False, fmt="text", expand=Fal
             count = _count_label(nb, lb)
             results = []
             for row in _iter_nodes_for_validation(nb, lb, size, all):
+                node_labels = [nl for nl in (row.get("labels") or []) if nl in universe] or [lb]
+                key = frozenset(node_labels)
+                if key not in prop_cache:
+                    prop_cache[key] = MetapropertiesUnion.from_ontology(nb, node_labels)
+                    rel_cache[key] = Metarelationships.union(nb, node_labels)
+                    redundant_cache[key] = _redundant_label_pairs(nb, node_labels)
                 v = Violations()
-                metaprops.validate_properties(row["props"], v, strict=strict)
-                if row.get("nid") and metarels:
-                    metarels.validate_relationships(nb, row["nid"], v)
+                prop_cache[key].validate_properties(row["props"], v, strict=strict)
+                v.redundant_labels.extend(redundant_cache[key])
+                if row.get("nid") and rel_cache[key]:
+                    rel_cache[key].validate_relationships(nb, row["nid"], v)
                 results.append((_node_id(row.get("nid"), row["props"]), v))
 
             entry = {

@@ -1,0 +1,16 @@
+{
+    "nid": "aa938009-2321-4d28-81f8-6fae124e8d75",
+    "name": "MultiLabelRequiredFail",
+    "description": "A two-label node missing a property required by one of its labels — the required set is the union, so `name` (required by TestRequire) is reported missing (PLAN-2026-368).",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "304bbc64-3c3f-44b0-ad03-752c525e8152",
+            "labels": ["TestRequire", "TestKey"],
+            "properties": {"id": "MK2"}
+        }
+    ]
+}

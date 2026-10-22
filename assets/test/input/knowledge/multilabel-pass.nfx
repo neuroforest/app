@@ -1,0 +1,16 @@
+{
+    "nid": "dc04834c-6c09-4ba1-9e64-efc5f17cebfc",
+    "name": "MultiLabelPass",
+    "description": "A node carrying two orthogonal class labels — validates against the union of both (PLAN-2026-368). Would fail per-label, since each label reports the other's property undefined.",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "4c092de3-f117-453f-ad06-f75f51d3d690",
+            "labels": ["TestRequire", "TestKey"],
+            "properties": {"name": "multi", "id": "MK1"}
+        }
+    ]
+}
