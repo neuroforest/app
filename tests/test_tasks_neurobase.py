@@ -130,6 +130,20 @@ def test_multilabel_required_union(test_ontology, capsys):
         assert [d["missing"] for d in entry["details"]] == [["name"]]
 
 
+def test_multilabel_conflict(test_ontology, capsys):
+    _validate_report(test_ontology, "multilabel-conflict-fail.nfx")
+    by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}
+    # name is String on TestRequire and Color on TestColorName — "hello" can
+    # satisfy neither pair, so the value is invalid and both declarations named.
+    for label in ("TestRequire", "TestColorName"):
+        entry = by_label[label]
+        assert entry["fail"] == 1
+        invalid = entry["details"][0]["invalid"]
+        assert invalid and invalid[0][0] == "name"
+        reason = invalid[0][1]
+        assert "String (TestRequire)" in reason and "Color (TestColorName)" in reason
+
+
 def test_multilabel_redundant_label(test_ontology_child, capsys):
     _validate_report(test_ontology_child, "redundant-label-fail.nfx")
     by_label = {e["label"]: e for e in json.loads(capsys.readouterr().out)}

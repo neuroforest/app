@@ -1,0 +1,16 @@
+{
+    "nid": "5e7e5257-b5df-413c-a482-0910722294eb",
+    "name": "MultiLabelConflictFail",
+    "description": "A node whose two labels declare the same property with incompatible types (TestRequire: name String, TestColorName: name Color). No value satisfies both — conjunction reports it invalid, naming both declarations (PLAN-2026-368, Done-when #2).",
+    "version": "1.0",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "ae7bac54-48a0-4156-96ea-befc645d87ac",
+            "labels": ["TestRequire", "TestColorName"],
+            "properties": {"name": "hello"}
+        }
+    ]
+}

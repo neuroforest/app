@@ -47,6 +47,16 @@
             "nid": "2b9d8c1f-5e6a-4b7c-9d8e-3f1a2b5c7d9e",
             "labels": ["OntologyRelationship"],
             "properties": {"label": "POINTS_TO"}
+        },
+        {
+            "nid": "23d62a62-ad4b-4041-bc02-a2852e2d5467",
+            "labels": ["OntologyNode"],
+            "properties": {"label": "TestColorName"}
+        },
+        {
+            "nid": "8b629a57-18ed-4ee6-bf21-35419ebf6ed5",
+            "labels": ["Color"],
+            "properties": {"label": "name"}
         }
     ],
     "relationships": [
@@ -94,6 +104,16 @@
             "from": "2b9d8c1f-5e6a-4b7c-9d8e-3f1a2b5c7d9e",
             "to": "7b9de9ba-27ed-4375-b713-5863537bfd7c",
             "type": "HAS_TARGET"
+        },
+        {
+            "from": "23d62a62-ad4b-4041-bc02-a2852e2d5467",
+            "to": "14a622cd-8c2d-4957-859b-9abe90d38ecc",
+            "type": "SUBCLASS_OF"
+        },
+        {
+            "from": "23d62a62-ad4b-4041-bc02-a2852e2d5467",
+            "to": "8b629a57-18ed-4ee6-bf21-35419ebf6ed5",
+            "type": "REQUIRE_PROPERTY"
         }
     ]
 }
