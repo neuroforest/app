@@ -88,7 +88,8 @@ def record(kind, *args):
 
 @invoke.task(pre=[setup.env])
 def arch(c, package=""):
-    """Update PKGBUILD packages in PKG with current app commit and version."""
+    """Build the PKGBUILD packages in PKG: a recipe that is its own repo as it is
+    pinned, the others updated to the current app commit and version first."""
     # One literal, the app's VERSION file (PLAN-2026-322) — no longer an env setting.
     version = (internal_utils.get_path("app") / "VERSION").read_text().strip()
     commit, short, count = get_app_git_info()
@@ -109,29 +110,41 @@ def arch(c, package=""):
         name = pkg_dir.name
         pkgbuild = pkg_dir / "PKGBUILD"
         text = pkgbuild.read_text()
-        if not package and f"pkgver={pkgver}" in text:
-            print(f"{terminal_style.SKIP} {name} already at {pkgver}")
-            continue
+        if (pkg_dir / ".git").exists():
+            # A recipe that is a repo of its own (arch-git, the AUR) is released on its
+            # own: it pins the app's latest tag, and that pin moves only through its own
+            # release. This builds exactly what it pins and rewrites nothing.
+            pinned = re.search(r"^_commit=(\S+)$", text, re.MULTILINE)
+            stated = re.search(r"^pkgver=(\S+)$", text, re.MULTILINE)
+            if not pinned or not stated:
+                raise SystemExit(f"{name}: PKGBUILD states no _commit= or pkgver= to build from")
+            built_commit, built_pkgver = pinned.group(1), stated.group(1)
+            print(f"  {name} is released on its own — building what it pins: {built_pkgver}", flush=True)
+        else:
+            built_commit, built_pkgver = commit, pkgver
+            if not package and f"pkgver={pkgver}" in text:
+                print(f"{terminal_style.SKIP} {name} already at {pkgver}")
+                continue
 
-        with terminal_components.step(f"Updating {name} to {pkgver} ({short})"):
-            update_file(pkgbuild, [
-                (r"^pkgver=.*$", f"pkgver={pkgver}"),
-                (r"^_commit=.*$", f"_commit={commit}"),
-            ])
+            with terminal_components.step(f"Updating {name} to {pkgver} ({short})"):
+                update_file(pkgbuild, [
+                    (r"^pkgver=.*$", f"pkgver={pkgver}"),
+                    (r"^_commit=.*$", f"_commit={commit}"),
+                ])
 
-            if (pkg_dir / ".SRCINFO").exists():
-                with build_utils.chdir(pkg_dir):
-                    subprocess.run("makepkg --printsrcinfo > .SRCINFO", shell=True, check=True)
+                if (pkg_dir / ".SRCINFO").exists():
+                    with build_utils.chdir(pkg_dir):
+                        subprocess.run("makepkg --printsrcinfo > .SRCINFO", shell=True, check=True)
 
         # One :BuildProcess per run — an interval, so never idempotent; the artifact
         # it produces is keyed on pkgver + the commit it was built from.
         started = int(time.time())
         built = [
             "--host", socket.gethostname(),
-            "--artifact", pkgname(pkg_dir), "--artifact-version", pkgver,
+            "--artifact", pkgname(pkg_dir), "--artifact-version", built_pkgver,
             "--artifact-format", ARTIFACT_FORMAT,
             "--built-from-path", str(internal_utils.get_path("app")),
-            "--revision", commit,
+            "--revision", built_commit,
         ]
         try:
             makepkg(name)
