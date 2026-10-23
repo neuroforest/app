@@ -23,6 +23,12 @@ branch = "develop"                    # the working branch; master is fast-forwa
 tag    = "v{version}"                 # with the GitHub push (v1.8.1 is annotated already)
 twins  = []                           # VERSION is the only place the version is stated
 
+# ── once, before the bump: a red suite leaves no RELEASE commit ─────────────
+[[preflight]]
+name    = "the app suite and ruff"
+targets = []
+run     = "scripts/preflight/suite"
+
 # ── per target, before the rsync ────────────────────────────────────────────
 [[preflight]]
 name = "the host's neuro satisfies the submodule's VERSION"

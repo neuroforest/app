@@ -3,7 +3,10 @@ Update packages in PKG directory.
 """
 
 import re
+import socket
 import subprocess
+import time
+from pathlib import Path
 
 import invoke
 
@@ -56,6 +59,33 @@ def update_file(path, replacements):
     path.write_text(text)
 
 
+# Sirin's deploy recorder at the release's path — the one rodis records through.
+# The apex install is the one NeuroForest channel off rodis (its ship is
+# `pacman -U`), so `pkg.arch` records the build and `install.arch` the deploy by
+# hand, as fleet-config's deploy does. One line under flock, no network, never
+# fatal: recording must never break a build, and a box without a Sirin release
+# simply records nothing.
+RECORDER = Path("/opt/sirin/current/scripts/sirin-deploy-record")
+ARTIFACT_FORMAT = "tarball"       # a .pkg.tar.zst is one; the dist name says what kind
+INSTALL_PATH = "/opt/neuroforest"  # where package() puts the tree — the deploy's place
+
+
+def pkgname(pkg_dir):
+    """The package a PKGBUILD builds — the distribution name its artifact installs as."""
+    m = re.search(r"^pkgname=(\S+)$", (pkg_dir / "PKGBUILD").read_text(), re.MULTILINE)
+    return m.group(1).strip("'\"") if m else pkg_dir.name
+
+
+def record(kind, *args):
+    """One line into Sirin's deploy stream, best-effort — never raises."""
+    if not RECORDER.exists():
+        return
+    try:
+        subprocess.run([str(RECORDER), kind, *args], check=False, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"  ! deploy record not written: {e}")
+
+
 @invoke.task(pre=[setup.env])
 def arch(c, package=""):
     """Update PKGBUILD packages in PKG with current app commit and version."""
@@ -93,5 +123,20 @@ def arch(c, package=""):
                 with build_utils.chdir(pkg_dir):
                     subprocess.run("makepkg --printsrcinfo > .SRCINFO", shell=True, check=True)
 
-        makepkg(name)
+        # One :BuildProcess per run — an interval, so never idempotent; the artifact
+        # it produces is keyed on pkgver + the commit it was built from.
+        started = int(time.time())
+        built = [
+            "--host", socket.gethostname(),
+            "--artifact", pkgname(pkg_dir), "--artifact-version", pkgver,
+            "--artifact-format", ARTIFACT_FORMAT,
+            "--built-from-path", str(internal_utils.get_path("app")),
+            "--revision", commit,
+        ]
+        try:
+            makepkg(name)
+        except subprocess.CalledProcessError:
+            record("build", "--outcome", "failed", "--started", str(started), *built)
+            raise
+        record("build", "--outcome", "succeeded", "--started", str(started), *built)
 
