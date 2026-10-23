@@ -8,8 +8,3 @@ nenv
 nwjs
 tw5-plugins/**/compiled
 tw5-editions/**/tiddlers
-
-# The deploy machinery — manifest, preflights, health probe, and WHERE the tree
-# lands — is not this repo's: it lives in .rodus/, a private forge-only repo beside
-# the code (PLAN-2026-377), which the public history never carries.
-/.rodus
