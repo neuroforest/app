@@ -5,12 +5,12 @@
 # manifest does not ship neuro: `deploy neuro` does (PLAN-2026-321); this refuses
 # until it has.
 #
-# Per target: rodis sets RODIS_TARGET_HOST and RODIS_TARGET_VENV. No place is
+# Per target: rodus sets RODUS_TARGET_HOST and RODUS_TARGET_VENV. No place is
 # named here — this repo is public, the places live in deploy.local.toml.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HOST="${RODIS_TARGET_HOST:?RODIS_TARGET_HOST unset — run through rodis, per target}"
-VENV="${RODIS_TARGET_VENV:?RODIS_TARGET_VENV unset — the target declares no venv}"
+HOST="${RODUS_TARGET_HOST:?RODUS_TARGET_HOST unset — run through rodus, per target}"
+VENV="${RODUS_TARGET_VENV:?RODUS_TARGET_VENV unset — the target declares no venv}"
 
 FLOOR="$(tr -d '[:space:]' < "$ROOT/neuro/VERSION")"
 [[ -n "$FLOOR" ]] || { echo "  ✘ neuro/VERSION is empty — is the submodule checked out?" >&2; exit 1; }

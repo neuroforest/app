@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The app's suite and ruff, once, before the bump (PLAN-2026-369): a red suite
 # must never leave a RELEASE commit behind. `targets = []` in deploy.toml, so
-# rodis runs this before the version moves and before any target is touched.
+# rodus runs this before the version moves and before any target is touched.
 #
 # Through `nde`, as the testing skill asks — the invoke tasks own ENV=TESTING and
 # the nenv, so the wrapper is the one entry point and nothing here picks an

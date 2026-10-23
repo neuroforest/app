@@ -1,4 +1,4 @@
-# The NeuroForest app's deploy manifest — read by rodis ≥ 0.5.1 (PLAN-2026-322), typed
+# The NeuroForest app's deploy manifest — read by rodus ≥ 1.0.0 (PLAN-2026-322), typed
 # as `deploy nf-app …` from anywhere (PLAN-2026-319): `--bump patch` is the release AND
 # the deploy. What ships is the tree the import host runs: tasks/ (the invoke task
 # root — the nightly sbase backup runs from it), assets/ (the ontology plugins), .env
@@ -8,8 +8,8 @@
 #
 # WHERE it lands is not in this file. The repo is public, and a target is an
 # absolute path on a named host, so the one [[target]] (host, path, venv) lives in
-# deploy.local.toml beside this one — untracked, merged by rodis at load
-# (PLAN-2026-324). Without it rodis refuses: a clone that cannot deploy, by design.
+# deploy.local.toml beside this one — untracked, merged by rodus at load
+# (PLAN-2026-324). Without it rodus refuses: a clone that cannot deploy, by design.
 # The Sirin deploy-targets seeder holds every value.
 
 [app]
