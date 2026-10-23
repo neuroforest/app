@@ -9,7 +9,7 @@ nwjs
 tw5-plugins/**/compiled
 tw5-editions/**/tiddlers
 
-# WHERE the tree lands: host and path, absolute on a named box. This repo is public,
-# so rodis reads them from an untracked overlay beside deploy.toml (PLAN-2026-324);
-# the Sirin deploy-targets seeder holds every value.
-/deploy.local.toml
+# The deploy machinery — manifest, preflights, health probe, and WHERE the tree
+# lands — is not this repo's: it lives in .rodus/, a private forge-only repo beside
+# the code (PLAN-2026-377), which the public history never carries.
+/.rodus
