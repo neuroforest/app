@@ -1,6 +1,6 @@
 import invoke
 from tasks.actions import install, pkg, setup, status, test
-from tasks.components import app, desktop, knowledge, neuro, neurobase, nfx, nwjs, ontology, tw5
+from tasks.components import app, desktop, knowledge, ncbi, neuro, neurobase, nfx, nwjs, ontology, tw5
 
 ns = invoke.Collection()
 ns.add_collection(install)
@@ -11,6 +11,7 @@ ns.add_collection(test)
 ns.add_collection(app)
 ns.add_collection(desktop)
 ns.add_collection(knowledge)
+ns.add_collection(ncbi)
 ns.add_collection(neuro)
 ns.add_collection(neurobase)
 ns.add_collection(nfx)
