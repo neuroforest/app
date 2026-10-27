@@ -237,6 +237,27 @@ def _require_local(action):
         )
 
 
+def _compose_up():
+    """`docker compose up -d` for this base, from APP_DIR - never from the caller's cwd.
+
+    docker-compose.yml and its Dockerfile live beside the tasks in APP_DIR, and the
+    file is parameterised by the env setup.env has already loaded (BASE_NAME,
+    NEO4J_PORT_*, NBASE_IMAGE/VERSION, NEO4J_AUTH). Run from any other directory
+    compose finds no file at all - which is how a deployed tree without one on
+    a remote host could never recreate its containers.
+    """
+    app_dir = os.environ["APP_DIR"]
+    if not os.path.exists(os.path.join(app_dir, "docker-compose.yml")):
+        print(f"{terminal_style.FAIL} No docker-compose.yml in APP_DIR ({app_dir}) - "
+              f"the deployed tree must ship it and its Dockerfile.", file=sys.stderr)
+        raise SystemExit(1)
+    result = subprocess.run(["docker", "compose", "up", "-d"], cwd=app_dir,
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stderr)
+        raise SystemExit(1)
+
+
 @invoke.task(pre=[setup.env])
 def create(c):
     """Create the neurobase docker container if it doesn't exist."""
@@ -247,10 +268,63 @@ def create(c):
         return
 
     with terminal_components.step(f"Compose NeuroBase: {base_name}"):
-        result = subprocess.run(["docker", "compose", "up", "-d"], capture_output=True, text=True)
+        _compose_up()
+
+
+@invoke.task(pre=[setup.env])
+def recreate(c):
+    """Rebuild the container from docker-compose.yml on its EXISTING data volume.
+
+    For a container whose definition drifted from the compose file (port binding,
+    image, env) - the data is never touched: the named volumes stay, the old
+    container is stopped and removed (no `-v`), and compose recreates it on the
+    same `<BASE_NAME>-data`. Refuses when that volume does not exist, so a wrong
+    BASE_NAME can never start an empty base under a familiar name. The old
+    container's `docker inspect` is saved under NF_STATE first, so it can be
+    rebuilt verbatim if the new one is wrong.
+    """
+    _require_local("recreate")
+    base_name = os.getenv("BASE_NAME")
+    data_volume = f"{base_name}-data"
+
+    if not docker_tools.container_exists(base_name):
+        print(f"{terminal_style.FAIL} No container {base_name!r} - use `create`.", file=sys.stderr)
+        raise SystemExit(1)
+    volumes = docker_tools.get_container_volumes(base_name)
+    if data_volume not in volumes:
+        print(f"{terminal_style.FAIL} {base_name!r} does not mount {data_volume!r} "
+              f"(mounts: {volumes}) - refusing: compose would start on an empty volume.",
+              file=sys.stderr)
+        raise SystemExit(1)
+
+    state_dir = os.path.join(os.environ["NF_STATE"], "recreate")
+    os.makedirs(state_dir, exist_ok=True)
+    stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    saved = os.path.join(state_dir, f"{base_name}-{stamp}.inspect.json")
+    inspect = subprocess.run(["docker", "inspect", base_name], capture_output=True, text=True)
+    if inspect.returncode != 0:
+        print(inspect.stderr, file=sys.stderr)
+        raise SystemExit(1)
+    with open(saved, "w") as fh:
+        fh.write(inspect.stdout)
+    print(f"  old container saved: {saved}")
+
+    stop(c)
+    with terminal_components.step(f"Remove old container (volumes kept): {base_name}"):
+        # Named volumes are never removed by `docker rm` without -v; -v is never passed.
+        result = subprocess.run(["docker", "rm", base_name], capture_output=True, text=True)
         if result.returncode != 0:
             print(result.stderr)
             raise SystemExit(1)
+
+    with terminal_components.step(f"Compose NeuroBase: {base_name}"):
+        _compose_up()
+
+    bolt_port = int(os.getenv("NEO4J_PORT_BOLT", 7687))
+    network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=90)
+    verify_neo4j()
+    ports = subprocess.run(["docker", "port", base_name], capture_output=True, text=True)
+    print(ports.stdout.rstrip())
 
 
 @invoke.task(pre=[setup.env])
