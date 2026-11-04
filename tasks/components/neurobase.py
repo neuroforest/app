@@ -488,21 +488,31 @@ def stop(c):
 
 
 @invoke.task(pre=[setup.env])
-def backup(c):
-    """Backup the neurobase docker container and clean up temporary artifacts."""
+def backup(c, full=False):
+    """Back up the neurobase data volume to the archive; --full adds the container image and logs.
+
+    The archive directory `<BASE_NAME>-<moment>/` holds `data.tar.gz`, plus
+    `container.tar` and `logs.tar.gz` with --full. Plain files, owned by the
+    caller, mode 0600: encrypting and distributing them is the host's backup
+    chain's job, not this task's. The base is stopped for the
+    dump and left stopped - chain `neurobase.start` after it.
+    """
     _require_local("backup")
     base_name = os.getenv("BASE_NAME")
     stop(c)
 
     container = docker_tools.Container(name=base_name)
-    with terminal_components.step(f"Backup '{base_name}' to {internal_utils.get_path('archive')}"):
-        container.backup()
+    what = "data volume, container image and logs" if full else "data volume"
+    with terminal_components.step(
+        f"Backup '{base_name}' ({what}) to {internal_utils.get_path('archive')}"
+    ):
+        container.backup(full=full)
         container.clean()
 
 
 @invoke.task(pre=[setup.env])
 def restore(c, backup=None):
-    """Restore the neurobase container from a backup."""
+    """Restore the neurobase data volume from a backup (data-only or full) and start the base."""
     _require_local("restore")
     base_name = os.getenv("BASE_NAME")
     container = docker_tools.Container(name=base_name)

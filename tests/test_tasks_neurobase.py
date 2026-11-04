@@ -5,6 +5,8 @@ knowledge fixtures under assets/test/input/knowledge/ - one shared `test-pass.nf
 plus `<concern>-fail.nfx` files that isolate a single violation kind.
 """
 import json
+import os
+import stat
 
 import pytest
 from invoke import MockContext
@@ -173,6 +175,42 @@ def test_multilabel_write_path_rejects_redundant(test_ontology_child):
 
 
 def test_start():
+    neurobase.start(MockContext())
+    with NeuroBase() as nb:
+        assert nb.get_data("RETURN 1 AS ok")[0]["ok"] == 1
+
+
+def _backup_dirs(archive):
+    base = os.environ["BASE_NAME"]
+    return sorted(p for p in (archive / "base").iterdir() if p.name.startswith(f"{base}-"))
+
+
+def test_backup_data_only_then_full(tmp_path, monkeypatch):
+    """`neurobase.backup` dumps the data volume alone by default and the whole
+    container with --full; every file is ours and 0600. The base
+    is stopped by the dump and started again at the end."""
+    monkeypatch.setenv("ARCHIVE", str(tmp_path))
+    neurobase.start(MockContext())
+
+    neurobase.backup(MockContext())
+    dumps = _backup_dirs(tmp_path)
+    assert len(dumps) == 1
+    assert sorted(p.name for p in dumps[0].iterdir()) == ["data.tar.gz"]
+
+    # MOMENT_4 is fixed at import, so a second dump in this process needs its own name
+    dumps[0].rename(dumps[0].with_name(dumps[0].name + "-first"))
+
+    neurobase.backup(MockContext(), full=True)
+    dumps = [d for d in _backup_dirs(tmp_path) if not d.name.endswith("-first")]
+    assert len(dumps) == 1
+    names = sorted(p.name for p in dumps[0].iterdir())
+    assert names == ["container.tar", "data.tar.gz", "logs.tar.gz"]
+    for p in dumps[0].iterdir():
+        st = p.stat()
+        assert st.st_uid == os.getuid(), p
+        assert stat.S_IMODE(st.st_mode) == 0o600, p
+        assert st.st_size > 0, p
+
     neurobase.start(MockContext())
     with NeuroBase() as nb:
         assert nb.get_data("RETURN 1 AS ok")[0]["ok"] == 1
