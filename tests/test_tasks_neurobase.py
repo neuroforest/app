@@ -7,6 +7,7 @@ plus `<concern>-fail.nfx` files that isolate a single violation kind.
 import json
 import os
 import stat
+import subprocess
 
 import pytest
 from invoke import MockContext
@@ -211,6 +212,11 @@ def test_backup_data_only_then_full(tmp_path, monkeypatch):
         assert stat.S_IMODE(st.st_mode) == 0o600, p
         assert st.st_size > 0, p
 
+    # A cold start of the test container re-fetches its plugins and can take longer
+    # than the 32 s `start` allows: bring it up and wait generously, then `start`
+    # finds it running.
+    subprocess.run(["docker", "start", os.environ["BASE_NAME"]], check=True, capture_output=True)
+    neurobase.verify_neo4j(timeout=300)
     neurobase.start(MockContext())
     with NeuroBase() as nb:
         assert nb.get_data("RETURN 1 AS ok")[0]["ok"] == 1
