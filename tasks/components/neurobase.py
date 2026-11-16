@@ -1,3 +1,5 @@
+import contextlib
+import fcntl
 import json
 import logging
 import os
@@ -181,6 +183,40 @@ def _group_rels(edges):
         key = (r["rel"], ":".join(r["labels"]) or "?")
         groups.setdefault(key, []).append(str(r.get("id") or "?"))
     return {k: sorted(v) for k, v in groups.items()}
+
+
+# How long `start` gives a freshly started container before calling it
+# inaccessible. 32 s was measured short: Neo4j
+# 5.26 needs ~25 s from "Starting..." to "Started.", and before that the image's
+# entrypoint tries to fetch apoc-extended's versions.json from GitHub and waits
+# out the network on a bad night. `recreate` already waits 90 s; same budget.
+START_TIMEOUT_S = 90
+
+
+@contextlib.contextmanager
+def _backup_lock(exclusive):
+    """Serialise `backup` against `start`, so a snapshot is taken from a base that
+    stays stopped.
+
+    `backup` holds the lock exclusively from the stop to the end of the tar.
+    `start` takes it shared, blocking: any task that would start the container
+    while a backup is in flight - `query` through its `start(c)`, a hand-run
+    `neurobase.start`, a second run on another terminal - waits for the tar to
+    finish instead of restarting the base on top of the volume being archived.
+    Without this a read-only "is the base up?" probe from another session
+    restarted the base 42 s into the dump, and the archive holds a hot copy
+    of a running Neo4j that may not restore. A plain flock on a file in the
+    archive dir: released when the holder exits, however it exits.
+    """
+    op = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+    with open(internal_utils.get_path("archive") / ".backup.lock", "w") as fh:
+        try:
+            fcntl.flock(fh, op | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("A backup of this base is in flight - waiting for it to finish before starting",
+                  file=sys.stderr)
+            fcntl.flock(fh, op)
+        yield
 
 
 def verify_neo4j(timeout=32):
@@ -429,11 +465,12 @@ def start(c):
     docker_tools.verify_access()
     create(c)
 
-    with terminal_components.step(f"Start NeuroBase instance: {base_name}"):
-        subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
+    with _backup_lock(exclusive=False):
+        with terminal_components.step(f"Start NeuroBase instance: {base_name}"):
+            subprocess.run(["docker", "start", base_name], capture_output=build_utils.quiet())
 
-    network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=32)
-    verify_neo4j()
+    network_utils.wait_for_socket("127.0.0.1", bolt_port, timeout=START_TIMEOUT_S)
+    verify_neo4j(timeout=START_TIMEOUT_S)
 
 
 @invoke.task(pre=[setup.env])
@@ -499,15 +536,19 @@ def backup(c, full=False):
     """
     _require_local("backup")
     base_name = os.getenv("BASE_NAME")
-    stop(c)
 
-    container = docker_tools.Container(name=base_name)
-    what = "data volume, container image and logs" if full else "data volume"
-    with terminal_components.step(
-        f"Backup '{base_name}' ({what}) to {internal_utils.get_path('archive')}"
-    ):
-        container.backup(full=full)
-        container.clean()
+    # Held from the stop to the end of the dump: nothing may start the container
+    # while its volume is being archived. See _backup_lock.
+    with _backup_lock(exclusive=True):
+        stop(c)
+
+        container = docker_tools.Container(name=base_name)
+        what = "data volume, container image and logs" if full else "data volume"
+        with terminal_components.step(
+            f"Backup '{base_name}' ({what}) to {internal_utils.get_path('archive')}"
+        ):
+            container.backup(full=full)
+            container.clean()
 
 
 @invoke.task(pre=[setup.env])
