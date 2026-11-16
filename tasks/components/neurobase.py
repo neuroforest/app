@@ -443,20 +443,23 @@ def start(c):
         #
         # But "local container" is not the same question as "local URI". A base
         # reached through an SSH tunnel (-L <port>:<host>:7687) has a
-        # 127.0.0.1 URI, so it never takes the remote bypass above, and no
-        # container by its name will ever run on this host. Refuse only when a
-        # container we own exists and is down - then the port really is someone
-        # else's. When nothing local carries the name, the port is a tunnel to
-        # the base we mean; verify we can reach it and use it.
+        # 127.0.0.1 URI, so it never takes the remote bypass above. And
+        # a container by its name *may* exist here, stopped.
+        # A stopped container holds no port, so its mere existence says nothing
+        # about who answers on bolt_port. Ask Docker who publishes the port:
+        # another running container → a foreign base, refuse; no
+        # publisher → the port is a tunnel to the base we mean, verify and use it.
         if not docker_tools.container_running(base_name):
-            if docker_tools.container_exists(base_name):
-                print(f"{terminal_style.FAIL} Port {bolt_port} is in use, but container "
-                      f"{base_name!r} is not running - refusing to query a base that is "
+            owner = docker_tools.container_publishing_port(bolt_port)
+            if owner is not None:
+                print(f"{terminal_style.FAIL} Port {bolt_port} is published by container "
+                      f"{owner!r}, not {base_name!r} - refusing to query a base that is "
                       f"not ours", file=sys.stderr)
                 raise SystemExit(1)
             verify_neo4j()
+            parked = "; local stand-in parked" if docker_tools.container_exists(base_name) else ""
             print(f"{terminal_style.SUCCESS} Remote base reachable: {base_name} "
-                  f"(tunneled {uri})")
+                  f"(tunneled {uri}{parked})")
             return
         print(f"{terminal_style.SUCCESS} Already running: {base_name}")
         verify_neo4j()
