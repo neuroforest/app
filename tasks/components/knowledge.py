@@ -3,11 +3,11 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx, schema
+from neuro.base import NeuroBase, nfx, plugins, schema
 from neuro.base.index import KnowledgeIndex, OntologyIndex
 from neuro.base.metaontology import OntologyViolations
 from neuro.base.ontology import ObjectValidator
-from neuro.utils import internal_utils, terminal_components, terminal_style
+from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
 from tasks.components import neurobase, nfx as nfx_tasks
@@ -66,7 +66,7 @@ def validate_knowledge(nb, path):
 @invoke.task(pre=[setup.env])
 def index(c, knowledge=""):
     """Show discovered knowledge .nfx files. -k/--knowledge: details for one."""
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     idx = KnowledgeIndex(*roots)
 
     if knowledge:
@@ -119,7 +119,7 @@ def import_(c, knowledge=""):
     if not knowledge:
         print(f"{terminal_style.FAIL} -k/--knowledge required")
         raise SystemExit(1)
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 
@@ -151,7 +151,7 @@ def import_(c, knowledge=""):
 def test(c, knowledge=""):
     """Validate knowledge nodes against the loaded ontology. -k: target one file."""
     neurobase.clear(c, confirmed=True)
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 
@@ -197,7 +197,7 @@ def test(c, knowledge=""):
 def render(c, knowledge=""):
     """Load knowledge (and its ontology dependencies) into neurobase and print Neo4j browser link. -k: target one file."""
     neurobase.start(c)
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 

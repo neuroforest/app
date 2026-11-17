@@ -3,9 +3,9 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx
+from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import NfxIndex, OntologyIndex
-from neuro.utils import internal_utils, terminal_components, terminal_style
+from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
 from tasks.components import neurobase
@@ -288,7 +288,7 @@ def print_dependencies(idx, doc):
 @invoke.task(pre=[setup.env])
 def index(c):
     """Show every discovered .nfx (ontology, knowledge, metaontology) in one table."""
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     idx = NfxIndex(*roots)
 
     app_dir = Path(os.environ["APP_DIR"])
@@ -317,7 +317,7 @@ def render(c, name=""):
     every discovered .nfx. Knowledge targets pull their ontology deps from
     OntologyIndex."""
     neurobase.start(c)
-    roots = internal_utils.get_path_list("PLUGINS")
+    roots = plugins.effective_roots()
     nfx_idx = NfxIndex(*roots)
     onto_idx = OntologyIndex(*roots)
 

@@ -10,6 +10,7 @@ import time
 import invoke
 import neo4j
 
+from neuro.base import plugins
 from neuro.base.api import NeuroBase
 from neuro.base.index import OntologyIndex
 from neuro.base.schema import (
@@ -1079,7 +1080,7 @@ def _detail_record(nid, v):
 @invoke.task(pre=[setup.env])
 def validate(c, type="", size=5, all=False, strict=False, fmt="text", expand=False):
     """Validate knowledge nodes against the ontology. --type: one type. --size: samples per type. --all: every node (expensive). --strict: treat unvalidated types as fail (default warns and falls back to String). --expand: show per-node detail for every type (by default clean types collapse to one line and only failing/warning types expand). Per-type uniqueness (UNIQUE_PROPERTY and subclasses, e.g. HAS_KEY) is always checked across all instances. Exits non-zero on violations."""
-    OntologyIndex(*internal_utils.get_path_list("PLUGINS"))
+    OntologyIndex(*plugins.effective_roots())
     forbidden = _forbidden_labels()
     had_violations = False
     report = []

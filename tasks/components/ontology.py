@@ -10,7 +10,7 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
-from neuro.utils import exceptions, internal_utils, terminal_components, terminal_style
+from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase, nfx as nfx_tasks
 
@@ -75,7 +75,7 @@ def import_(c, ontology=""):
     if not ontology:
         print(f"{terminal_style.FAIL} -o/--ontology required")
         raise SystemExit(1)
-    ontology_dirs = internal_utils.get_path_list("PLUGINS")
+    ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
 
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
@@ -108,7 +108,7 @@ def import_(c, ontology=""):
 def render(c, ontology="", independent=False, bare=False, dependants=False):
     """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes. --dependants: also load ontologies that depend on target."""
     neurobase.start(c)
-    ontology_dirs = internal_utils.get_path_list("PLUGINS")
+    ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
 
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
@@ -187,7 +187,7 @@ def _dependant_paths(idx, target_path, target_nid):
 @invoke.task(pre=[setup.env])
 def index(c, tree=False, ontology=""):
     """Show discovered ontologies from PLUGINS search path. --tree: dependency graph. -o/--ontology: ontology details."""
-    ontology_dirs = internal_utils.get_path_list("PLUGINS")
+    ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
 
     if ontology:
@@ -287,7 +287,7 @@ def _version_history(path):
     """Extract (version, date) pairs from git tags '<name>/<version>' across all PLUGINS repos."""
     name = (nfx.read(path).name or Path(path).stem).lower()
     repos = set()
-    for d in internal_utils.get_path_list("PLUGINS"):
+    for d in plugins.effective_roots():
         try:
             root = subprocess.run(
                 ["git", "-C", str(d), "rev-parse", "--show-toplevel"],
@@ -453,7 +453,7 @@ def test(c, o="", fmt="text"):
        record per ontology (path, outcome, duration, failures) on stdout.
     """
     neurobase.clear(c, confirmed=True)
-    ontology_dirs = internal_utils.get_path_list("PLUGINS")
+    ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
     metaontology_nid = nfx.read(idx.metaontology_path).nid
     if o:
@@ -534,18 +534,15 @@ def test(c, o="", fmt="text"):
 
 @invoke.task(pre=[setup.env])
 def rehash(c, ontology=""):
-    """Recompute sha256(validators.py) and update the `hash` field in dir-form .nfx files. -o: target one ontology."""
-    ontology_dirs = internal_utils.get_path_list("PLUGINS")
+    """Recompute sha256 of a module's validators and update its `hash` field (dir-form or .nf layout). -o: target one ontology."""
+    ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
 
     touched = 0
     for path in targets:
-        plugin_dir = plugins.plugin_dir_for(path)
-        if plugin_dir is None:
-            continue
-        validators_path = plugin_dir / "validators.py"
-        if not validators_path.is_file():
+        validators_path = plugins.validators_path_for(path, idx.roots)
+        if validators_path is None or not validators_path.is_file():
             continue
         current = hashlib.sha256(validators_path.read_bytes()).hexdigest()
         doc = nfx.read(path)

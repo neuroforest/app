@@ -11,11 +11,11 @@ from datetime import datetime, timezone
 
 import invoke
 
-from neuro.base import NeuroBase
+from neuro.base import NeuroBase, plugins
 from neuro.base.index import OntologyIndex
 from neuro.tools.integrations import ncbi as entrez
 from neuro.tools.science import taxonomy
-from neuro.utils import internal_utils, terminal_style
+from neuro.utils import terminal_style
 
 from tasks.actions import setup
 
@@ -43,6 +43,6 @@ def sync(c, dry_run=False):
     """Bring every :NcbiTaxon in the base to what NCBI says it is now -
     renames, moves (one IS_CHILD parent, replaced), merges, pruned ancestors -
     one changelog line per change. --dry-run decides and prints, writes nothing."""
-    OntologyIndex(*internal_utils.get_path_list("PLUGINS"))
+    OntologyIndex(*plugins.effective_roots())
     with NeuroBase() as nb:
         run(nb, dry_run=dry_run)
