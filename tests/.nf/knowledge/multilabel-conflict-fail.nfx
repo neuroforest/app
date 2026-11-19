@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "5e7e5257-b5df-413c-a482-0910722294eb",
     "name": "MultiLabelConflictFail",
     "description": "A node whose two labels declare the same property with incompatible types (TestRequire: name String, TestColorName: name Color). No value satisfies both - conjunction reports it invalid, naming both declarations.",

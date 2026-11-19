@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "dc04834c-6c09-4ba1-9e64-efc5f17cebfc",
     "name": "MultiLabelPass",
     "description": "A node carrying two orthogonal class labels - validates against the union of both. Would fail per-label, since each label reports the other's property undefined.",

@@ -1,8 +1,10 @@
 """Integration tests for `invoke neurobase.validate`.
 
-Uses the Test ontology (assets/test/input/ontology/test.nfx) and per-concern
-knowledge fixtures under assets/test/input/knowledge/ - one shared `test-pass.nfx`
-plus `<concern>-fail.nfx` files that isolate a single violation kind.
+Uses the Test ontology (tests/.nf/ontology/test.nfx) and per-concern knowledge
+fixtures under tests/.nf/knowledge/ - one shared `test-pass.nfx` plus
+`<concern>-fail.nfx` files that isolate a single violation kind. `tests/.nf` is
+the suite's own consolidated root (token `test`), listed in the testing
+environment's `PLUGINS`.
 """
 import json
 import os
@@ -18,7 +20,7 @@ from neuro.utils.internal_utils import get_path
 from tasks.components import neurobase
 from tasks.components.ontology import render
 
-KNOWLEDGE = get_path("assets") / "test" / "input" / "knowledge"
+KNOWLEDGE = get_path("app") / "tests" / ".nf" / "knowledge"
 
 
 @pytest.fixture

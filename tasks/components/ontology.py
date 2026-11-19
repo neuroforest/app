@@ -12,7 +12,7 @@ from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
-from tasks.components import neurobase, nfx as nfx_tasks
+from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
 
 
 def _plugin_test_path(ontology_path):
@@ -199,20 +199,21 @@ def index(c, tree=False, ontology=""):
 
     app_dir = Path(os.environ["APP_DIR"])
     rows = []
-    for path in idx.all_targets():
-        doc = nfx.read(path)
+    for entry in idx.entries():
+        path = entry.path
         try:
             rel = os.path.relpath(path, app_dir)
         except ValueError:
             rel = str(path)
         rows.append((
-            doc.name or path.stem,
-            doc.version,
-            (doc.nid or "")[:8],
+            entry.name or path.stem,
+            entry.version,
+            (entry.nid or "")[:8],
+            nf_tasks.namespace_label(idx, entry.registry_root),
             rel,
         ))
     rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
-    header = ("Name", "Version", "NID", "Path")
+    header = ("Name", "Version", "NID", "Namespace", "Path")
     terminal_components.table(rows, header=header)
 
 

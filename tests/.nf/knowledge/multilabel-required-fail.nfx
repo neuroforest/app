@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "aa938009-2321-4d28-81f8-6fae124e8d75",
     "name": "MultiLabelRequiredFail",
     "description": "A two-label node missing a property required by one of its labels - the required set is the union, so `name` (required by TestRequire) is reported missing.",

@@ -10,7 +10,7 @@ from neuro.base.ontology import ObjectValidator
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase, nfx as nfx_tasks
+from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
 
 
 def validate_knowledge(nb, path):
@@ -76,15 +76,18 @@ def index(c, knowledge=""):
 
     app_dir = Path(os.environ["APP_DIR"])
     rows = []
-    for path in idx.all_targets():
-        doc = nfx.read(path)
+    for entry in idx.entries():
+        path = entry.path
         try:
             rel = os.path.relpath(path, app_dir)
         except ValueError:
             rel = str(path)
-        rows.append((doc.name or path.stem, doc.version, (doc.nid or "")[:8], rel))
+        rows.append((
+            entry.name or path.stem, entry.version, (entry.nid or "")[:8],
+            nf_tasks.namespace_label(idx, entry.registry_root), rel,
+        ))
     rows.sort(key=lambda r: r[0])
-    terminal_components.table(rows, header=("Name", "Version", "NID", "Path"))
+    terminal_components.table(rows, header=("Name", "Version", "NID", "Namespace", "Path"))
 
 
 def _index_info(idx, onto_idx, name):

@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "3bca8b54-4a2a-4ef1-8c64-7f9f192ab3bb",
     "name": "TestUniqueFail",
     "description": "Duplicate values for HAS_KEY and UNIQUE_PROPERTY",

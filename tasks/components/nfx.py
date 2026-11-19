@@ -8,7 +8,7 @@ from neuro.base.index import NfxIndex, OntologyIndex
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase
+from tasks.components import neurobase, nf as nf_tasks
 
 
 def make_dep_logger(status):
@@ -295,19 +295,20 @@ def index(c):
     type_label = {"metaontology": "meta", "ontology": "onto", "knowledge": "know"}
     type_order = {"metaontology": 0, "ontology": 1, "knowledge": 2}
     entries = []
-    for path in idx.all_targets():
-        doc = nfx.read(path)
+    for entry in idx.entries():
+        path = entry.path
         try:
             rel = os.path.relpath(path, app_dir)
         except ValueError:
             rel = str(path)
-        entries.append((doc.type, doc.name or path.stem, doc.version, doc.nid, rel))
+        ns = nf_tasks.namespace_label(idx, entry.registry_root)
+        entries.append((entry.type, entry.name or path.stem, entry.version, entry.nid, ns, rel))
     entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1]))
     rows = [
-        (type_label.get(t, t or "?"), n, v, (nid or "")[:8], p)
-        for t, n, v, nid, p in entries
+        (type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns, p)
+        for t, n, v, nid, ns, p in entries
     ]
-    terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Path"))
+    terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace", "Path"))
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

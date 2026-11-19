@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "4d3c2b1a-9f8e-4d7c-8b6a-5e4d3c2b1a09",
     "name": "TestRequiredRelationshipFail",
     "description": "Instance missing a REQUIRE_RELATIONSHIP edge",

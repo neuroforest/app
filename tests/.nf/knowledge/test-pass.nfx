@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "78dbf59b-749b-43ef-bd2c-e0b4efccc955",
     "name": "TestPass",
     "description": "Clean instances of Test types - should validate without violations",

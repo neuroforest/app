@@ -1,4 +1,5 @@
 {
+    "type": "knowledge",
     "nid": "f5f0220b-cec9-457e-b7dc-516f0f75fabe",
     "name": "RedundantLabelFail",
     "description": "A node labelled with a class and its ancestor (ChildAlpha SUBCLASS_OF TestRequire) - a redundant co-lineal label the subclass already implies, refused by the antichain rule.",

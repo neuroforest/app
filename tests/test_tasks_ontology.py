@@ -11,7 +11,7 @@ from neuro.base import nfx
 from neuro.utils.internal_utils import get_path
 from tasks.components.ontology import render
 
-METAONTOLOGY_PATH = get_path("assets") / "ontology" / "metaontology.nfx"
+METAONTOLOGY_PATH = get_path("app") / ".nf" / "ontology" / "metaontology.nfx"
 
 
 def test_render(nb):
