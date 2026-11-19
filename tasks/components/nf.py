@@ -6,14 +6,23 @@ entries exist, which are the consolidated `.nf` layout, which namespace token
 each declares (`∅` is the written empty token, a legacy
 root has none), which sit in a git repo (hooks and tags live there; a root
 outside one gets neither), and how many modules each contributes.
+
+`nf.import` copies a legacy plugins root into a `.nf` root
+(rules in `neuro.base.nf_import`). It always builds the
+copy in a scratch `.nf` first and validates it there; `--dry-run` stops after
+printing the mapping and how it differs from the destination - the drift
+report of the parallel period - and without it the destination is made equal
+to the copy, provided nothing blocked. No git: that is C2.
 """
 import os
 import subprocess
+import tempfile
+import uuid
 from pathlib import Path
 
 import invoke
 
-from neuro.base import plugins
+from neuro.base import nf_import, nfx, plugins
 from neuro.base.index import NfxIndex
 from neuro.utils import internal_utils, terminal_components, terminal_style
 
@@ -68,3 +77,70 @@ def roots(c):
     terminal_components.table(rows, header=("Root", "Layout", "Namespace", "Repo", "Modules"))
     if missing:
         print(f"\n{len(missing)} listed root(s) absent on this machine - skipped, not fatal")
+
+
+def _import_namespace(builtin, dst, nid=""):
+    """The declaration `nf.import` writes into `dst`: its nid and version kept
+    when `dst` already has one (re-runs stay idempotent), else `nid` if given,
+    else a fresh one. A `nid` contradicting the written one is refused."""
+    parent = nfx.read(builtin / nfx.NAMESPACE_FILENAME)
+    existing = dst / nfx.NAMESPACE_FILENAME
+    if existing.is_file():
+        old = nfx.read(existing)
+        if nid and nid != old.nid:
+            raise SystemExit(f"{terminal_style.FAIL} {existing} already declares nid {old.nid}, not {nid}")
+        return nf_import.namespace_doc(old.nid, parent.nid, parent.version, old.version), False
+    return nf_import.namespace_doc(nid or str(uuid.uuid4()), parent.nid, parent.version), not nid
+
+
+@invoke.task(name="import", pre=[setup.env])
+def import_(c, src, dst="~/.nf", nid="", dry_run=False):
+    """Copy a legacy plugins root into a .nf root; --dry-run prints the mapping and the drift only. --nid: namespace nid on first write."""
+    from tasks.components import ontology as ontology_tasks
+
+    src = Path(src).expanduser().resolve()
+    dst = Path(dst).expanduser().resolve()
+    builtin = Path(os.environ["APP_DIR"]).resolve() / plugins.NF_DIRNAME
+    if not plugins.is_consolidated(dst):
+        raise SystemExit(f"{terminal_style.FAIL} {dst}: the destination must be named {plugins.NF_DIRNAME}")
+    namespace, minted = _import_namespace(builtin, dst, nid)
+    mapping = nf_import.plan_import(src, namespace)
+    issues = list(mapping.issues)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        staged = Path(tmp) / plugins.NF_DIRNAME
+        staged.mkdir()
+        nf_import.stage(mapping, staged)
+        if not issues:
+            issues += nf_import.verify(staged, src, builtin)
+            idx = NfxIndex(builtin, staged)
+            for m in mapping.modules:
+                for failure in ontology_tasks._document_failures(idx, staged / m.rel):
+                    issues.append(f"{m.rel}: {failure}")
+    delta = nf_import.diff(mapping, dst)
+    status = {rel: kind for kind, rels in delta.items() for rel in rels}
+
+    rows = []
+    for m in mapping.moves:
+        shown = "(generated)" if m.src is None else str(m.src.relative_to(src))
+        rows.append((status[m.rel], shown, str(m.rel), m.tag, m.note))
+    rows += [("stale", "-", str(rel), "", "removed") for rel in delta["stale"]]
+    print(f"{src} → {dst}")
+    print(f"namespace {namespace.nid}{' (minted)' if minted else ''} · token ∅ · name {namespace.name} · "
+          f"pins {namespace.dependencies[0][0]}@{namespace.dependencies[0][1]}\n")
+    terminal_components.table(rows, header=("Status", "Source", "Destination", "Tag", "Note"))
+    if mapping.skipped:
+        print(f"\nnot copied: {', '.join(str(p.relative_to(src)) for p in mapping.skipped)}")
+    counts = {k: len(v) for k, v in delta.items()}
+    print(f"\n{len(mapping.modules)} modules · " + " · ".join(f"{n} {k}" for k, n in counts.items()))
+    if issues:
+        print(f"\n{terminal_style.FAIL} {len(issues)} problem(s) - nothing written:")
+        for issue in issues:
+            print(f"  {issue}")
+        raise SystemExit(1)
+    print(f"{terminal_style.SUCCESS} the copy validates: same modules, nids and versions, hashes and pins hold")
+    if dry_run:
+        return
+    dst.mkdir(parents=True, exist_ok=True)
+    nf_import.sync(mapping, dst)
+    print(f"{terminal_style.SUCCESS} {dst} written")
