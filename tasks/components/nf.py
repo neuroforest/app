@@ -144,3 +144,47 @@ def import_(c, src, dst="~/.nf", nid="", dry_run=False):
     dst.mkdir(parents=True, exist_ok=True)
     nf_import.sync(mapping, dst)
     print(f"{terminal_style.SUCCESS} {dst} written")
+
+
+@invoke.task(pre=[setup.env])
+def history(c, src, dst, nid="", verbose=False):
+    """Build a new repo at --dst whose history is --src's, regrouped into release commits with annotated tags."""
+    from neuro.base import nf_history
+
+    src = Path(src).expanduser().resolve()
+    dst = Path(dst).expanduser().resolve()
+    builtin = Path(os.environ["APP_DIR"]).resolve() / plugins.NF_DIRNAME
+    namespace, minted = _import_namespace(builtin, dst, nid)
+
+    def progress(n, total):
+        if n % 50 == 0 or n == total:
+            print(f"  {n}/{total} events", flush=True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        report = nf_history.build(src, dst, namespace, Path(tmp), progress=progress)
+        head = nf_import.plan_import(src, namespace)
+    tag_issues = nf_history.check_tags(dst)
+    tree_issues = []
+    for m in head.moves:
+        got = subprocess.run(["git", "-C", str(dst), "show", f"HEAD:{m.rel}"], capture_output=True).stdout
+        if got != m.content:
+            tree_issues.append(f"{m.rel}: differs from the import of {src}")
+    listed = subprocess.run(["git", "-C", str(dst), "ls-tree", "-r", "--name-only", "HEAD"],
+                            capture_output=True, text=True).stdout.split()
+    tree_issues += [f"{p}: in HEAD, not in the import" for p in sorted(set(listed) - {str(m.rel) for m in head.moves})]
+
+    print(f"\n{src} → {dst}")
+    print(f"namespace {namespace.nid}{' (minted)' if minted else ''}")
+    print(f"{report.commits} legacy commits → {report.events} commits · "
+          f"{report.legacy_tags} legacy tags → {report.tags - report.synthesized} annotated "
+          f"+ {report.synthesized} synthesized for untagged versions")
+    print(f"{len(report.warnings)} historical warning(s){'' if verbose else ' (--verbose lists them)'}")
+    if verbose:
+        for w in report.warnings:
+            print(f"  {w}")
+    problems = [*report.fatal, *report.unmapped_tags, *tag_issues, *tree_issues]
+    for p in problems:
+        print(f"  {terminal_style.FAIL} {p}")
+    if problems:
+        raise SystemExit(1)
+    print(f"{terminal_style.SUCCESS} every tag names its module at its version; HEAD equals the import")
