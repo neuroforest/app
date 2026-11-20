@@ -297,6 +297,21 @@ def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
     print(f"{terminal_style.SUCCESS} {dest.root}: {arrived[:7]} {plan.arrival_message.splitlines()[0]}")
 
 
+@invoke.task(name="log", pre=[setup.env])
+def log_(c, target, root="", via=""):
+    """A module's whole history, newest first, across its renames and moves; --via: more roots (comma-separated) to follow, before PLUGINS."""
+    repo = _repo(root or _owner_root(target))
+    extra = [Path(r).expanduser() for r in via.split(",") if r.strip()]
+    try:
+        entries, note = nf_repo.module_log(repo, target, roots=[*extra, *plugins.effective_roots()])
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    rows = [(e.date, e.token or ROOT_MARK, e.sha[:7], e.subject, e.version, ", ".join(e.tags)) for e in entries]
+    terminal_components.table(rows, header=("Date", "Root", "Commit", "Subject", "Version", "Tags"))
+    if note:
+        print(f"\n{terminal_style.WARN} {note}")
+
+
 @invoke.task(name="hooks-install", pre=[setup.env])
 def hooks_install(c, root="", runner=""):
     """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it. --runner (required): the wrapper path."""
