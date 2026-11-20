@@ -228,9 +228,48 @@ def order(c, root=""):
         print(f"{terminal_style.DIM}[{i}]{terminal_style.RESET} {rel}  {name}@{version}")
 
 
+def _owner_root(key):
+    """The root among PLUGINS that holds the document `key` names."""
+    roots = plugins.effective_roots()
+    path = NfxIndex(*roots).resolve(key)
+    root = path and plugins.registry_root_of(path, roots)
+    if root is None:
+        raise SystemExit(f"{terminal_style.FAIL} {key}: in none of the PLUGINS roots - pass --root")
+    return root
+
+
+@invoke.task(pre=[setup.env])
+def release(c, target, root="", major=False, dry_run=False, message=""):
+    """Release documents (comma-separated) with their in-root dependants: re-pin, bump, one commit, one tag each."""
+    targets = [t.strip() for t in target.split(",") if t.strip()]
+    repo = _repo(root or _owner_root(targets[0]))
+    others = plugins.effective_roots()
+    try:
+        steps = repo.plan_release(targets, major, others) if dry_run else None
+        if not dry_run:
+            sha, steps, tags = repo.release(targets, major, others, message or None)
+    except ValueError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        print(f"{terminal_style.FAIL} {terminal_style.BOLD}release refused{terminal_style.RESET} - nothing written:")
+        for issue in e.issues:
+            print(f"    {issue}")
+        raise SystemExit(1)
+    rows = [("●" if s.seed else "↳", str(s.rel), f"{s.old} → {s.new}", ", ".join(s.repins),
+             "unreleased edits" if s.carries else "") for s in steps]
+    terminal_components.table(rows, header=("", "Document", "Version", "Re-pins", "Also carries"))
+    if dry_run:
+        print(f"\n{len(steps)} document(s) would be released - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {sha[:7]} released {len(steps)} document(s) · {len(tags)} tag(s)")
+
+
 @invoke.task(name="hooks-install", pre=[setup.env])
-def hooks_install(c, root="", runner="invoke"):
-    """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it, `nf.runner`."""
+def hooks_install(c, root="", runner=""):
+    """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it. --runner (required): the wrapper path."""
+    if not runner:
+        raise SystemExit(f"{terminal_style.FAIL} --runner is required (e.g. /path/to/wrapper) - no default, "
+                         f"so a hook never falls back to another line's code")
     repo = _repo(root)
     try:
         wrote = repo.install(runner)
