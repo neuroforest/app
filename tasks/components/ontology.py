@@ -8,7 +8,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx, plugins
+from neuro.base import NeuroBase, nf_repo, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
@@ -19,53 +19,6 @@ def _plugin_test_path(ontology_path):
     """Return a co-located `test_validators.py` path for an ontology, if any."""
     candidate = Path(ontology_path).parent / "test_validators.py"
     return candidate if candidate.exists() else None
-
-
-def _document_failures(idx, path):
-    """Return defects of the `.nfx` document itself, the same set the pre-commit
-       hook rejects. Must run before import: MERGE collapses duplicates away.
-    """
-    raw = json.loads(Path(path).read_text())
-    doc = nfx.Nfx.from_dict(raw)
-
-    def resolve(nid):
-        dep_path = idx.resolve(nid)
-        return nfx.read(dep_path) if dep_path else None
-
-    try:
-        tree = nfx.NfxTree(doc, resolve)
-    except exceptions.NfxCycle as e:
-        return [f"dependency cycle {' → '.join(e.args[0])}"]
-    report = nfx.validate(doc, dependency_nids=tree.all_node_nids(scope="dependencies"))
-    lint = nfx.lint_format(raw)
-
-    failures = []
-    for bad in report["invalid_nids"]:
-        failures.append(f"invalid nid {bad} (not UUID v4)")
-    for r in report["unresolved"]:
-        failures.append(f"unresolved {r.get('type', '?')} {r['from']} → {r['to']}")
-    for r in report["foreign"]:
-        failures.append(f"foreign {r.get('type', '?')} {r['from']} → {r['to']} (both endpoints external)")
-    for nid in report["duplicate_nids"]:
-        failures.append(f"duplicate node nid {nid}")
-    for r in report["duplicate_relationships"]:
-        failures.append(f"duplicate {r.get('type', '?')} {r['from']} → {r['to']}")
-    for f in report["missing_required"]:
-        failures.append(f"missing required top-level field {f!r}")
-    if report["invalid_type"]:
-        failures.append(f"type {report['invalid_type']!r} not in {list(nfx.ALLOWED_TYPES)}")
-    if report["untaggable_name"]:
-        failures.append(
-            f"name {report['untaggable_name']!r} cannot form the release tag "
-            f"{report['untaggable_name'].lower()}/{doc.version} - git rejects the ref"
-        )
-    for u in lint["unknown_keys"]:
-        failures.append(f"{u['where']} has unknown keys {u['keys']}")
-    for ko in lint["key_order"]:
-        failures.append(f"{ko['where']} key order {ko['keys']} not canonical")
-    for f in lint["empty"]:
-        failures.append(f"{f!r} is empty - omit the key instead")
-    return failures
 
 
 
@@ -479,7 +432,7 @@ def test(c, o="", fmt="text"):
             name = doc.name or path.stem
             started = time.monotonic()
 
-            failures = _document_failures(idx, path)
+            failures = nf_repo.document_failures(idx, path)
             warnings = []
 
             if not failures:

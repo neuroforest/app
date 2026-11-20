@@ -22,7 +22,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import nf_import, nfx, plugins
+from neuro.base import nf_import, nf_repo, nfx, plugins
 from neuro.base.index import NfxIndex
 from neuro.utils import internal_utils, terminal_components, terminal_style
 
@@ -96,8 +96,6 @@ def _import_namespace(builtin, dst, nid=""):
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, src, dst="~/.nf", nid="", dry_run=False):
     """Copy a legacy plugins root into a .nf root; --dry-run prints the mapping and the drift only. --nid: namespace nid on first write."""
-    from tasks.components import ontology as ontology_tasks
-
     src = Path(src).expanduser().resolve()
     dst = Path(dst).expanduser().resolve()
     builtin = Path(os.environ["APP_DIR"]).resolve() / plugins.NF_DIRNAME
@@ -115,7 +113,7 @@ def import_(c, src, dst="~/.nf", nid="", dry_run=False):
             issues += nf_import.verify(staged, src, builtin)
             idx = NfxIndex(builtin, staged)
             for m in mapping.modules:
-                for failure in ontology_tasks._document_failures(idx, staged / m.rel):
+                for failure in nf_repo.document_failures(idx, staged / m.rel):
                     issues.append(f"{m.rel}: {failure}")
     delta = nf_import.diff(mapping, dst)
     status = {rel: kind for kind, rels in delta.items() for rel in rels}
@@ -188,3 +186,57 @@ def history(c, src, dst, nid="", verbose=False):
     if problems:
         raise SystemExit(1)
     print(f"{terminal_style.SUCCESS} every tag names its module at its version; HEAD equals the import")
+
+
+def _repo(root):
+    try:
+        return nf_repo.Repo(Path(root or ".").expanduser())
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+
+
+@invoke.task(pre=[setup.env])
+def check(c, root="", rev=""):
+    """Pre-commit verdict on a .nf root's index (--rev: on that commit against its parent). Exits 1 on any issue."""
+    repo = _repo(root)
+    verdict = repo.check(rev or None, others=plugins.effective_roots())
+    what = f"{rev}" if rev else "the index"
+    if verdict.issues:
+        print(f"{terminal_style.FAIL} {terminal_style.BOLD}{what} refused{terminal_style.RESET} "
+              f"({len(verdict.issues)} issue(s)):")
+        for issue in verdict.issues:
+            print(f"    {issue}")
+        raise SystemExit(1)
+    if verdict.checked or verdict.released:
+        tail = f" · releases {', '.join(verdict.released)}" if verdict.released else ""
+        print(f"{terminal_style.SUCCESS} {terminal_style.BOLD}validated{terminal_style.RESET} "
+              f"{len(verdict.checked)} document(s){tail}")
+
+
+@invoke.task(pre=[setup.env])
+def tag(c, root=""):
+    """Post-commit: annotate HEAD with one tag per changed document whose version is untagged."""
+    for name in _repo(root).tag():
+        print(f"  ⚑ tagged {name}")
+
+
+@invoke.task(pre=[setup.env])
+def order(c, root=""):
+    """The root's uncommitted documents in dependency order (a diagnostic - one commit may hold them all)."""
+    rows = _repo(root).order(others=plugins.effective_roots())
+    for i, (rel, name, version) in enumerate(rows, 1):
+        print(f"{terminal_style.DIM}[{i}]{terminal_style.RESET} {rel}  {name}@{version}")
+
+
+@invoke.task(name="hooks-install", pre=[setup.env])
+def hooks_install(c, root="", runner="invoke"):
+    """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it, `nf.runner`."""
+    repo = _repo(root)
+    try:
+        wrote = repo.install(runner)
+    except FileExistsError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    for path in wrote:
+        print(f"  wrote {path}")
+    print(f"{terminal_style.SUCCESS} {repo.root}: hooks run from {repo.hooks_dir()} through `{runner}`"
+          f"{'' if wrote else ' (already installed)'}")
