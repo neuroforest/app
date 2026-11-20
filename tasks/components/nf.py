@@ -243,6 +243,32 @@ def release(c, target, root="", major=False, dry_run=False, message=""):
     print(f"\n{terminal_style.SUCCESS} {sha[:7]} released {len(steps)} document(s) · {len(tags)} tag(s)")
 
 
+@invoke.task(pre=[setup.env])
+def rename(c, target, new, root="", dry_run=False):
+    """Rename a module inside its root: files, name, test path and tags in one `REFACTOR:` commit, no version bump."""
+    repo = _repo(root or _owner_root(target))
+    try:
+        plan = repo.plan_rename(target, new)
+        if not dry_run:
+            sha, plan = repo.rename(target, new, plugins.effective_roots())
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        print(f"{terminal_style.FAIL} {terminal_style.BOLD}rename refused{terminal_style.RESET} - nothing written:")
+        for issue in e.issues:
+            print(f"    {issue}")
+        raise SystemExit(1)
+    rows = [(repo.show(a), repo.show(b)) for a, b in plan.files] + list(plan.tags)
+    terminal_components.table(rows, header=("From", "To"))
+    if dry_run:
+        print(f"\n{plan.event.subject} - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {sha[:7]} {plan.event.subject} · {len(plan.tags)} tag(s) moved")
+    print(f"{terminal_style.DIM}pushed already? the remote still has the old tags: "
+          f"git push <remote> {' '.join(f':refs/tags/{a}' for a, _ in plan.tags)} "
+          f"{' '.join(f'refs/tags/{b}' for _, b in plan.tags)}{terminal_style.RESET}")
+
+
 @invoke.task(name="hooks-install", pre=[setup.env])
 def hooks_install(c, root="", runner=""):
     """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it. --runner (required): the wrapper path."""
