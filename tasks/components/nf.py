@@ -1,11 +1,10 @@
 """`invoke nf.*` - the `.nf` roots an environment reads.
 
 A root is opted in by listing it in `PLUGINS` of the environment, nothing
-else; `nf.roots` shows what that list comes to on this machine - which
-entries exist, which are the consolidated `.nf` layout, which namespace token
-each declares (a dim `·` is the written empty token, a legacy
-root has none), which sit in a git repo (hooks and tags live there; a root
-outside one gets neither), and how many modules each contributes.
+else; `nf.namespaces` shows what that list comes to on this machine - the
+namespace token each root declares (a dim `·` is the
+written empty token, a legacy root has none), how many modules it contributes,
+its absolute path, and any listed entry that is absent.
 
 `nf.import` copies a legacy plugins root into a `.nf` root
 (rules in `neuro.base.nf_import`). It always builds the
@@ -42,49 +41,10 @@ def namespace_label(idx, root):
     return f"{terminal_style.WARN} none" if plugins.is_consolidated(root) else "-"
 
 
-def _git_toplevel(path):
-    try:
-        return subprocess.run(
-            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
-
-
-@invoke.task(pre=[setup.env])
-def roots(c):
-    """Show the PLUGINS roots in effect: layout, git repo, module count; missing entries flagged."""
-    present = plugins.effective_roots()
-    missing = internal_utils.missing_path_list("PLUGINS")
-    idx = NfxIndex(*present)
-    counts = {}
-    for entry in idx.entries():
-        counts[entry.registry_root] = counts.get(entry.registry_root, 0) + 1
-
-    app_dir = Path(os.environ["APP_DIR"])
-    rows = []
-    for root in present:
-        try:
-            shown = os.path.relpath(root, app_dir)
-        except ValueError:
-            shown = str(root)
-        layout = ".nf" if plugins.is_consolidated(root) else "legacy"
-        top = _git_toplevel(root)
-        repo = os.path.relpath(top, app_dir) if top else f"{terminal_style.WARN} none"
-        rows.append((shown, layout, namespace_label(idx, root), repo, str(counts.get(root, 0))))
-    for p in missing:
-        rows.append((f"{terminal_style.WARN} {p}", "missing", "-", "-", "-"))
-
-    print(f"PLUGINS={os.environ.get('PLUGINS', '')}")
-    terminal_components.table(rows, header=("Root", "Layout", "Namespace", "Repo", "Modules"))
-    if missing:
-        print(f"\n{len(missing)} listed root(s) absent on this machine - skipped, not fatal")
-
-
 @invoke.task(pre=[setup.env])
 def namespaces(c):
-    """List the namespaces in effect: token, module count, absolute root path."""
+    """List the namespaces in effect: token, module count, absolute root path.
+    A `PLUGINS` entry absent on this machine is skipped by every task; it is named here."""
     present = plugins.effective_roots()
     idx = NfxIndex(*present)
     counts = {}
@@ -93,6 +53,8 @@ def namespaces(c):
     rows = [(namespace_label(idx, root), str(counts.get(root, 0)), str(Path(root).resolve()))
             for root in present]
     terminal_components.table(rows, header=("Namespace", "Modules", "Path"))
+    for p in internal_utils.missing_path_list("PLUGINS"):
+        print(f"{terminal_style.WARN} {p} is listed in PLUGINS but absent - skipped, not fatal")
 
 
 def _import_namespace(builtin, dst, nid=""):
@@ -192,6 +154,7 @@ def history(c, src, dst, nid="", verbose=False):
     print(f"{report.commits} legacy commits → {report.events} commits · "
           f"{report.legacy_tags} legacy tags → {report.tags - report.synthesized} annotated "
           f"+ {report.synthesized} synthesized for untagged versions")
+    print(f"{report.empty} empty event(s) dropped · {report.renamed} message(s) with module names rewritten to stems")
     print(f"{len(report.warnings)} historical warning(s){'' if verbose else ' (--verbose lists them)'}")
     if verbose:
         for w in report.warnings:

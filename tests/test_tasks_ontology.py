@@ -15,19 +15,19 @@ METAONTOLOGY_PATH = get_path("app") / ".nf" / "ontology" / "metaontology.nfx"
 
 
 def test_render(nb):
-    render.__wrapped__(MockContext(), ontology="Metaontology")
+    render.__wrapped__(MockContext(), ontology="metaontology")
 
     names = nb.get_data('MATCH (m:OntologyMetadata) RETURN m.name AS name')
-    assert {r["name"] for r in names} == {"Metaontology"}
+    assert {r["name"] for r in names} == {"metaontology"}
 
 
 def test_render_node_count(nb):
-    render.__wrapped__(MockContext(), ontology="Metaontology")
+    render.__wrapped__(MockContext(), ontology="metaontology")
     assert nb.count() == len(nfx.read(METAONTOLOGY_PATH).nodes) + 1
 
 
 def test_render_bare(nb):
-    render.__wrapped__(MockContext(), ontology="Metaontology", bare=True)
+    render.__wrapped__(MockContext(), ontology="metaontology", bare=True)
 
     leftover = nb.get_data("""
         MATCH (or:OntologyRelationship)-[:SUBCLASS_OF*0..]->(:OntologyRelationship {label: "HAS_PROPERTY"})
@@ -41,7 +41,7 @@ def test_prune(nb):
     """Only orphans holding no outside relationship are deleted."""
     from tasks.components.ontology import prune
 
-    render.__wrapped__(MockContext(), ontology="Metaontology")
+    render.__wrapped__(MockContext(), ontology="metaontology")
     nb.run_query("""
         CREATE (isolated:OntologyNode {nid: 'prune-isolated', label: 'Isolated'})
         CREATE (held:OntologyNode {nid: 'prune-held', label: 'Held'})
@@ -61,7 +61,7 @@ def test_prune_twin(nb):
     """Instances hold an orphan only when no other ontology defines their label."""
     from tasks.components.ontology import prune
 
-    render.__wrapped__(MockContext(), ontology="Metaontology")
+    render.__wrapped__(MockContext(), ontology="metaontology")
     nb.run_query("""
         CREATE (keeper:OntologyMetadata {nid: 'prune-keeper', name: 'keeper'})
         CREATE (keeper)-[:DEFINES]->(:OntologyNode {nid: 'prune-owner', label: 'Twin'})

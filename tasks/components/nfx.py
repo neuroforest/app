@@ -308,7 +308,7 @@ def index(c, namespace=""):
     if want and not entries:
         print(f"{terminal_style.FAIL} no namespace {namespace!r} - known: {', '.join(sorted(seen))}")
         raise SystemExit(1)
-    entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1]))
+    entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1].casefold()))
     if want:
         rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8]) for t, n, v, nid, _ in entries]
         terminal_components.table(rows, header=("Type", "Name", "Version", "NID"))

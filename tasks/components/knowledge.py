@@ -86,7 +86,7 @@ def index(c, knowledge=""):
             entry.name or path.stem, entry.version, (entry.nid or "")[:8],
             nf_tasks.namespace_label(idx, entry.registry_root), rel,
         ))
-    rows.sort(key=lambda r: r[0])
+    rows.sort(key=lambda r: r[0].casefold())
     terminal_components.table(rows, header=("Name", "Version", "NID", "Namespace", "Path"))
 
 

@@ -103,7 +103,7 @@ def _tag_dependencies(nb, target_name):
         """
         MATCH (target:OntologyMetadata {name: $target_name})
         MATCH (target)-[:DEPENDS_ON*1..]->(dep:OntologyMetadata)
-        WHERE dep.name <> "Metaontology"
+        WHERE NOT (coalesce(dep.type, "") = "metaontology" OR toLower(dep.name) = "metaontology")
         MATCH (dep)-[:DEFINES]->(n)
         WHERE NOT n:OntologyMetadata
         SET n:Dependency
@@ -165,7 +165,7 @@ def index(c, tree=False, ontology=""):
             nf_tasks.namespace_label(idx, entry.registry_root),
             rel,
         ))
-    rows.sort(key=lambda r: (r[0] != "Metaontology", r[0]))
+    rows.sort(key=lambda r: (r[0].casefold() != "metaontology", r[0].casefold()))
     header = ("Name", "Version", "NID", "Namespace", "Path")
     terminal_components.table(rows, header=header)
 
@@ -598,7 +598,7 @@ def _graph_ontology(nb, key):
         """
         MATCH (m:OntologyMetadata)
         WHERE m.nid = $key OR toLower(m.name) = toLower($key)
-        RETURN m.nid AS nid, m.name AS name, m.version AS version
+        RETURN m.nid AS nid, m.name AS name, m.version AS version, m.type AS type
         ORDER BY m.name
         """,
         {"key": key},
@@ -659,7 +659,7 @@ def _doomed_set(nb, target_nid, closure):
     rows = nb.get_data(
         """
         MATCH (t:OntologyMetadata {nid: $nid})-[:DEPENDS_ON*0..]->(d:OntologyMetadata)
-        WHERE d.name <> "Metaontology"
+        WHERE NOT (coalesce(d.type, "") = "metaontology" OR toLower(d.name) = "metaontology")
         RETURN collect(DISTINCT d.nid) AS nids
         """,
         {"nid": target_nid},
@@ -735,7 +735,7 @@ def delete(c, ontology="", closure=False, confirm=False):
         if not target:
             print(f"{terminal_style.FAIL} Ontology not in the base: {ontology}")
             raise SystemExit(1)
-        if target["name"] == "Metaontology":
+        if target.get("type") == "metaontology" or str(target["name"]).lower() == "metaontology":
             print(f"{terminal_style.FAIL} Refusing to delete the Metaontology - "
                   f"every other ontology is defined in its terms. "
                   f"Use ontology.clear to wipe the layer.")

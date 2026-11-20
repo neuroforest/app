@@ -2,7 +2,7 @@
     "type": "metaontology",
     "nid": "a6b459b4-70a8-4977-86d2-18d6a4c8d466",
     "version": "3.2",
-    "name": "Metaontology",
+    "name": "metaontology",
     "description": "Self-describing schema for NeuroBase ontology",
     "nodes": [
         {
