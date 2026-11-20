@@ -269,6 +269,34 @@ def rename(c, target, new, root="", dry_run=False):
           f"{' '.join(f'refs/tags/{b}' for _, b in plan.tags)}{terminal_style.RESET}")
 
 
+@invoke.task(name="move", pre=[setup.env])
+def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
+    """Move a module into another .nf root: one `MIGRATE:` commit at each end, history left where it was."""
+    source = _repo(root or _owner_root(target))
+    dest = _repo(to)
+    others = plugins.effective_roots()
+    try:
+        if dry_run:
+            plan = nf_repo.plan_move(source, dest, target, with_dependants, as_, others)
+        else:
+            plan, departed, arrived = nf_repo.move(source, dest, target, with_dependants, as_, others)
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        print(f"{terminal_style.FAIL} {terminal_style.BOLD}move refused{terminal_style.RESET} - nothing written:")
+        for issue in e.issues:
+            print(f"    {issue}")
+        raise SystemExit(1)
+    rows = [(source.show(a), dest.show(b), item.version, item.released or "never released")
+            for item in plan.items for a, b in item.files]
+    terminal_components.table(rows, header=("From", "To", "Version", "Released as"))
+    if dry_run:
+        print(f"\n{plan.departure_message.splitlines()[0]} - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {source.root}: {departed[:7]} {plan.departure_message.splitlines()[0]}")
+    print(f"{terminal_style.SUCCESS} {dest.root}: {arrived[:7]} {plan.arrival_message.splitlines()[0]}")
+
+
 @invoke.task(name="hooks-install", pre=[setup.env])
 def hooks_install(c, root="", runner=""):
     """Install a .nf root's hooks: versioned shims in <root>/.githooks/, a stub per hook where git runs it. --runner (required): the wrapper path."""
