@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import invoke
 
@@ -285,30 +284,37 @@ def print_dependencies(idx, doc):
             print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
 
 
-@invoke.task(pre=[setup.env])
-def index(c):
-    """Show every discovered .nfx (ontology, knowledge, metaontology) in one table."""
+@invoke.task(pre=[setup.env], help={
+    "namespace": "Only this namespace's documents (`root` or `·` for the empty token)",
+})
+def index(c, namespace=""):
+    """Show every discovered .nfx (ontology, knowledge, metaontology) in one table;
+    --namespace narrows to one root."""
     roots = plugins.effective_roots()
     idx = NfxIndex(*roots)
+    want = "root" if namespace == "·" else namespace
 
-    app_dir = Path(os.environ["APP_DIR"])
     type_label = {"metaontology": "meta", "ontology": "onto", "knowledge": "know"}
     type_order = {"metaontology": 0, "ontology": 1, "knowledge": 2}
     entries = []
+    seen = set()
     for entry in idx.entries():
-        path = entry.path
-        try:
-            rel = os.path.relpath(path, app_dir)
-        except ValueError:
-            rel = str(path)
         ns = nf_tasks.namespace_label(idx, entry.registry_root)
-        entries.append((entry.type, entry.name or path.stem, entry.version, entry.nid, ns, rel))
+        typed = "root" if ns == nf_tasks.ROOT_MARK else ns
+        seen.add(typed)
+        if want and typed != want:
+            continue
+        entries.append((entry.type, entry.name or entry.path.stem, entry.version, entry.nid, ns))
+    if want and not entries:
+        print(f"{terminal_style.FAIL} no namespace {namespace!r} - known: {', '.join(sorted(seen))}")
+        raise SystemExit(1)
     entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1]))
-    rows = [
-        (type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns, p)
-        for t, n, v, nid, ns, p in entries
-    ]
-    terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace", "Path"))
+    if want:
+        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8]) for t, n, v, nid, _ in entries]
+        terminal_components.table(rows, header=("Type", "Name", "Version", "NID"))
+    else:
+        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns) for t, n, v, nid, ns in entries]
+        terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace"))
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

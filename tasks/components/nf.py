@@ -3,7 +3,7 @@
 A root is opted in by listing it in `PLUGINS` of the environment, nothing
 else; `nf.roots` shows what that list comes to on this machine - which
 entries exist, which are the consolidated `.nf` layout, which namespace token
-each declares (`∅` is the written empty token, a legacy
+each declares (a dim `·` is the written empty token, a legacy
 root has none), which sit in a git repo (hooks and tags live there; a root
 outside one gets neither), and how many modules each contributes.
 
@@ -29,13 +29,16 @@ from neuro.utils import internal_utils, terminal_components, terminal_style
 from tasks.actions import setup
 
 
+ROOT_MARK = f"{terminal_style.DIM}·{terminal_style.RESET}"
+
+
 def namespace_label(idx, root):
-    """The token column for `root`: the declared token, `∅` for the written
-    empty token, `-` for a legacy root, a warning for a `.nf` root that has
-    not declared one yet."""
+    """The token column for `root`: the declared token, a dim `·` for the
+    written empty token (the root namespace, `~/.nf`), `-` for a legacy root,
+    a warning for a `.nf` root that has not declared one yet."""
     ns = idx.namespace_of(root)
     if ns is not None:
-        return ns.token or "∅"
+        return ns.token or ROOT_MARK
     return f"{terminal_style.WARN} none" if plugins.is_consolidated(root) else "-"
 
 
@@ -77,6 +80,19 @@ def roots(c):
     terminal_components.table(rows, header=("Root", "Layout", "Namespace", "Repo", "Modules"))
     if missing:
         print(f"\n{len(missing)} listed root(s) absent on this machine - skipped, not fatal")
+
+
+@invoke.task(pre=[setup.env])
+def namespaces(c):
+    """List the namespaces in effect: token, module count, absolute root path."""
+    present = plugins.effective_roots()
+    idx = NfxIndex(*present)
+    counts = {}
+    for entry in idx.entries():
+        counts[entry.registry_root] = counts.get(entry.registry_root, 0) + 1
+    rows = [(namespace_label(idx, root), str(counts.get(root, 0)), str(Path(root).resolve()))
+            for root in present]
+    terminal_components.table(rows, header=("Namespace", "Modules", "Path"))
 
 
 def _import_namespace(builtin, dst, nid=""):
