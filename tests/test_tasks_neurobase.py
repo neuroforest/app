@@ -8,6 +8,7 @@ import json
 import os
 import stat
 import subprocess
+from pathlib import Path
 
 import pytest
 from invoke import MockContext
@@ -179,6 +180,27 @@ def test_start():
     neurobase.start(MockContext())
     with NeuroBase() as nb:
         assert nb.get_data("RETURN 1 AS ok")[0]["ok"] == 1
+
+
+def test_backup_lock_path(tmp_path, monkeypatch):
+    """One lock per container, whatever the archive path."""
+    import tempfile
+
+    monkeypatch.setenv("BASE_NAME", "some-base")
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+    monkeypatch.setenv("ARCHIVE", str(tmp_path / "one"))
+    path = neurobase._backup_lock_path()
+    assert path == tmp_path / "neurobase-some-base.lock"
+    monkeypatch.setenv("ARCHIVE", str(tmp_path / "two"))
+    assert neurobase._backup_lock_path() == path
+
+    monkeypatch.setenv("BASE_NAME", "other-base")
+    assert neurobase._backup_lock_path() != path
+
+    monkeypatch.delenv("XDG_RUNTIME_DIR")
+    fallback = neurobase._backup_lock_path()
+    assert fallback.parent == Path(tempfile.gettempdir())
+    assert fallback.name == f"neurobase-{os.getuid()}-other-base.lock"
 
 
 def _backup_dirs(archive):

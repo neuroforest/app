@@ -5,7 +5,9 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import time
+from pathlib import Path
 
 import invoke
 import neo4j
@@ -194,6 +196,27 @@ def _group_rels(edges):
 START_TIMEOUT_S = 90
 
 
+def _backup_lock_path():
+    """The lock file of the base `BASE_NAME` names: one per container on the box.
+
+    What the lock protects is a docker container, so it is keyed on the
+    container's name and lives in the user's runtime dir - the same file for
+    every checkout, worktree, release and wrapper that drives that base. A file
+    under the archive dir was one lock per *archive path*: two invocations
+    naming one container under different `ARCHIVE` values did not exclude each
+    other, and a tree whose archive defaults in-tree grew an untracked file.
+    Without `XDG_RUNTIME_DIR` (cron, a bare ssh command) it
+    falls back to the temp dir, the uid in the name keeping users apart there.
+    """
+    base_name = os.getenv("BASE_NAME")
+    if not base_name:
+        raise invoke.Exit("BASE_NAME is not set", code=1)
+    runtime_dir = os.getenv("XDG_RUNTIME_DIR")
+    if runtime_dir and os.path.isdir(runtime_dir):
+        return Path(runtime_dir) / f"neurobase-{base_name}.lock"
+    return Path(tempfile.gettempdir()) / f"neurobase-{os.getuid()}-{base_name}.lock"
+
+
 @contextlib.contextmanager
 def _backup_lock(exclusive):
     """Serialise `backup` against `start`, so a snapshot is taken from a base that
@@ -206,11 +229,14 @@ def _backup_lock(exclusive):
     finish instead of restarting the base on top of the volume being archived.
     Without this a read-only "is the base up?" probe from another session
     restarted the base 42 s into the dump, and the archive holds a hot copy
-    of a running Neo4j that may not restore. A plain flock on a file in the
-    archive dir: released when the holder exits, however it exits.
+    of a running Neo4j that may not restore. A plain flock: released when the
+    holder exits, however it exits.
+
+    The lock is keyed on the container, not on the checkout:
+    see `_backup_lock_path`.
     """
     op = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-    with open(internal_utils.get_path("archive") / ".backup.lock", "w") as fh:
+    with open(_backup_lock_path(), "a") as fh:
         try:
             fcntl.flock(fh, op | fcntl.LOCK_NB)
         except BlockingIOError:
