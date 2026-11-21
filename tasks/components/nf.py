@@ -22,7 +22,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import nf_import, nf_repo, nfx, plugins
+from neuro.base import nf_import, nf_repo, nf_split, nfx, plugins
 from neuro.base.index import NfxIndex
 from neuro.utils import internal_utils, terminal_components, terminal_style
 
@@ -260,29 +260,37 @@ def _test_gate(repo, roots):
     roots = [*repo._others(roots, repo.root), repo.root]
 
     def gate(paths):
-        env = {k: v for k, v in _STARTED_WITH.items() if k not in ("NF_CONFIG", "NF_DATA", "NF_STATE", "NF_CACHE")}
-        env["ENV"] = "TESTING"
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "records.json"
-            with terminal_components.step(f"Testing {len(paths)} document(s) in the test base"):
-                r = subprocess.run(
-                    [os.path.join(setup.get_nenv_dir(), "bin", "invoke"), f"--search-root={os.environ['APP_DIR']}",
-                     "nfx.test", "--target", ",".join(str(p) for p in paths),
-                     "--roots", ":".join(str(p) for p in roots), "--out", str(out)],
-                    env=env, capture_output=True, text=True)
-            if not out.is_file():
-                tail = (r.stdout + r.stderr).strip().splitlines()[-8:]
-                return ["the tests could not run (--no-test skips them):", *tail]
-            issues = []
-            for record in json.loads(out.read_text()):
-                where = repo.show(Path(record["path"]).relative_to(repo.root))
-                for failure in record["failures"]:
-                    lines = failure.splitlines() or [""]
-                    issues.append(f"{where}: {lines[0]}")
-                    issues += [f"    {line}" for line in lines[1:]]
-            return issues
+        return _nfx_test(roots, paths, lambda path: repo.show(Path(path).relative_to(repo.root)))
 
     return gate
+
+
+def _nfx_test(roots, paths=None, show=str):
+    """Run `nfx.test` as a child in ENV=TESTING over `roots` (`paths`: only
+    these documents) and return its failures as issue lines. The child starts
+    from the wrapper's own environment, so the base it wipes is the test one."""
+    env = {k: v for k, v in _STARTED_WITH.items() if k not in ("NF_CONFIG", "NF_DATA", "NF_STATE", "NF_CACHE")}
+    env["ENV"] = "TESTING"
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "records.json"
+        target = ["--target", ",".join(str(p) for p in paths)] if paths else []
+        what = f"{len(paths)} document(s)" if paths else "every document"
+        with terminal_components.step(f"Testing {what} in the test base"):
+            r = subprocess.run(
+                [os.path.join(setup.get_nenv_dir(), "bin", "invoke"), f"--search-root={os.environ['APP_DIR']}",
+                 "nfx.test", *target, "--roots", ":".join(str(p) for p in roots), "--out", str(out)],
+                env=env, capture_output=True, text=True)
+        if not out.is_file():
+            tail = (r.stdout + r.stderr).strip().splitlines()[-8:]
+            return ["the tests could not run (--no-test skips them):", *tail]
+        issues = []
+        for record in json.loads(out.read_text()):
+            where = show(record["path"])
+            for failure in record["failures"]:
+                lines = failure.splitlines() or [""]
+                issues.append(f"{where}: {lines[0]}")
+                issues += [f"    {line}" for line in lines[1:]]
+        return issues
 
 
 @invoke.task(pre=[setup.env], help={
@@ -368,6 +376,111 @@ def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
         return
     print(f"\n{terminal_style.SUCCESS} {source.root}: {departed[:7]} {plan.departure_message.splitlines()[0]}")
     print(f"{terminal_style.SUCCESS} {dest.root}: {arrived[:7]} {plan.arrival_message.splitlines()[0]}")
+
+
+@invoke.task(pre=[setup.env], help={
+    "target": "Modules to spin off, comma-separated (stem, name, nid or path)",
+    "to": "Where the new root goes: a directory named .nf that does not exist yet",
+    "token": "The new root's namespace token",
+    "name": "The new root's name (default: the token)",
+    "manifest": "A JSON file `{\"outputs\": [{token, to, modules, name?, description?}, …]}` for several new roots",
+    "with-dependants": "Take the in-root dependants of the named modules along",
+    "dry-run": "Print the partition and stop",
+    "swap": "Put the split staged in this directory in place",
+    "no-test": "Skip `nfx.test` over the staged roots",
+    "no-notify": "With --swap: do not run git's post-rewrite hook in the outputs",
+    "rewrite-published": "Allow splitting a root that has a remote (its clones and the remote must then be redone)",
+})
+def split(c, target="", to="", token="", name="", root="", manifest="", with_dependants=False, dry_run=False,
+          swap="", no_test=False, no_notify=False, rewrite_published=False):
+    """Split a .nf root's repository: the named modules leave with their whole history for a root of their own, and the original keeps none of it. Builds the parts beside the source and verifies them; --swap puts them in place. Pushes nothing."""
+    if swap:
+        try:
+            state = nf_split.swap(Path(swap).expanduser(), notify=not no_notify)
+        except nf_split.SplitRefused as e:
+            _refused("swap", e.issues)
+        print(f"{terminal_style.SUCCESS} swapped - the source is kept at {state['kept']}")
+        for o in state["outputs"]:
+            print(f"  {o['word']:<12} {o['to']}  ({o['head'][:7]})")
+        print("\nNothing was pushed. To publish (the first rewrites what a remote already holds):")
+        for n, o in enumerate(state["outputs"]):
+            force = " --force" if n == 0 else ""
+            print(f"  git -C {o['to']} push <remote> {state['branch']} --tags{force}")
+            print(f"  git -C {o['to']} push <remote> {nf_split.NOTES_REF}{force}")
+        print("\nList each new root in PLUGINS where its modules are used.")
+        return
+
+    if manifest:
+        parts = json.loads(Path(manifest).expanduser().read_text())["outputs"]
+    else:
+        if not (target and to):
+            raise SystemExit(f"{terminal_style.FAIL} name the modules and --to (or pass --manifest)")
+        parts = [{"token": token, "to": to, "name": name, "modules": [t for t in target.split(",") if t.strip()]}]
+    for part in parts:
+        part["modules"] = [_key(m) for m in part.get("modules", ())]
+    first = next((m for part in parts for m in part["modules"]), None)
+    repo = _repo(root or (_owner_root(first) if first else ""))
+    others = plugins.effective_roots()
+    try:
+        p = nf_split.plan(repo, parts, others, with_dependants, rewrite_published)
+    except nf_split.SplitRefused as e:
+        _refused("split", e.issues)
+
+    print(f"source   {repo.root}  (token {p.token or '∅'}, {p.commits} commits)\n")
+    rows = [(o.word, "continuation" if o.to is None else str(o.to), str(len(o.modules)), str(o.commits), str(o.tags))
+            for o in p.outputs]
+    terminal_components.table(rows, header=("Root", "Goes to", "Modules", "Commits", "Tags"))
+    print(f"\n{p.shared} source commit(s) become a commit in more than one root")
+    for o in p.outputs[1:]:
+        print(f"\n{o.word}: {', '.join(sorted(p.stems[n][1] for n in o.modules))}")
+    for o in p.outputs:
+        for needed, pairs in o.needs.items():
+            word = needed or "root"
+            shown = ", ".join(pairs[:6]) + (f", … ({len(pairs)})" if len(pairs) > 6 else "")
+            print(f"\n{o.word} pins namespace {word}: {shown}")
+    if p.continuation.needs:
+        print(f"\n{terminal_style.WARN} modules that stay depend on modules that leave: {p.continuation.word}'s "
+              f"declaration is released as {p.continuation.namespace.version}, and the new root must be present "
+              f"wherever {p.continuation.word} is used")
+    if dry_run:
+        print("\ndry run - nothing written")
+        return
+
+    # `step` reports an exception and swallows it: what failed is read from what was left unset
+    state = issues = refused = None
+    with terminal_components.step(f"Building {len(p.outputs)} repositories in {p.staging}"):
+        try:
+            state = nf_split.build(p)
+        except nf_split.SplitRefused as e:
+            refused = e.issues
+            raise
+    if state is None:
+        if refused:
+            _refused("split", refused)
+        raise SystemExit(1)
+    with terminal_components.step("Verifying: nothing lost, nothing twice, every tag, sound heads"):
+        issues = nf_split.verify(p.staging, others)
+    if issues is None:
+        raise SystemExit(f"{terminal_style.FAIL} the staged split in {p.staging} could not be verified")
+    if not issues and not no_test:
+        issues = _nfx_test([*repo._others(others, repo.root), *(o["dir"] for o in state["outputs"])])
+    if issues:
+        print(f"{terminal_style.FAIL} {terminal_style.BOLD}the staged split is not sound{terminal_style.RESET} "
+              f"- left in {p.staging} to look at; nothing else was touched:")
+        for issue in issues:
+            print(f"    {issue}")
+        raise SystemExit(1)
+    print(f"\n{terminal_style.SUCCESS} staged in {p.staging} - the source is untouched")
+    for o in state["outputs"]:
+        print(f"  {o['word']:<12} {o['dir']}")
+    print(f"\nLook, then:  nf.split --swap {p.staging}")
+
+
+def _refused(what, issues):
+    print(f"{terminal_style.FAIL} {terminal_style.BOLD}{what} refused{terminal_style.RESET} - nothing written:")
+    for issue in issues:
+        print(f"    {issue}")
+    raise SystemExit(1)
 
 
 @invoke.task(name="log", pre=[setup.env])
