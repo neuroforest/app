@@ -3,23 +3,15 @@ import hashlib
 import json
 import os
 import subprocess
-import time
 from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nf_repo, nfx, plugins
+from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
-
-
-def _plugin_test_path(ontology_path):
-    """Return a co-located `test_validators.py` path for an ontology, if any."""
-    candidate = Path(ontology_path).parent / "test_validators.py"
-    return candidate if candidate.exists() else None
-
 
 
 @invoke.task(name="import", pre=[setup.env])
@@ -406,6 +398,10 @@ def test(c, o="", fmt="text"):
        validators together. -o: target file. --fmt json: one machine-readable
        record per ontology (path, outcome, duration, failures) on stdout.
     """
+    # The ontologies of `nfx.test`: one record per ontology, so a consumer can
+    # say *which* one broke and how long it took; --fmt json is the
+    # machine-readable form, because parsing ✔/✘ off a terminal-styled stdout
+    # is not a contract anyone should depend on.
     neurobase.clear(c, confirmed=True)
     ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
@@ -418,72 +414,9 @@ def test(c, o="", fmt="text"):
         targets = nfx_tasks.topo_targets(idx, target_path, metaontology_nid)
     else:
         targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
-
-    pytest_bin = os.path.join(setup.get_nenv_dir(), "bin", "pytest")
-    failed = []
-    # One record per ontology, so a consumer can say *which* one broke and how
-    # long it took. The text rendering below is unchanged; --fmt json adds the
-    # machine-readable form rather than replacing it, because parsing ✔/✘ off a
-    # terminal-styled stdout is not a contract anyone should depend on.
-    report = []
     with NeuroBase() as nb:
-        for path in targets:
-            doc = nfx.read(path)
-            name = doc.name or path.stem
-            started = time.monotonic()
-
-            failures = nf_repo.document_failures(idx, path)
-            warnings = []
-
-            if not failures:
-                nb.clear(confirm=True)
-                nb.metaontology.import_nfx(path, index=idx)
-                nb.metaontology.is_ontology_valid()
-                failures.extend(str(v) for v in nb.metaontology.violations)
-                failures.extend(str(err) for err in idx.check_dependency_versions(path))
-                warnings = list(nb.metaontology.violations.warnings)
-
-                test_path = _plugin_test_path(path)
-                if test_path:
-                    result = subprocess.run(
-                        [pytest_bin, "--import-mode=importlib", str(test_path)],
-                        capture_output=True, text=True,
-                    )
-                    if result.returncode != 0:
-                        output = (result.stdout + result.stderr).rstrip()
-                        if output:
-                            failures.append(output)
-                        else:
-                            failures.append(f"pytest failed (exit {result.returncode})")
-
-            report.append({
-                "name": name,
-                "path": str(path),
-                "outcome": "failed" if failures else "passed",
-                "duration_s": round(time.monotonic() - started, 3),
-                "failure_count": len(failures),
-                "failures": failures,
-                "warnings": [str(w) for w in warnings],
-            })
-
-            if fmt == "text":
-                if failures:
-                    print(f"{terminal_style.FAIL} {name}")
-                    for entry in failures:
-                        for line in entry.splitlines():
-                            print(f"  {line}")
-                else:
-                    print(f"{terminal_style.SUCCESS} {name}")
-                for w in warnings:
-                    print(f"  {w}")
-            if failures:
-                failed.append(name)
-
-    if fmt == "json":
-        print(json.dumps(report, indent=2, default=str))
-
-    if failed:
-        raise SystemExit(1)
+        records = nfx_tasks.run_tests(nb, ontology_dirs, targets)
+    nfx_tasks.report_tests(records, fmt)
 
 
 @invoke.task(pre=[setup.env])

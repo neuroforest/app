@@ -13,6 +13,7 @@ printing the mapping and how it differs from the destination - the drift
 report of the parallel period - and without it the destination is made equal
 to the copy, provided nothing blocked. No git: that is C2.
 """
+import json
 import os
 import subprocess
 import tempfile
@@ -29,6 +30,11 @@ from tasks.actions import setup
 
 
 ROOT_MARK = f"{terminal_style.DIM}·{terminal_style.RESET}"
+
+# The environment the wrapper started this process with, before any `setup.env`
+# loaded a config into it: what a child run in another ENV must start from, or
+# it would inherit this one's base and roots.
+_STARTED_WITH = dict(os.environ)
 
 
 def namespace_label(idx, root):
@@ -141,9 +147,20 @@ def history(c, src, dst, nid="", verbose=False):
         head = nf_import.plan_import(src, namespace)
     tag_issues = nf_history.check_tags(dst)
     tree_issues = []
+    def unversioned(content):
+        """A module without its version and its pins' versions - what a replayed release may change."""
+        doc = json.loads(content)
+        doc.pop("version", None)
+        doc["dependencies"] = sorted(str(d).partition("@")[0] for d in doc.get("dependencies") or [])
+        return doc
+
     for m in head.moves:
         got = subprocess.run(["git", "-C", str(dst), "show", f"HEAD:{m.rel}"], capture_output=True).stdout
-        if got != m.content:
+        if m.nid:
+            # the replay releases changes the legacy repo left unreleased: versions and pins may be ahead
+            if not got or unversioned(got) != unversioned(m.content):
+                tree_issues.append(f"{m.rel}: differs from the import of {src} beyond versions")
+        elif got != m.content:
             tree_issues.append(f"{m.rel}: differs from the import of {src}")
     listed = subprocess.run(["git", "-C", str(dst), "ls-tree", "-r", "--name-only", "HEAD"],
                             capture_output=True, text=True).stdout.split()
@@ -154,6 +171,7 @@ def history(c, src, dst, nid="", verbose=False):
     print(f"{report.commits} legacy commits → {report.events} commits · "
           f"{report.legacy_tags} legacy tags → {report.tags - report.synthesized} annotated "
           f"+ {report.synthesized} synthesized for untagged versions")
+    print(f"{report.bumped} release(s) written for changes the legacy repo made without one")
     print(f"{report.empty} empty event(s) dropped · {report.renamed} message(s) with module names rewritten to stems")
     print(f"{len(report.warnings)} historical warning(s){'' if verbose else ' (--verbose lists them)'}")
     if verbose:
@@ -235,16 +253,51 @@ def _owner_root(key):
     return root
 
 
-@invoke.task(pre=[setup.env])
-def release(c, target, root="", major=False, dry_run=False, message=""):
-    """Release documents (comma-separated) with their in-root dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit."""
+def _test_gate(repo, roots):
+    """The gate of a release: `nfx.test` over the documents about to
+    be committed, run as a child in ENV=TESTING - its base is wiped, so it must
+    never be this process's - reading this release's roots, not TESTING's."""
+    roots = [*repo._others(roots, repo.root), repo.root]
+
+    def gate(paths):
+        env = {k: v for k, v in _STARTED_WITH.items() if k not in ("NF_CONFIG", "NF_DATA", "NF_STATE", "NF_CACHE")}
+        env["ENV"] = "TESTING"
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "records.json"
+            with terminal_components.step(f"Testing {len(paths)} document(s) in the test base"):
+                r = subprocess.run(
+                    [os.path.join(setup.get_nenv_dir(), "bin", "invoke"), f"--search-root={os.environ['APP_DIR']}",
+                     "nfx.test", "--target", ",".join(str(p) for p in paths),
+                     "--roots", ":".join(str(p) for p in roots), "--out", str(out)],
+                    env=env, capture_output=True, text=True)
+            if not out.is_file():
+                tail = (r.stdout + r.stderr).strip().splitlines()[-8:]
+                return ["the tests could not run (--no-test skips them):", *tail]
+            issues = []
+            for record in json.loads(out.read_text()):
+                where = repo.show(Path(record["path"]).relative_to(repo.root))
+                for failure in record["failures"]:
+                    lines = failure.splitlines() or [""]
+                    issues.append(f"{where}: {lines[0]}")
+                    issues += [f"    {line}" for line in lines[1:]]
+            return issues
+
+    return gate
+
+
+@invoke.task(pre=[setup.env], help={
+    "no-test": "Skip `nfx.test` on the release (schema, values, validator tests in the test base)",
+})
+def release(c, target, root="", major=False, dry_run=False, message="", no_test=False):
+    """Release documents (comma-separated) with their in-root dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit. The release is tested first (`nfx.test`) and refused on a failure."""
     targets = [_key(t) for t in target.split(",") if t.strip()]
     repo = _repo(root or _owner_root(targets[0]))
     others = plugins.effective_roots()
     try:
         steps = repo.plan_release(targets, major, others) if dry_run else None
         if not dry_run:
-            sha, steps, tags = repo.release(targets, major, others, message or None)
+            sha, steps, tags = repo.release(targets, major, others, message or None,
+                                            gate=None if no_test else _test_gate(repo, others))
     except ValueError as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
     except nf_repo.ReleaseRefused as e:
@@ -338,6 +391,9 @@ def log_(c, target, root="", via=""):
     rows = [dim(e, (e.date, e.token or ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)))
             for e in entries]
     terminal_components.table(rows, header=("Date", "Root", "Commit", "Version", "Subject", "Tags"), shrink=4)
+    repins = sum(e.repin for e in entries)
+    if repins:
+        print(f"\n{terminal_style.DIM}{repins} of {len(entries)} commit(s) only re-pin a dependency{terminal_style.RESET}")
     if note:
         print(f"\n{terminal_style.WARN} {note}")
 
@@ -351,9 +407,6 @@ def hooks_install(c, root="", runner=""):
     repo = _repo(root)
     try:
         wrote = repo.install(runner)
-    repins = sum(e.repin for e in entries)
-    if repins:
-        print(f"\n{terminal_style.DIM}{repins} of {len(entries)} commit(s) only re-pin a dependency{terminal_style.RESET}")
     except FileExistsError as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
     for path in wrote:

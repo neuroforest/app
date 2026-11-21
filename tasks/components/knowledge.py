@@ -3,64 +3,12 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx, plugins, schema
+from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import KnowledgeIndex, OntologyIndex
-from neuro.base.metaontology import OntologyViolations
-from neuro.base.ontology import ObjectValidator
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
 from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
-
-
-def validate_knowledge(nb, path):
-    """Validate knowledge (instance) nodes in an NFX file against the loaded
-    ontology, appending per-node violations onto `nb.metaontology.violations`
-    so the caller's gating and printing pick them up uniformly. Nodes whose
-    labels don't resolve to any known ontology-object subclass are classified
-    via `schema.TypeRegistry` and aggregated as undefined property /
-    relationship / node types - typo'd type labels fail loudly."""
-
-    class _Node:
-        def __init__(self, labels, properties):
-            self.labels = labels
-            self.properties = properties
-
-    doc = nfx.read(path)
-    registry = schema.TypeRegistry(nb)
-
-    edge_map: dict[str, set[str]] = {}
-    for rel in doc.relationships:
-        edge_map.setdefault(rel["to"], set()).add(rel["type"])
-
-    undefined: dict[str, dict[str, str]] = {"property": {}, "relationship": {}, "node": {}}
-
-    for entry in doc.nodes:
-        labels = entry["labels"]
-        entry_props = entry.get("properties", {})
-        identifier = (
-            entry_props.get("identifier")
-            or entry_props.get("name")
-            or entry_props.get("label")
-            or entry["nid"]
-        )
-
-        kind = registry.classify_undefined(labels, edge_map.get(entry["nid"], set()))
-        if kind is not None:
-            type_label = labels[0] if labels else "?"
-            undefined[kind].setdefault(type_label, identifier)
-            continue
-
-        node_props = {"nid": entry["nid"], **entry_props}
-        violations = ObjectValidator(nb, _Node(labels, node_props)).get_violations()
-        if violations:
-            nb.metaontology.violations.violations.append(
-                (identifier, ":".join(labels), violations)
-            )
-
-    nb.metaontology.violations.undefined_property_types.extend(sorted(undefined["property"].items()))
-    nb.metaontology.violations.undefined_relationship_types.extend(sorted(undefined["relationship"].items()))
-    nb.metaontology.violations.undefined_node_types.extend(sorted(undefined["node"].items()))
 
 
 @invoke.task(pre=[setup.env])
@@ -155,7 +103,6 @@ def test(c, knowledge=""):
     """Validate knowledge nodes against the loaded ontology. -k: target one file."""
     neurobase.clear(c, confirmed=True)
     roots = plugins.effective_roots()
-    onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 
     targets = nfx_tasks.resolve_target(know_idx, knowledge, kind="Knowledge")
@@ -164,36 +111,10 @@ def test(c, knowledge=""):
         print(f"{terminal_style.WARNING} No knowledge .nfx files found.")
         return
 
-    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
-    failed = []
+    # The knowledge documents of `nfx.test`.
     with NeuroBase() as nb:
-        nb.clear(confirm=True)
-        imported = set()
-        for path in targets:
-            doc = nfx.read(path)
-            name = doc.name or path.stem
-            # `topo_targets` returns metaontology-first transitive ontology
-            # deps; the knowledge file's own nid is already filtered out
-            # because it's not in OntologyIndex.
-            for dep_path in nfx_tasks.topo_targets(onto_idx, path, metaontology_nid):
-                if dep_path in imported:
-                    continue
-                nb.metaontology.import_nfx(dep_path, index=onto_idx)
-                imported.add(dep_path)
-            nb.metaontology.violations = OntologyViolations()
-            validate_knowledge(nb, path)
-            violations = list(nb.metaontology.violations.violations)
-            if violations:
-                print(f"{terminal_style.FAIL} {name}")
-                for identifier, labels, v in violations:
-                    print(f"  {identifier} ({labels})")
-                    print(repr(v))
-                failed.append(name)
-            else:
-                print(f"{terminal_style.SUCCESS} {name}")
-
-    if failed:
-        raise SystemExit(1)
+        records = nfx_tasks.run_tests(nb, roots, targets)
+    nfx_tasks.report_tests(records)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

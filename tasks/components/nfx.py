@@ -1,9 +1,15 @@
+import json
 import os
+import subprocess
+import time
+from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nfx, plugins
+from neuro.base import NeuroBase, nf_repo, nfx, plugins, schema
 from neuro.base.index import NfxIndex, OntologyIndex
+from neuro.base.metaontology import OntologyViolations
+from neuro.base.ontology import ObjectValidator
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
@@ -253,6 +259,166 @@ def topo_targets(onto_idx, target_path, metaontology_nid):
     return [onto_idx.metaontology_path] + paths
 
 
+def validate_knowledge(nb, path):
+    """Validate knowledge (instance) nodes in an NFX file against the loaded
+    ontology, appending per-node violations onto `nb.metaontology.violations`
+    so the caller's gating and printing pick them up uniformly. Nodes whose
+    labels don't resolve to any known ontology-object subclass are classified
+    via `schema.TypeRegistry` and aggregated as undefined property /
+    relationship / node types - typo'd type labels fail loudly."""
+
+    class _Node:
+        def __init__(self, labels, properties):
+            self.labels = labels
+            self.properties = properties
+
+    doc = nfx.read(path)
+    registry = schema.TypeRegistry(nb)
+    # `registry.known` holds the ontology layer's own kinds (subclasses of
+    # OntologyNode, …), which no instance carries: an instance is labelled by a
+    # *class*, and a class is an `:OntologyNode` whatever it descends from.
+    # Without this every instance read as an undefined node type and was
+    # skipped before its values were looked at.
+    classes = {r["label"] for r in nb.get_data("MATCH (n:OntologyNode) RETURN n.label AS label")}
+
+    edge_map: dict[str, set[str]] = {}
+    for rel in doc.relationships:
+        edge_map.setdefault(rel["to"], set()).add(rel["type"])
+
+    undefined: dict[str, dict[str, str]] = {"property": {}, "relationship": {}, "node": {}}
+
+    for entry in doc.nodes:
+        labels = entry["labels"]
+        entry_props = entry.get("properties", {})
+        identifier = (
+            entry_props.get("identifier")
+            or entry_props.get("name")
+            or entry_props.get("label")
+            or entry["nid"]
+        )
+
+        kind = None
+        if not any(label in classes for label in labels):
+            kind = registry.classify_undefined(labels, edge_map.get(entry["nid"], set()))
+        if kind is not None:
+            type_label = labels[0] if labels else "?"
+            undefined[kind].setdefault(type_label, identifier)
+            continue
+
+        node_props = {"nid": entry["nid"], **entry_props}
+        violations = ObjectValidator(nb, _Node(labels, node_props)).get_violations()
+        if violations:
+            nb.metaontology.violations.violations.append(
+                (identifier, ":".join(labels), violations)
+            )
+
+    nb.metaontology.violations.undefined_property_types.extend(sorted(undefined["property"].items()))
+    nb.metaontology.violations.undefined_relationship_types.extend(sorted(undefined["relationship"].items()))
+    nb.metaontology.violations.undefined_node_types.extend(sorted(undefined["node"].items()))
+
+
+def _run_module_tests(path, roots):
+    """A module's pytest file, run; the output when it fails, else None."""
+    test_path = nf_repo.module_test_path(path, roots)
+    if test_path is None:
+        return None
+    pytest_bin = os.path.join(setup.get_nenv_dir(), "bin", "pytest")
+    result = subprocess.run([pytest_bin, "--import-mode=importlib", str(test_path)],
+                            capture_output=True, text=True)
+    if result.returncode == 0:
+        return None
+    return (result.stdout + result.stderr).rstrip() or f"pytest failed (exit {result.returncode})"
+
+
+def run_tests(nb, roots, targets=None):
+    """Test `.nfx` documents, each by its type; one record per document.
+
+    - ontology / metaontology: imported with its closure, the schema judged
+      (`is_ontology_valid`), its pins checked, its pytest file run;
+    - knowledge: its ontology closure imported, every node's values judged
+      against it, its pins checked, its pytest file run;
+    - namespace: the declaration's own form and pins - it has no schema.
+
+    `targets` are paths (default: every document of `roots`, declarations
+    included). The base is cleared only when it holds something outside the
+    next document's closure, and documents that extend what is loaded go
+    first - a chain of dependants is one import pass, not one per document.
+    A document that fails on its own terms (`document_failures`) is not
+    imported. `nb` is a base this may wipe: the TESTING one.
+    """
+    roots = [Path(r).resolve() for r in roots]
+    idx = NfxIndex(*roots)
+    onto_idx = OntologyIndex(*roots)
+    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
+    if targets is None:
+        targets = [ns.path for ns in idx.namespaces()] + idx.all_targets()
+
+    records = {}
+    closure = {}
+    for path in dict.fromkeys(Path(t).resolve() for t in targets):
+        doc = nfx.read(path)
+        record = {"name": doc.name or path.stem, "type": doc.type, "path": str(path),
+                  "started": time.monotonic(), "failures": [], "warnings": []}
+        records[path] = record
+        if doc.is_namespace:
+            record["failures"] = nf_repo.namespace_failures(idx, path)
+        else:
+            record["failures"] = nf_repo.document_failures(idx, path)
+            if not record["failures"]:
+                closure[path] = [Path(p).resolve() for p in topo_targets(onto_idx, path, metaontology_nid)]
+        record["duration_s"] = time.monotonic() - record.pop("started")
+
+    loaded: set[Path] = set()
+    remaining = list(closure)
+    while remaining:
+        path = next((p for p in remaining if loaded <= set(closure[p])), remaining[0])
+        remaining.remove(path)
+        record = records[path]
+        started = time.monotonic()
+        if not loaded <= set(closure[path]):
+            nb.clear(confirm=True)
+            loaded = set()
+        for dep in closure[path]:
+            if dep not in loaded:
+                nb.metaontology.import_nfx(dep, index=onto_idx)
+                loaded.add(dep)
+        if record["type"] == "knowledge":
+            nb.metaontology.violations = OntologyViolations()
+            validate_knowledge(nb, path)
+        else:
+            nb.metaontology.is_ontology_valid()
+        record["failures"] += [str(v) for v in nb.metaontology.violations]
+        record["warnings"] = [str(w) for w in nb.metaontology.violations.warnings]
+        record["failures"] += [str(e) for e in idx.check_dependency_versions(path)]
+        output = _run_module_tests(path, roots)
+        if output:
+            record["failures"].append(output)
+        record["duration_s"] += time.monotonic() - started
+
+    for record in records.values():
+        record["outcome"] = "failed" if record["failures"] else "passed"
+        record["duration_s"] = round(record["duration_s"], 3)
+        record["failure_count"] = len(record["failures"])
+    return list(records.values())
+
+
+def report_tests(records, fmt="text"):
+    """Print the records of `run_tests`; exit 1 when any document failed."""
+    if fmt == "json":
+        print(json.dumps(records, indent=2, default=str))
+    else:
+        for record in records:
+            mark = terminal_style.FAIL if record["failures"] else terminal_style.SUCCESS
+            print(f"{mark} {record['name']}")
+            for entry in record["failures"]:
+                for line in entry.splitlines():
+                    print(f"  {line}")
+            for w in record["warnings"]:
+                print(f"  {w}")
+    if any(r["failures"] for r in records):
+        raise SystemExit(1)
+
+
 def print_browser_url():
     """Print the Neo4j browser URL for the running neurobase."""
     http_port = os.environ["NEO4J_PORT_HTTP"]
@@ -311,6 +477,45 @@ def index(c, namespace=""):
     else:
         rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns) for t, n, v, nid, ns in entries]
         terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace"))
+
+
+def _test_targets(idx, target):
+    """Paths for a comma-separated `-t`: each a document by stem, name, nid or
+    path; `namespace` names every root's declaration."""
+    paths = []
+    for key in (k.strip() for k in target.split(",")):
+        if not key:
+            continue
+        if key.lower() == "namespace":
+            paths += [ns.path for ns in idx.namespaces()]
+            continue
+        path = idx.resolve(Path(key).stem if key.endswith(".nfx") and not Path(key).exists() else key)
+        if not path:
+            print(f"{terminal_style.FAIL} Nfx not found: {key}")
+            raise SystemExit(1)
+        paths.append(path)
+    return paths
+
+
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], help={
+    "target": "Documents to test, comma-separated (stem, name, nid or path; `namespace` = the declarations). "
+              "Default: everything.",
+    "roots": "Colon-separated roots to read instead of this environment's PLUGINS",
+    "fmt": "`json`: one record per document on stdout",
+    "out": "Also write the records as JSON to this file (what `nf.release` reads)",
+})
+def test(c, target="", roots="", fmt="text", out=""):
+    """Test .nfx documents in the test base, each by its type: an ontology's schema and
+    validator tests, a knowledge document's values, a namespace's declaration."""
+    root_list = [Path(r).expanduser() for r in roots.split(":") if r] or plugins.effective_roots()
+    idx = NfxIndex(*root_list)
+    targets = _test_targets(idx, target) if target else None
+    neurobase.clear(c, confirmed=True)
+    with NeuroBase() as nb:
+        records = run_tests(nb, root_list, targets)
+    if out:
+        Path(out).write_text(json.dumps(records, indent=2, default=str))
+    report_tests(records, fmt)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
