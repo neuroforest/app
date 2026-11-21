@@ -169,7 +169,7 @@ def history(c, src, dst, nid="", verbose=False):
 
 def _repo(root):
     try:
-        return nf_repo.Repo(Path(root or ".").expanduser())
+        return nf_repo.Repo(Path(root).expanduser() if root else _caller_root())
     except (ValueError, RuntimeError) as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
 
@@ -207,6 +207,24 @@ def order(c, root=""):
         print(f"{terminal_style.DIM}[{i}]{terminal_style.RESET} {rel}  {name}@{version}")
 
 
+def _key(target):
+    """A module is named by stem, name or nid - and a file path
+    (`knowledge/stains.nfx`, absolute or not) names the module of that stem."""
+    target = target.strip()
+    return Path(target).stem if target.endswith(".nfx") else target
+
+
+def _caller_root():
+    """The .nf root the task was called from. `setup.env` changes into APP_DIR,
+    but the shell's `PWD` still names where the caller stood; the root is that
+    directory or the nearest parent holding a namespace declaration."""
+    here = Path(os.environ.get("PWD") or ".").expanduser()
+    for d in (here, *here.parents):
+        if (d / nfx.NAMESPACE_FILENAME).is_file():
+            return d
+    raise SystemExit(f"{terminal_style.FAIL} {here}: not inside a .nf root - pass --root")
+
+
 def _owner_root(key):
     """The root among PLUGINS that holds the document `key` names."""
     roots = plugins.effective_roots()
@@ -219,8 +237,8 @@ def _owner_root(key):
 
 @invoke.task(pre=[setup.env])
 def release(c, target, root="", major=False, dry_run=False, message=""):
-    """Release documents (comma-separated) with their in-root dependants: re-pin, bump, one commit, one tag each."""
-    targets = [t.strip() for t in target.split(",") if t.strip()]
+    """Release documents (comma-separated) with their in-root dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit."""
+    targets = [_key(t) for t in target.split(",") if t.strip()]
     repo = _repo(root or _owner_root(targets[0]))
     others = plugins.effective_roots()
     try:
@@ -245,7 +263,8 @@ def release(c, target, root="", major=False, dry_run=False, message=""):
 
 @invoke.task(pre=[setup.env])
 def rename(c, target, new, root="", dry_run=False):
-    """Rename a module inside its root: files, name, test path and tags in one `REFACTOR:` commit, no version bump."""
+    """Rename a module inside its root: files, name, test path and tags in one `REFACTOR:` commit - a release like any change: next version, dependants re-pinned."""
+    target = _key(target)
     repo = _repo(root or _owner_root(target))
     try:
         plan = repo.plan_rename(target, new)
@@ -272,6 +291,7 @@ def rename(c, target, new, root="", dry_run=False):
 @invoke.task(name="move", pre=[setup.env])
 def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
     """Move a module into another .nf root: one `MIGRATE:` commit at each end, history left where it was."""
+    target = _key(target)
     source = _repo(root or _owner_root(target))
     dest = _repo(to)
     others = plugins.effective_roots()
@@ -299,15 +319,20 @@ def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
 
 @invoke.task(name="log", pre=[setup.env])
 def log_(c, target, root="", via=""):
-    """A module's whole history, newest first, across its renames and moves; --via: more roots (comma-separated) to follow, before PLUGINS."""
-    repo = _repo(root or _owner_root(target))
+    """A module's whole history, newest first, across its renames and moves; --via: more roots (comma-separated) to follow, before PLUGINS. `namespace` (or `namespace.nfx`): the declaration's history, in --root or the root you are in."""
+    target = _key(target)
     extra = [Path(r).expanduser() for r in via.split(",") if r.strip()]
     try:
-        entries, note = nf_repo.module_log(repo, target, roots=[*extra, *plugins.effective_roots()])
+        if target == Path(nfx.NAMESPACE_FILENAME).stem:
+            entries, note = nf_repo.namespace_log(_repo(root)), None
+        else:
+            repo = _repo(root or _owner_root(target))
+            entries, note = nf_repo.module_log(repo, target, roots=[*extra, *plugins.effective_roots()])
     except (ValueError, RuntimeError) as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
-    rows = [(e.date, e.token or ROOT_MARK, e.sha[:7], e.subject, e.version, ", ".join(e.tags)) for e in entries]
-    terminal_components.table(rows, header=("Date", "Root", "Commit", "Subject", "Version", "Tags"))
+    # the subject sits before the tags and runs over that column where a commit has none
+    rows = [(e.date, e.token or ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)) for e in entries]
+    terminal_components.table(rows, header=("Date", "Root", "Commit", "Version", "Subject", "Tags"), shrink=4)
     if note:
         print(f"\n{terminal_style.WARN} {note}")
 
