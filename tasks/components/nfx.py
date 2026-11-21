@@ -330,13 +330,21 @@ def _run_module_tests(path, roots):
     return (result.stdout + result.stderr).rstrip() or f"pytest failed (exit {result.returncode})"
 
 
+def _expects_violations(record):
+    """A knowledge document named `<concern>-fail.nfx` is a fixture of invalid
+    instances: its value violations are what it is for, asserted by the suite
+    that loads it. Its form and its pins are judged like any document's."""
+    return record["type"] == "knowledge" and Path(record["path"]).stem.endswith("-fail")
+
+
 def run_tests(nb, roots, targets=None):
     """Test `.nfx` documents, each by its type; one record per document.
 
     - ontology / metaontology: imported with its closure, the schema judged
       (`is_ontology_valid`), its pins checked, its pytest file run;
     - knowledge: its ontology closure imported, every node's values judged
-      against it, its pins checked, its pytest file run;
+      against it, its pins checked, its pytest file run; a `<concern>-fail.nfx`
+      fixture keeps its value violations under `expected`, not `failures`;
     - namespace: the declaration's own form and pins - it has no schema.
 
     `targets` are paths (default: every document of `roots`, declarations
@@ -387,7 +395,11 @@ def run_tests(nb, roots, targets=None):
             validate_knowledge(nb, path)
         else:
             nb.metaontology.is_ontology_valid()
-        record["failures"] += [str(v) for v in nb.metaontology.violations]
+        violations = [str(v) for v in nb.metaontology.violations]
+        if _expects_violations(record):
+            record["expected"] = violations
+        else:
+            record["failures"] += violations
         record["warnings"] = [str(w) for w in nb.metaontology.violations.warnings]
         record["failures"] += [str(e) for e in idx.check_dependency_versions(path)]
         output = _run_module_tests(path, roots)
@@ -415,6 +427,8 @@ def report_tests(records, fmt="text"):
                     print(f"  {line}")
             for w in record["warnings"]:
                 print(f"  {w}")
+            if record.get("expected"):
+                print(f"  {len(record['expected'])} violation(s), as the fixture intends")
     if any(r["failures"] for r in records):
         raise SystemExit(1)
 

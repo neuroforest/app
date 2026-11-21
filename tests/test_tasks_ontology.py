@@ -86,7 +86,7 @@ def test_document_failures(tmp_path):
     import uuid
     from types import SimpleNamespace
 
-    from tasks.components.ontology import _document_failures
+    from neuro.base.nf_repo import document_failures as _document_failures
 
     a, b = str(uuid.uuid4()), str(uuid.uuid4())
     rel = {"from": a, "to": b, "type": "USES"}

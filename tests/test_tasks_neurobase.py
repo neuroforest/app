@@ -177,6 +177,21 @@ def test_multilabel_write_path_rejects_redundant(test_ontology_child):
     assert "redundant label" in str(exc.value)
 
 
+def test_run_tests(nb):
+    """A `-fail` fixture's value violations are expected, a clean one has none,
+    and neither fails on form or pins."""
+    from neuro.base import plugins
+    from tasks.components import nfx as nfx_tasks
+
+    paths = [KNOWLEDGE / "test-pass.nfx", KNOWLEDGE / "required-property-fail.nfx"]
+    by_name = {r["name"]: r for r in nfx_tasks.run_tests(nb, plugins.effective_roots(), paths)}
+
+    assert by_name["TestPass"]["failures"] == [] and "expected" not in by_name["TestPass"]
+    failing = by_name["TestRequiredPropertyFail"]
+    assert failing["failures"] == [] and failing["outcome"] == "passed"
+    assert len(failing["expected"]) == 1 and "missing" in failing["expected"][0]
+
+
 def test_start():
     neurobase.start(MockContext())
     with NeuroBase() as nb:
