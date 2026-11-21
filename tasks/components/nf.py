@@ -319,7 +319,7 @@ def move_(c, target, to, root="", with_dependants=False, as_="", dry_run=False):
 
 @invoke.task(name="log", pre=[setup.env])
 def log_(c, target, root="", via=""):
-    """A module's whole history, newest first, across its renames and moves; --via: more roots (comma-separated) to follow, before PLUGINS. `namespace` (or `namespace.nfx`): the declaration's history, in --root or the root you are in."""
+    """A module's whole history, newest first, across its renames and moves - its own changes plain, a commit that only re-pins a dependency dimmed; --via: more roots (comma-separated) to follow, before PLUGINS. `namespace` (or `namespace.nfx`): the declaration's history, in --root or the root you are in."""
     target = _key(target)
     extra = [Path(r).expanduser() for r in via.split(",") if r.strip()]
     try:
@@ -331,7 +331,12 @@ def log_(c, target, root="", via=""):
     except (ValueError, RuntimeError) as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
     # the subject sits before the tags and runs over that column where a commit has none
-    rows = [(e.date, e.token or ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)) for e in entries]
+    def dim(e, cells):
+        # cell by cell: the table pads and cuts each cell on its own
+        return tuple(f"{terminal_style.DIM}{v}{terminal_style.RESET}" if e.repin and v else v for v in cells)
+
+    rows = [dim(e, (e.date, e.token or ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)))
+            for e in entries]
     terminal_components.table(rows, header=("Date", "Root", "Commit", "Version", "Subject", "Tags"), shrink=4)
     if note:
         print(f"\n{terminal_style.WARN} {note}")
@@ -346,6 +351,9 @@ def hooks_install(c, root="", runner=""):
     repo = _repo(root)
     try:
         wrote = repo.install(runner)
+    repins = sum(e.repin for e in entries)
+    if repins:
+        print(f"\n{terminal_style.DIM}{repins} of {len(entries)} commit(s) only re-pin a dependency{terminal_style.RESET}")
     except FileExistsError as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
     for path in wrote:
