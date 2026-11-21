@@ -1,11 +1,11 @@
 {
     "type": "knowledge",
     "nid": "78dbf59b-749b-43ef-bd2c-e0b4efccc955",
+    "version": "1.0",
     "name": "TestPass",
     "description": "Clean instances of Test types - should validate without violations",
-    "version": "1.0",
     "dependencies": [
-        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@2.1"
     ],
     "nodes": [
         {

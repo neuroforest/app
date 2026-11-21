@@ -1,11 +1,11 @@
 {
     "type": "knowledge",
     "nid": "3bca8b54-4a2a-4ef1-8c64-7f9f192ab3bb",
+    "version": "1.0",
     "name": "TestUniqueFail",
     "description": "Duplicate values for HAS_KEY and UNIQUE_PROPERTY",
-    "version": "1.0",
     "dependencies": [
-        "e75a8385-4d8f-43ad-8df0-31124369d0bd@1.0"
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@2.1"
     ],
     "nodes": [
         {
@@ -28,6 +28,5 @@
             "labels": ["TestUnique"],
             "properties": {"code": "DUP"}
         }
-    ],
-    "relationships": []
+    ]
 }
