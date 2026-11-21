@@ -691,8 +691,7 @@ _RELEASED = """
           WHERE NOT keeper.nid IN $doomed | keeper.name] AS claimed_by
     OPTIONAL MATCH (n)-[r]-(o)
     WHERE NOT o IN released
-      AND NOT any(lbl IN labels(o) WHERE lbl IN
-            ['OntologyMetadata', 'KnowledgeMetadata'])
+      AND NOT (o:Metadata+)
       AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
     RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
            labels(n)[0] AS kind, claimed_by,

@@ -51,15 +51,12 @@ def print_import_report(status, report):
 # `OntologyNode`, relationship types are `OntologyRelationship`, and a property
 # is labelled by its *type* - `Uuid`, `String`, `DateTime`, … - which is why an
 # enumeration of the first two silently skipped a whole third of the layer.
-# Ask the metaontology for the subtree rather than restating it, so a new
-# property type is covered the day it is declared. Leaves `orphans` (a list of
-# nodes) in scope.
+# Ask the metaontology for the subtree rather than restating it (`:Label+`,
+# `neuro.base.labels`), so a new property type is covered the day it is
+# declared. Leaves `orphans` (a list of nodes) in scope.
 _ORPHAN_SCOPE = """
-    MATCH (root:OntologyNode {label: 'OntologyObject'})
-    MATCH (kind:OntologyNode)-[:SUBCLASS_OF*0..]->(root)
-    WITH collect(DISTINCT kind.label) AS kinds
-    MATCH (n) WHERE any(l IN labels(n) WHERE l IN kinds)
-      AND NOT (n)<-[:DEFINES]-(:OntologyMetadata)
+    MATCH (n:OntologyObject+)
+    WHERE NOT (n)<-[:DEFINES]-(:OntologyMetadata)
     WITH collect(n) AS orphans
 """
 
@@ -78,8 +75,7 @@ _ORPHANS = _ORPHAN_SCOPE + """
 _ORPHANS_WITH_EDGES = _ORPHAN_SCOPE + """
     UNWIND orphans AS n
     OPTIONAL MATCH (n)-[r]-(o)
-    WHERE NOT any(lbl IN labels(o) WHERE lbl IN
-            ['OntologyMetadata', 'KnowledgeMetadata'])
+    WHERE NOT (o:Metadata+)
       AND NOT (o)<-[:DEFINES]-(:OntologyMetadata)
       AND NOT o IN orphans
     RETURN n.nid AS nid, coalesce(n.label, n.nid) AS label,
