@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from neuro.base import nf_repo, nfx, plugins
+from neuro.base import nf_repo, nf_trees, nfx, plugins
 from neuro.base.index import NfxIndex
 from neuro.utils import terminal_components, terminal_style
 
@@ -55,18 +55,31 @@ def caller_tree():
     raise SystemExit(f"{terminal_style.FAIL} {here}: not inside a .nf tree - pass --tree")
 
 
+def registered():
+    """The machine's tree registry (`~/.config/nf/trees.toml`), as `nf_trees.Tree`s."""
+    try:
+        return nf_trees.read()
+    except nf_trees.RegistryError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+
+
 def tree_path(tree):
     """A tree is named by its path or by its namespace token (`root` or `·`:
-    the empty one), the token looked up among this environment's trees."""
+    the empty one), the token looked up in the machine's registry, then among
+    this environment's trees (the app's own tree is in no registry)."""
     path = Path(tree).expanduser()
     if path.exists():
         return path
+    known = nf_trees.by_token(tree, registered())
+    if known is not None and known.present:
+        return known.path
     want = "" if tree in ROOT_WORDS else tree
     roots = plugins.effective_roots()
     idx = NfxIndex(*roots)
     found = [r for r in roots if (ns := idx.namespace_of(r)) is not None and (ns.token or "") == want]
     if len(found) != 1:
-        raise SystemExit(f"{terminal_style.FAIL} {tree}: neither a path nor the token of a tree in PLUGINS")
+        raise SystemExit(f"{terminal_style.FAIL} {tree}: neither a path nor the token of a registered tree "
+                         f"or of one in PLUGINS")
     return Path(found[0])
 
 

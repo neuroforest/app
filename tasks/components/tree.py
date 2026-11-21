@@ -4,6 +4,10 @@ A tree task is addressed by `--tree`: a path, or the tree's namespace token
 (`root` for the empty one); without it, the tree the shell stands in. The
 forest is `nf.*`, one module is `nfx.*`.
 
+The trees of this machine are recorded in one file, `~/.config/nf/trees.toml`
+(`neuro.base.nf_trees`): `tree.init`, `tree.register`, `tree.move` and
+`tree.split` write it, `tree.forget` drops a line, `nf.trees` shows it.
+
 `tree.import` copies a legacy plugins root into a tree
 (rules in `neuro.base.nf_import`). It always builds the copy in a scratch `.nf`
 first and validates it there; `--dry-run` stops after printing the mapping and
@@ -20,7 +24,7 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import nf_import, nf_repo, nf_split, nfx, plugins
+from neuro.base import nf_import, nf_repo, nf_split, nf_trees, nfx, plugins
 from neuro.base.index import NfxIndex
 from neuro.utils import terminal_components, terminal_style
 
@@ -204,6 +208,110 @@ def hooks(c, tree="", runner=""):
         print(f"{terminal_style.DIM}the shims are versioned with the tree: commit {nf_repo.SHIM_DIR}/{terminal_style.RESET}")
 
 
+def _register(root, replace=False):
+    """Record the tree at `root` in the machine's registry and say so; a refusal is reported, not fatal."""
+    try:
+        t = nf_trees.register(root, replace)
+    except nf_trees.RegistryError as e:
+        print(f"{terminal_style.WARN} {root} not registered: {e}")
+        return None
+    print(f"{terminal_style.SUCCESS} registered {t.word:<10} {t.path}  ({t.nid[:8]})")
+    return t
+
+
+@invoke.task(pre=[setup.env], help={
+    "to": "Where the tree goes: a directory named .nf that does not exist yet (or is empty)",
+    "token": "Its namespace token (`root` for the empty one)",
+    "name": "Its name (default: the token)",
+    "description": "One line on what the tree holds",
+    "pins": "Namespaces it may depend on besides the app's own, comma-separated tokens of trees on this machine",
+    "runner": "The wrapper its hooks call (e.g. /path/to/wrapper); required, there is no default",
+    "no-commit": "Stop before the first commit",
+})
+def init(c, to, token, runner, name="", description="", pins="", no_commit=False):
+    """Make an empty tree: the directory, a repository, namespace.nfx with a fresh nid, hooks, a line in the registry. Inside a project's work tree the tree joins that repository."""
+    root = Path(to).expanduser()
+    words = [nf_common.tree_path(p.strip()) for p in pins.split(",") if p.strip()]
+    try:
+        pinned = [nf_trees.declared(r) for r in (Path(os.environ["APP_DIR"]).resolve() / plugins.NF_DIRNAME, *words)]
+        doc = nf_trees.init(root, token, name, description, [(ns.nid, ns.version) for ns in pinned])
+    except nf_trees.RegistryError as e:
+        nf_common.refused("init", e.issues)
+    repo = nf_common.repo(str(root))
+    try:
+        repo.install(runner)
+    except FileExistsError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    word = doc.namespace or "root"
+    print(f"{terminal_style.SUCCESS} {repo.root}: namespace {word} ({doc.nid}), hooks through `{runner}`")
+    if repo.top != repo.root:
+        print(f"{terminal_style.DIM}it is part of the repository {repo.top}{terminal_style.RESET}")
+    if not no_commit:
+        paths = [repo.show(nfx.NAMESPACE_FILENAME), repo.show(nf_repo.SHIM_DIR)]
+        repo.git("add", "--", *paths)
+        try:
+            repo.git("commit", "-q", "-m", f"ADD: namespace {word}", "--", *paths)
+        except RuntimeError as e:
+            raise SystemExit(f"{terminal_style.FAIL} the first commit was refused; the tree is left as written:\n{e}")
+        print(f"{terminal_style.SUCCESS} committed {repo.rev('HEAD')[:7]}")
+    _register(repo.root)
+    print(f"\nAdd @{word} to PLUGINS of each environment that uses it.")
+
+
+@invoke.task(pre=[setup.env], help={
+    "tree": "The tree to record: a path (default: the tree the shell stands in)",
+    "replace": "Point the registry here although another checkout of this namespace is registered",
+})
+def register(c, tree="", replace=False):
+    """Record a tree that arrived by clone (or by hand) in the machine's registry, and make its remotes fetch the origin notes."""
+    repo = nf_common.repo(tree)
+    try:
+        t = nf_trees.register(repo.root, replace)
+    except nf_trees.RegistryError as e:
+        nf_common.refused("register", e.issues)
+    print(f"{terminal_style.SUCCESS} registered {t.word}  {t.path}  ({t.nid})")
+    for remote in repo.track_notes():
+        print(f"  {remote} now fetches {nf_repo.NOTES_REF} - `git -C {repo.top} fetch {remote}` brings them")
+    state = repo.hooks_state()
+    if state != "current":
+        print(f"{terminal_style.WARN} hooks: {state} - run `tree.hooks --tree {repo.root} --runner <wrapper>`")
+    if repo.root not in plugins.effective_roots():
+        print(f"{terminal_style.DIM}not in this environment's scope: add @{t.word} to PLUGINS to load it{terminal_style.RESET}")
+
+
+@invoke.task(pre=[setup.env], help={"tree": "The line to drop: a path, a namespace token or a nid"})
+def forget(c, tree):
+    """Drop a tree's line from the machine's registry. Touches no directory; `tree.register` puts it back."""
+    try:
+        gone = nf_trees.forget(tree)
+    except nf_trees.RegistryError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    if gone is None:
+        raise SystemExit(f"{terminal_style.FAIL} {tree}: no such tree in {nf_trees.registry_path()}")
+    print(f"{terminal_style.SUCCESS} forgot {gone.word}  {gone.path}  ({gone.nid})")
+
+
+@invoke.task(pre=[setup.env], help={
+    "to": "The new location: a directory named .nf that does not exist yet",
+    "tree": "The tree to move: a path or a namespace token (default: the tree the shell stands in)",
+})
+def move(c, to, tree=""):
+    """Relocate a tree and rewrite its line in the registry. No commit: nothing inside the repository holds its own path."""
+    old = nf_common.repo(tree).root
+    try:
+        t = nf_trees.move(old, to)
+    except nf_trees.RegistryError as e:
+        nf_common.refused("move", e.issues)
+    print(f"{terminal_style.SUCCESS} moved {t.word}  {old} → {t.path}")
+    stale = [entry for entry, path in plugins.scope()
+             if not entry.startswith("@") and path is not None and path.resolve() == old]
+    for entry in stale:
+        print(f"{terminal_style.WARN} PLUGINS of this environment still names the old path ({entry}) - "
+              f"write @{t.word} instead")
+    print(f"{terminal_style.DIM}other environments and programs that name {old} by path need the same edit; "
+          f"`@{t.word}` entries follow by themselves{terminal_style.RESET}")
+
+
 @invoke.task(pre=[setup.env], help={
     "target": "Modules to spin off, comma-separated (stem, name, nid or path)",
     "to": "Where the new tree goes: a directory named .nf that does not exist yet",
@@ -216,10 +324,11 @@ def hooks(c, tree="", runner=""):
     "swap": "Put the split staged in this directory in place",
     "no-test": "Skip `nfx.test` over the staged trees",
     "no-notify": "With --swap: do not run git's post-rewrite hook in the outputs",
+    "no-register": "With --swap: leave the machine's tree registry alone (scratch work)",
     "rewrite-published": "Allow splitting a tree that has a remote (its clones and the remote must then be redone)",
 })
 def split(c, target="", to="", token="", name="", tree="", manifest="", with_dependants=False, dry_run=False,
-          swap="", no_test=False, no_notify=False, rewrite_published=False):
+          swap="", no_test=False, no_notify=False, no_register=False, rewrite_published=False):
     """Split a tree's repository: the named modules leave with their whole history for a tree of their own, and the original keeps none of it. Builds the parts beside the source and verifies them; --swap puts them in place. Pushes nothing."""
     if swap:
         try:
@@ -234,7 +343,14 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
             force = " --force" if n == 0 else ""
             print(f"  git -C {o['to']} push <remote> {state['branch']} --tags{force}")
             print(f"  git -C {o['to']} push <remote> {nf_split.NOTES_REF}{force}")
-        print("\nList each new tree in PLUGINS where its modules are used.")
+        if no_register:
+            print("\nNot registered (--no-register): `tree.register --tree <path>` records a tree.")
+            return
+        print()
+        for o in state["outputs"]:
+            _register(o["to"])
+        new = " · ".join(f"@{o['word']}" for o in state["outputs"][1:])
+        print(f"\nAdd {new} to PLUGINS of each environment that uses those modules.")
         return
 
     if manifest:
