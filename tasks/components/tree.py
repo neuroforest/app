@@ -318,8 +318,11 @@ def move(c, to, tree=""):
     "token": "The new tree's namespace token",
     "name": "The new tree's name (default: the token)",
     "tree": "The tree to split (default: the one holding the first module)",
-    "manifest": "A JSON file `{\"outputs\": [{token, to, modules, name?, description?, nid?, strip_prefix?, rename?}, …]}` "
-                "for several new trees; `strip_prefix` / `rename: {module: stem}` rename modules throughout the new tree's history",
+    "manifest": "A JSON file `{\"outputs\": [{token, to, modules, name?, description?, nid?, strip_prefix?, rename?, "
+                "gone?}, …], \"rename\"?, \"events\"?}` for several new trees; `strip_prefix` / `rename: {module: stem}` "
+                "rename modules throughout the new tree's history, `gone` lists the nids of deleted modules whose "
+                "history goes along; the top-level `rename: {stem: stem}` does it in the tree that stays, and "
+                "`events: false` leaves the split's event commits out",
     "with-dependants": "Take the in-tree dependants of the named modules along",
     "dry-run": "Print the partition and stop",
     "swap": "Put the split staged in this directory in place",
@@ -354,8 +357,10 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
         print(f"\nAdd {new} to PLUGINS of each environment that uses those modules.")
         return
 
+    kept_rename, events = None, True
     if manifest:
-        parts = json.loads(Path(manifest).expanduser().read_text())["outputs"]
+        doc = json.loads(Path(manifest).expanduser().read_text())
+        parts, kept_rename, events = doc["outputs"], doc.get("rename"), doc.get("events", True)
     else:
         if not (target and to):
             raise SystemExit(f"{terminal_style.FAIL} name the modules and --to (or pass --manifest)")
@@ -366,7 +371,7 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
     repo = nf_common.repo(tree or (str(nf_common.owner_tree(first)) if first else ""))
     others = plugins.effective_roots()
     try:
-        p = nf_split.plan(repo, parts, others, with_dependants, rewrite_published)
+        p = nf_split.plan(repo, parts, others, with_dependants, rewrite_published, rename=kept_rename, events=events)
     except nf_split.SplitRefused as e:
         nf_common.refused("split", e.issues)
 
@@ -375,8 +380,15 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
             for o in p.outputs]
     terminal_components.table(rows, header=("Tree", "Goes to", "Modules", "Commits", "Tags"))
     print(f"\n{p.shared} source commit(s) become a commit in more than one tree")
-    for o in p.outputs[1:]:
-        print(f"\n{o.word}: {', '.join(sorted(p.stems[n][1] for n in o.modules))}")
+    for o in p.outputs:
+        if o.to is not None:
+            print(f"\n{o.word}: {', '.join(sorted(p.stems[n][1] for n in o.modules))}")
+        elif p.renamed.get(o.token):
+            print(f"\n{o.word}:")
+        dead = sorted(nid for nid, t in p.gone.items() if t == o.token)
+        if dead:
+            print(f"{terminal_style.DIM}  takes the history of {len(dead)} deleted module(s): "
+                  f"{', '.join(dead)}{terminal_style.RESET}")
         renamed = sorted(p.renamed.get(o.token, {}).items())
         if renamed:
             print(f"{terminal_style.DIM}  renamed throughout its history ({len(renamed)}): "
