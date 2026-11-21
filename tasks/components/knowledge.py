@@ -8,7 +8,7 @@ from neuro.base.index import KnowledgeIndex, OntologyIndex
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
+from tasks.components import neurobase, nf_common, nfx as nfx_tasks
 
 
 @invoke.task(pre=[setup.env])
@@ -32,7 +32,7 @@ def index(c, knowledge=""):
             rel = str(path)
         rows.append((
             entry.name or path.stem, entry.version, (entry.nid or "")[:8],
-            nf_tasks.namespace_label(idx, entry.registry_root), rel,
+            nf_common.namespace_label(idx, entry.registry_root), rel,
         ))
     rows.sort(key=lambda r: r[0].casefold())
     terminal_components.table(rows, header=("Name", "Version", "NID", "Namespace", "Path"))

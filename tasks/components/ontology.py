@@ -11,7 +11,7 @@ from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
-from tasks.components import neurobase, nf as nf_tasks, nfx as nfx_tasks
+from tasks.components import neurobase, nf_common, nfx as nfx_tasks
 
 
 @invoke.task(name="import", pre=[setup.env])
@@ -154,7 +154,7 @@ def index(c, tree=False, ontology=""):
             entry.name or path.stem,
             entry.version,
             (entry.nid or "")[:8],
-            nf_tasks.namespace_label(idx, entry.registry_root),
+            nf_common.namespace_label(idx, entry.registry_root),
             rel,
         ))
     rows.sort(key=lambda r: (r[0].casefold() != "metaontology", r[0].casefold()))

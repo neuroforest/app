@@ -13,7 +13,7 @@ from neuro.base.ontology import ObjectValidator
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase, nf as nf_tasks
+from tasks.components import neurobase, nf_common
 
 
 def make_dep_logger(status):
@@ -446,39 +446,6 @@ def print_dependencies(idx, doc):
             print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
 
 
-@invoke.task(pre=[setup.env], help={
-    "namespace": "Only this namespace's documents (`root` or `·` for the empty token)",
-})
-def index(c, namespace=""):
-    """Show every discovered .nfx (ontology, knowledge, metaontology) in one table;
-    --namespace narrows to one root."""
-    roots = plugins.effective_roots()
-    idx = NfxIndex(*roots)
-    want = "root" if namespace == "·" else namespace
-
-    type_label = {"metaontology": "meta", "ontology": "onto", "knowledge": "know"}
-    type_order = {"metaontology": 0, "ontology": 1, "knowledge": 2}
-    entries = []
-    seen = set()
-    for entry in idx.entries():
-        ns = nf_tasks.namespace_label(idx, entry.registry_root)
-        typed = "root" if ns == nf_tasks.ROOT_MARK else ns
-        seen.add(typed)
-        if want and typed != want:
-            continue
-        entries.append((entry.type, entry.name or entry.path.stem, entry.version, entry.nid, ns))
-    if want and not entries:
-        print(f"{terminal_style.FAIL} no namespace {namespace!r} - known: {', '.join(sorted(seen))}")
-        raise SystemExit(1)
-    entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1].casefold()))
-    if want:
-        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8]) for t, n, v, nid, _ in entries]
-        terminal_components.table(rows, header=("Type", "Name", "Version", "NID"))
-    else:
-        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns) for t, n, v, nid, ns in entries]
-        terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace"))
-
-
 def _test_targets(idx, target):
     """Paths for a comma-separated `-t`: each a document by stem, name, nid or
     path; `namespace` names every root's declaration."""
@@ -500,14 +467,14 @@ def _test_targets(idx, target):
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], help={
     "target": "Documents to test, comma-separated (stem, name, nid or path; `namespace` = the declarations). "
               "Default: everything.",
-    "roots": "Colon-separated roots to read instead of this environment's PLUGINS",
+    "trees": "Colon-separated trees to read instead of this environment's PLUGINS",
     "fmt": "`json`: one record per document on stdout",
-    "out": "Also write the records as JSON to this file (what `nf.release` reads)",
+    "out": "Also write the records as JSON to this file (what `nfx.release` reads)",
 })
-def test(c, target="", roots="", fmt="text", out=""):
+def test(c, target="", trees="", fmt="text", out=""):
     """Test .nfx documents in the test base, each by its type: an ontology's schema and
     validator tests, a knowledge document's values, a namespace's declaration."""
-    root_list = [Path(r).expanduser() for r in roots.split(":") if r] or plugins.effective_roots()
+    root_list = [Path(r).expanduser() for r in trees.split(":") if r] or plugins.effective_roots()
     idx = NfxIndex(*root_list)
     targets = _test_targets(idx, target) if target else None
     neurobase.clear(c, confirmed=True)
@@ -560,3 +527,119 @@ def render(c, name=""):
                 imported.add(path)
 
     print_browser_url()
+
+
+# ---- a module in its tree: release, rename, move, log -------------------
+
+
+@invoke.task(pre=[setup.env], help={
+    "target": "Modules to release, comma-separated (stem, name, nid or path)",
+    "tree": "The tree that holds them (default: found through PLUGINS)",
+    "no-test": "Skip `nfx.test` on the release (schema, values, validator tests in the test base)",
+})
+def release(c, target, tree="", major=False, dry_run=False, message="", no_test=False):
+    """Release documents (comma-separated) with their in-tree dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit. The release is tested first (`nfx.test`) and refused on a failure."""
+    targets = [nf_common.key(t) for t in target.split(",") if t.strip()]
+    repo = nf_common.repo(tree or nf_common.owner_tree(targets[0]))
+    others = plugins.effective_roots()
+    try:
+        steps = repo.plan_release(targets, major, others) if dry_run else None
+        if not dry_run:
+            sha, steps, tags = repo.release(targets, major, others, message or None,
+                                            gate=None if no_test else nf_common.test_gate(repo, others))
+    except ValueError as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        nf_common.refused("release", e.issues)
+    rows = [("●" if s.seed else "↳", str(s.rel), f"{s.old} → {s.new}", ", ".join(s.repins),
+             "unreleased edits" if s.carries else "") for s in steps]
+    terminal_components.table(rows, header=("", "Document", "Version", "Re-pins", "Also carries"))
+    if dry_run:
+        print(f"\n{len(steps)} document(s) would be released - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {sha[:7]} released {len(steps)} document(s) · {len(tags)} tag(s)")
+
+
+@invoke.task(pre=[setup.env])
+def rename(c, target, new, tree="", dry_run=False):
+    """Rename a module inside its tree: files, name, test path and tags in one `REFACTOR:` commit - a release like any change: next version, dependants re-pinned."""
+    target = nf_common.key(target)
+    repo = nf_common.repo(tree or nf_common.owner_tree(target))
+    try:
+        plan = repo.plan_rename(target, new)
+        if not dry_run:
+            sha, plan = repo.rename(target, new, plugins.effective_roots())
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        nf_common.refused("rename", e.issues)
+    rows = [(repo.show(a), repo.show(b)) for a, b in plan.files] + list(plan.tags)
+    terminal_components.table(rows, header=("From", "To"))
+    if dry_run:
+        print(f"\n{plan.event.subject} - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {sha[:7]} {plan.event.subject} · {len(plan.tags)} tag(s) moved")
+    print(f"{terminal_style.DIM}pushed already? the remote still has the old tags: "
+          f"git push <remote> {' '.join(f':refs/tags/{a}' for a, _ in plan.tags)} "
+          f"{' '.join(f'refs/tags/{b}' for _, b in plan.tags)}{terminal_style.RESET}")
+
+
+@invoke.task(name="move", pre=[setup.env], help={
+    "to": "The tree it goes to: a path or a namespace token",
+    "tree": "The tree it leaves (default: found through PLUGINS)",
+})
+def move_(c, target, to, tree="", with_dependants=False, as_="", dry_run=False):
+    """Move a module into another tree: one `MIGRATE:` commit at each end, history left where it was."""
+    target = nf_common.key(target)
+    source = nf_common.repo(tree or nf_common.owner_tree(target))
+    dest = nf_common.repo(to)
+    others = plugins.effective_roots()
+    try:
+        if dry_run:
+            plan = nf_repo.plan_move(source, dest, target, with_dependants, as_, others)
+        else:
+            plan, departed, arrived = nf_repo.move(source, dest, target, with_dependants, as_, others)
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+    except nf_repo.ReleaseRefused as e:
+        nf_common.refused("move", e.issues)
+    rows = [(source.show(a), dest.show(b), item.version, item.released or "never released")
+            for item in plan.items for a, b in item.files]
+    terminal_components.table(rows, header=("From", "To", "Version", "Released as"))
+    if dry_run:
+        print(f"\n{plan.departure_message.splitlines()[0]} - dry run, nothing written")
+        return
+    print(f"\n{terminal_style.SUCCESS} {source.root}: {departed[:7]} {plan.departure_message.splitlines()[0]}")
+    print(f"{terminal_style.SUCCESS} {dest.root}: {arrived[:7]} {plan.arrival_message.splitlines()[0]}")
+
+
+@invoke.task(name="log", pre=[setup.env], help={
+    "tree": "The tree that holds it (default: found through PLUGINS)",
+    "trees": "More trees to follow the history into, comma-separated paths, before PLUGINS",
+})
+def log_(c, target, tree="", trees=""):
+    """A module's whole history, newest first, across its renames and moves - its own changes plain, a commit that only re-pins a dependency dimmed. `namespace` (or `namespace.nfx`): the declaration's history, in --tree or the tree you are in."""
+    target = nf_common.key(target)
+    extra = [Path(r).expanduser() for r in trees.split(",") if r.strip()]
+    try:
+        if target == Path(nfx.NAMESPACE_FILENAME).stem:
+            entries, note = nf_repo.namespace_log(nf_common.repo(tree)), None
+        else:
+            repo = nf_common.repo(tree or nf_common.owner_tree(target))
+            entries, note = nf_repo.module_log(repo, target, roots=[*extra, *plugins.effective_roots()])
+    except (ValueError, RuntimeError) as e:
+        raise SystemExit(f"{terminal_style.FAIL} {e}")
+
+    def dim(e, cells):
+        # cell by cell: the table pads and cuts each cell on its own
+        return tuple(f"{terminal_style.DIM}{v}{terminal_style.RESET}" if e.repin and v else v for v in cells)
+
+    # the subject sits before the tags and runs over that column where a commit has none
+    rows = [dim(e, (e.date, e.token or nf_common.ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)))
+            for e in entries]
+    terminal_components.table(rows, header=("Date", "Tree", "Commit", "Version", "Subject", "Tags"), shrink=4)
+    repins = sum(e.repin for e in entries)
+    if repins:
+        print(f"\n{terminal_style.DIM}{repins} of {len(entries)} commit(s) only re-pin a dependency{terminal_style.RESET}")
+    if note:
+        print(f"\n{terminal_style.WARN} {note}")
