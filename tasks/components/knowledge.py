@@ -39,7 +39,7 @@ def index(c, knowledge=""):
 
 
 def _index_info(idx, onto_idx, name):
-    path = idx.resolve(name)
+    path = nf_common.resolve(idx, name)
     if not path:
         print(f"{terminal_style.FAIL} Knowledge not found: {name}")
         raise SystemExit(1)
@@ -74,7 +74,7 @@ def import_(c, knowledge=""):
     onto_idx = OntologyIndex(*roots)
     know_idx = KnowledgeIndex(*roots)
 
-    path = know_idx.resolve(knowledge)
+    path = nf_common.resolve(know_idx, knowledge)
     if not path:
         print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
         raise SystemExit(1)

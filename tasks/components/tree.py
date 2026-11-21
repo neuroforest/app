@@ -318,7 +318,8 @@ def move(c, to, tree=""):
     "token": "The new tree's namespace token",
     "name": "The new tree's name (default: the token)",
     "tree": "The tree to split (default: the one holding the first module)",
-    "manifest": "A JSON file `{\"outputs\": [{token, to, modules, name?, description?}, …]}` for several new trees",
+    "manifest": "A JSON file `{\"outputs\": [{token, to, modules, name?, description?, nid?, strip_prefix?, rename?}, …]}` "
+                "for several new trees; `strip_prefix` / `rename: {module: stem}` rename modules throughout the new tree's history",
     "with-dependants": "Take the in-tree dependants of the named modules along",
     "dry-run": "Print the partition and stop",
     "swap": "Put the split staged in this directory in place",
@@ -360,7 +361,7 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
             raise SystemExit(f"{terminal_style.FAIL} name the modules and --to (or pass --manifest)")
         parts = [{"token": token, "to": to, "name": name, "modules": [t for t in target.split(",") if t.strip()]}]
     for part in parts:
-        part["modules"] = [nf_common.key(m) for m in part.get("modules", ())]
+        part["modules"] = [nf_common.key(m, tree) for m in part.get("modules", ())]
     first = next((m for part in parts for m in part["modules"]), None)
     repo = nf_common.repo(tree or (str(nf_common.owner_tree(first)) if first else ""))
     others = plugins.effective_roots()
@@ -376,6 +377,10 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
     print(f"\n{p.shared} source commit(s) become a commit in more than one tree")
     for o in p.outputs[1:]:
         print(f"\n{o.word}: {', '.join(sorted(p.stems[n][1] for n in o.modules))}")
+        renamed = sorted(p.renamed.get(o.token, {}).items())
+        if renamed:
+            print(f"{terminal_style.DIM}  renamed throughout its history ({len(renamed)}): "
+                  f"{', '.join(f'{old} → {new}' for old, new in renamed)}{terminal_style.RESET}")
     for o in p.outputs:
         for needed, pairs in o.needs.items():
             word = needed or "root"

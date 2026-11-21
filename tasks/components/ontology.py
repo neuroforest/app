@@ -169,7 +169,7 @@ def _strip_properties(nb):
 
 def _index_info(idx, ontology_name):
     """Show detailed info about a single ontology from NFX files."""
-    path = idx.resolve(ontology_name)
+    path = nf_common.resolve(idx, ontology_name)
     if not path:
         print(f"{terminal_style.FAIL} Ontology not found: {ontology_name}")
         raise SystemExit(1)
@@ -407,7 +407,7 @@ def test(c, o="", fmt="text"):
     idx = OntologyIndex(*ontology_dirs)
     metaontology_nid = nfx.read(idx.metaontology_path).nid
     if o:
-        target_path = idx.resolve(o)
+        target_path = nf_common.resolve(idx, o)
         if not target_path:
             print(f"{terminal_style.FAIL} Ontology not found: {o}")
             raise SystemExit(1)

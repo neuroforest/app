@@ -8,6 +8,7 @@ the release gate that runs `nfx.test` in the test base.
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -37,11 +38,56 @@ def namespace_label(idx, root):
     return f"{terminal_style.WARN} none" if plugins.is_consolidated(root) else "-"
 
 
-def key(target):
+def _choose(key, entries, idx, why):
+    """Ask which of `entries` was meant; without a terminal, refuse and list them."""
+    names = [idx.qualified(e) for e in entries]
+    if not sys.stdin.isatty():
+        raise SystemExit(f"{terminal_style.FAIL} {key}: {why} - {', '.join(names)}")
+    print(f"{key}: {why}")
+    for n, (name, e) in enumerate(zip(names, entries), start=1):
+        print(f"  {n:>2}  {name:<34} {terminal_style.DIM}{e.type} {e.version}{terminal_style.RESET}")
+    answer = input("which one? [number, empty to stop] ").strip()
+    if not answer.isdigit() or not 1 <= int(answer) <= len(entries):
+        raise SystemExit(1)
+    return entries[int(answer) - 1]
+
+
+def find(idx, key):
+    """The index entry a module named on the command line means, or None.
+
+    Stem, name, nid or filename; across trees `<namespace>-<stem>`
+    (`side-git`, `root-social`). A name several trees share, and a name
+    nothing matches but that is part of others, is put to the user."""
+    found = idx.matches(key)
+    if len(found) == 1:
+        return found[0]
+    if found:
+        return _choose(key, found, idx, "several trees have a module of that name")
+    close = idx.suggest(key)
+    return _choose(key, close, idx, "no such module; these contain it") if close else None
+
+
+def resolve(idx, key):
+    """`idx.resolve` for a name typed by the user: a path, or what `find` settles on."""
+    path = Path(key)
+    if path.exists():
+        return path
+    entry = find(idx, key)
+    return entry.path if entry else None
+
+
+def key(target, tree=""):
     """A module is named by stem, name or nid - and a file path
-    (`knowledge/stains.nfx`, absolute or not) names the module of that stem."""
+    (`knowledge/stains.nfx`, absolute or not) names the module of that stem.
+    Without `tree`, the name is settled against this environment's trees
+    (`find`) and comes back as the module's nid, which every tree-level call
+    takes; with one, it is left for that tree to read."""
     target = target.strip()
-    return Path(target).stem if target.endswith(".nfx") else target
+    target = Path(target).stem if target.endswith(".nfx") else target
+    if tree:
+        return target
+    entry = find(NfxIndex(*plugins.effective_roots()), target)
+    return entry.nid if entry else target
 
 
 def caller_tree():

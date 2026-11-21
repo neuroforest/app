@@ -229,7 +229,7 @@ def print_dependant_hint(idx, written_nids):
 def resolve_target(idx, name, kind="Target"):
     """Resolve a single nfx target by name/nid, or return all targets if name is empty."""
     if name:
-        path = idx.resolve(name)
+        path = nf_common.resolve(idx, name)
         if not path:
             print(f"{terminal_style.FAIL} {kind} not found: {name}")
             raise SystemExit(1)
@@ -456,7 +456,7 @@ def _test_targets(idx, target):
         if key.lower() == "namespace":
             paths += [ns.path for ns in idx.namespaces()]
             continue
-        path = idx.resolve(Path(key).stem if key.endswith(".nfx") and not Path(key).exists() else key)
+        path = nf_common.resolve(idx, Path(key).stem if key.endswith(".nfx") and not Path(key).exists() else key)
         if not path:
             print(f"{terminal_style.FAIL} Nfx not found: {key}")
             raise SystemExit(1)
@@ -539,7 +539,7 @@ def render(c, name=""):
 })
 def release(c, target, tree="", major=False, dry_run=False, message="", no_test=False):
     """Release documents (comma-separated) with their in-tree dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit. The release is tested first (`nfx.test`) and refused on a failure."""
-    targets = [nf_common.key(t) for t in target.split(",") if t.strip()]
+    targets = [nf_common.key(t, tree) for t in target.split(",") if t.strip()]
     repo = nf_common.repo(tree or nf_common.owner_tree(targets[0]))
     others = plugins.effective_roots()
     try:
@@ -563,7 +563,7 @@ def release(c, target, tree="", major=False, dry_run=False, message="", no_test=
 @invoke.task(pre=[setup.env])
 def rename(c, target, new, tree="", dry_run=False):
     """Rename a module inside its tree: files, name, test path and tags in one `REFACTOR:` commit - a release like any change: next version, dependants re-pinned."""
-    target = nf_common.key(target)
+    target = nf_common.key(target, tree)
     repo = nf_common.repo(tree or nf_common.owner_tree(target))
     try:
         plan = repo.plan_rename(target, new)
@@ -590,7 +590,7 @@ def rename(c, target, new, tree="", dry_run=False):
 })
 def move_(c, target, to, tree="", with_dependants=False, as_="", dry_run=False):
     """Move a module into another tree: one `MIGRATE:` commit at each end, history left where it was."""
-    target = nf_common.key(target)
+    target = nf_common.key(target, tree)
     source = nf_common.repo(tree or nf_common.owner_tree(target))
     dest = nf_common.repo(to)
     others = plugins.effective_roots()
@@ -619,7 +619,7 @@ def move_(c, target, to, tree="", with_dependants=False, as_="", dry_run=False):
 })
 def log_(c, target, tree="", trees=""):
     """A module's whole history, newest first, across its renames and moves - its own changes plain, a commit that only re-pins a dependency dimmed. `namespace` (or `namespace.nfx`): the declaration's history, in --tree or the tree you are in."""
-    target = nf_common.key(target)
+    target = nf_common.key(target, tree or target.strip().removesuffix(".nfx") == "namespace")
     extra = [Path(r).expanduser() for r in trees.split(",") if r.strip()]
     try:
         if target == Path(nfx.NAMESPACE_FILENAME).stem:
