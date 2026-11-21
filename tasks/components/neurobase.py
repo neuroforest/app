@@ -10,7 +10,7 @@ import time
 import invoke
 import neo4j
 
-from neuro.base import plugins
+from neuro.base import labels, plugins
 from neuro.base.api import NeuroBase
 from neuro.base.index import OntologyIndex
 from neuro.base.schema import (
@@ -594,10 +594,17 @@ def restore(c, backup=None):
 
 @invoke.task(pre=[setup.env])
 def query(c, cypher):
-    """Run a Cypher query against the neurobase and print results."""
+    """Run a Cypher query against the neurobase and print results.
+
+    A plus after a node label means the class and its subclasses, as the
+    base's ontology declares them: `(c:GitCommit+)` (`neuro.base.labels`).
+    """
     start(c)
     with NeuroBase() as nb:
-        records = nb.get_data(cypher)
+        try:
+            records = nb.get_data(cypher)
+        except labels.LabelExpansionError as e:
+            raise SystemExit(f"{terminal_style.FAIL} {e}")
         for record in records:
             print(record)
 
