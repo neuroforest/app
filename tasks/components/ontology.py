@@ -9,6 +9,7 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
+from neuro.base.ontology import Ontology
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase, nf_common, nfx as nfx_tasks
@@ -337,16 +338,20 @@ def info(c, type="", tree=False):
                 MATCH (m:OntologyMetadata)
                 OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:OntologyMetadata)
                 OPTIONAL MATCH (m)-[:DEFINES]->(n)
-                RETURN m.name as name, m.version as version,
+                RETURN m.nid as nid, m.namespace as namespace, m.name as name, m.version as version,
                        count(DISTINCT n) as types,
-                       collect(DISTINCT d.name) as dependencies
-                ORDER BY m.name
+                       collect(DISTINCT {namespace: d.namespace, name: d.name}) as dependencies
+                ORDER BY m.namespace, m.name
             """)
+            # A name is unique inside its tree only: one row per module (by nid),
+            # its tree beside it, and dependencies by their qualified names.
+            qualified = Ontology.qualified_name
             rows = []
             for r in data:
-                deps = ", ".join(sorted(r["dependencies"])) if r["dependencies"] else ""
-                rows.append((r["name"], r["version"], str(r["types"]), deps))
-            header = ("Name", "Version", "Types", "Dependencies")
+                deps = ", ".join(sorted(qualified(d) for d in r["dependencies"] if d["name"]))
+                namespace = "-" if r["namespace"] is None else (r["namespace"] or "·")
+                rows.append((namespace, r["name"], r["version"], str(r["types"]), deps))
+            header = ("Namespace", "Name", "Version", "Types", "Dependencies")
             terminal_components.table(rows, header=header)
 
             total = nb.get_data("""
@@ -359,11 +364,12 @@ def info(c, type="", tree=False):
 @invoke.task(pre=[setup.env])
 def export(c, path, ontology=""):
     """Export ontologies from neurobase to NFX files. -o/--ontology: one ontology
-       to <path>; without it, every ontology in the base to <path>/<name>.nfx."""
+       (its name, or <namespace>-<name> where trees share one) to <path>; without
+       it, every ontology in the base to <path>/<namespace>-<name>.nfx."""
     with NeuroBase() as nb:
         try:
             result = nb.ontology.export_nfx(path, name=ontology)
-        except exceptions.NoOntology as e:
+        except (exceptions.NoOntology, exceptions.AmbiguousModule) as e:
             print(f"{terminal_style.FAIL} {e}")
             raise SystemExit(1)
         docs = [result] if ontology else result

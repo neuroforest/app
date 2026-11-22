@@ -95,7 +95,7 @@ def import_(c, knowledge=""):
             dep_nids = nfx.NfxTree(
                 doc, nb.metaontology._resolver(onto_idx),
             ).all_node_nids(scope="dependencies")
-            nb.nodes.sync_nfx(path, dependency_nids=dep_nids)
+            nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=know_idx)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
@@ -149,6 +149,6 @@ def render(c, knowledge=""):
                 dep_nids = nfx.NfxTree(
                     doc, nb.metaontology._resolver(onto_idx),
                 ).all_node_nids(scope="dependencies")
-                nb.nodes.sync_nfx(path, dependency_nids=dep_nids)
+                nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=know_idx)
 
     nfx_tasks.print_browser_url()
