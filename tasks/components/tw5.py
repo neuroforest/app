@@ -284,9 +284,28 @@ def compile(c, directory=None):
         build_compiled_plugin(wrapper_dir, cfg, compiled_dir)
 
 
+def uncompiled(plugins_dir=None):
+    """The plugin wrappers with no `compiled/` output, as paths.
+
+    `bundle` copies compiled output and never produces it, so a wrapper that was
+    never compiled - every one, in a fresh checkout - would be left out of the
+    wiki without a word.
+    """
+    missing = []
+    for wrapper_dir, _cfg in discover_compiled_plugins(plugins_dir):
+        compiled_dir = os.path.join(wrapper_dir, "compiled")
+        if not (os.path.isdir(compiled_dir) and os.listdir(compiled_dir)):
+            missing.append(wrapper_dir)
+    return sorted(missing)
+
+
 @invoke.task(pre=[setup.env])
 def bundle(c, build_dir=None):
-    """Copy TW5 tree to build/, overlay editions and plugins."""
+    """Copy TW5 tree to build/, overlay editions and plugins. Refuses while a plugin was never compiled."""
+    missing = uncompiled()
+    if missing:
+        raise SystemExit(f"{terminal_style.FAIL} never compiled: {', '.join(os.path.basename(m) for m in missing)}"
+                         f" - run `tw5.compile` first")
     if not build_dir:
         build_dir = internal_utils.get_path("app") / "build"
     os.makedirs(str(build_dir), exist_ok=True)
