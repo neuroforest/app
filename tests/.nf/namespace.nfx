@@ -1,11 +1,11 @@
 {
     "type": "namespace",
     "nid": "eb159f6d-bcf0-459e-86fe-e545fc93155e",
-    "version": "1.0",
+    "version": "1.1",
     "name": "Fixture",
     "description": "The app test suite's own root: the Test ontology and the per-concern knowledge fixtures",
     "namespace": "test",
     "dependencies": [
-        "4ce30c86-d94f-4bc4-9903-9399820fdc27@1.0"
+        "4ce30c86-d94f-4bc4-9903-9399820fdc27@1.1"
     ]
 }
