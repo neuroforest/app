@@ -14,6 +14,49 @@ from tasks.components.ontology import render
 METAONTOLOGY_PATH = get_path("app") / ".nf" / "ontology" / "metaontology.nfx"
 
 
+def test_import(nb, tmp_path, monkeypatch):
+    """A dependency whose name two trees share is imported and counted as written."""
+    import json
+    import subprocess
+
+    from neuro.base import plugins
+    from tasks.components.ontology import import_
+
+    def uuid4():
+        return subprocess.run(["uuidgen"], capture_output=True, text=True).stdout.strip()
+
+    meta = nfx.read(METAONTOLOGY_PATH)
+    pin = f"{meta.nid}@{meta.version}"
+
+    def tree(dirname, token, modules):
+        root = tmp_path / dirname / ".nf"
+        (root / "ontology").mkdir(parents=True)
+        (root / "namespace.nfx").write_text(json.dumps({
+            "type": "namespace", "nid": uuid4(), "version": "1.0", "name": dirname.title(),
+            "namespace": token, "dependencies": [],
+        }))
+        for name, nid, deps in modules:
+            (root / "ontology" / f"{name}.nfx").write_text(json.dumps({
+                "type": "ontology", "nid": nid, "version": "1.0", "name": name,
+                "dependencies": [pin, *(f"{d}@1.0" for d in deps)],
+                "nodes": [{"nid": uuid4(), "labels": ["OntologyNode"],
+                           "properties": {"label": f"{dirname.title()}{name.title()}"}}],
+                "relationships": [],
+            }))
+        return root
+
+    shared, twin, top = uuid4(), uuid4(), uuid4()
+    alpha = tree("alpha", "a", [("shared", shared, []), ("top", top, [shared])])
+    home = tree("home", "", [("shared", twin, [])])
+    monkeypatch.setattr(plugins, "effective_roots",
+                        lambda: [METAONTOLOGY_PATH.parents[1], alpha, home])
+
+    import_.__wrapped__(MockContext(), ontology="a-top")
+
+    loaded = {r["nid"] for r in nb.get_data("MATCH (m:OntologyMetadata) RETURN m.nid AS nid")}
+    assert {top, shared} <= loaded and twin not in loaded
+
+
 def test_render(nb):
     render.__wrapped__(MockContext(), ontology="metaontology")
 
