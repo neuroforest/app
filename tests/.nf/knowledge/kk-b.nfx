@@ -1,0 +1,23 @@
+{
+    "type": "knowledge",
+    "nid": "316aa05c-2f57-4d00-a874-a79d3d511d56",
+    "version": "1.0",
+    "name": "kk-b",
+    "description": "Pins knowledge only: its class comes from the ontology behind kk-a, its edge lands on a node kk-a declares",
+    "dependencies": [
+        "697ac9e8-c5d4-4edd-ba61-8ef19955c5b8@1.0"
+    ],
+    "nodes": [
+        {
+            "nid": "3dafbddd-8de8-43ee-ace5-1b9b21f2a906",
+            "labels": ["TestRequireRel"]
+        }
+    ],
+    "relationships": [
+        {
+            "from": "3dafbddd-8de8-43ee-ace5-1b9b21f2a906",
+            "to": "308d552e-ae99-4793-9cbd-82d0292ba421",
+            "type": "POINTS_TO"
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+{
+    "type": "knowledge",
+    "nid": "396a3b18-76f4-4cdf-a370-023f52afde04",
+    "version": "1.0",
+    "name": "kk-c",
+    "description": "Pin-only umbrella: declares nothing, loads kk-b and everything behind it",
+    "dependencies": [
+        "316aa05c-2f57-4d00-a874-a79d3d511d56@1.0"
+    ]
+}

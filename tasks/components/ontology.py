@@ -400,29 +400,12 @@ def clear(c):
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, o="", fmt="text"):
-    """Validate each ontology against the metaontology and run its plugin
-       validators together. -o: target file. --fmt json: one machine-readable
-       record per ontology (path, outcome, duration, failures) on stdout.
+    """Shortcut for `nfx.test --kind ontology`: every ontology,
+       or with -o one ontology and its whole closure. --fmt json: one
+       machine-readable record per ontology (path, outcome, duration, failures)
+       on stdout.
     """
-    # The ontologies of `nfx.test`: one record per ontology, so a consumer can
-    # say *which* one broke and how long it took; --fmt json is the
-    # machine-readable form, because parsing ✔/✘ off a terminal-styled stdout
-    # is not a contract anyone should depend on.
-    neurobase.clear(c, confirmed=True)
-    ontology_dirs = plugins.effective_roots()
-    idx = OntologyIndex(*ontology_dirs)
-    metaontology_nid = nfx.read(idx.metaontology_path).nid
-    if o:
-        target_path = nf_common.resolve(idx, o)
-        if not target_path:
-            print(f"{terminal_style.FAIL} Ontology not found: {o}")
-            raise SystemExit(1)
-        targets = nfx_tasks.topo_targets(idx, target_path, metaontology_nid)
-    else:
-        targets = [idx.metaontology_path] + list(idx.all_targets(exclude_nid=metaontology_nid))
-    with NeuroBase() as nb:
-        records = nfx_tasks.run_tests(nb, ontology_dirs, targets)
-    nfx_tasks.report_tests(records, fmt)
+    nfx_tasks.run_test_task(c, target=o, fmt=fmt, closure=bool(o), kind="ontology")
 
 
 @invoke.task(pre=[setup.env])

@@ -193,6 +193,70 @@ def test_run_tests(nb):
     assert len(failing["expected"]) == 1 and "missing" in failing["expected"][0]
 
 
+def test_run_tests_knowledge_chain(nb):
+    """A knowledge module that pins knowledge only: its classes come from the
+    ontology behind the pin, its edge lands on a node the pinned module declares,
+    and a pin-only module loads the whole chain."""
+    from neuro.base import plugins
+    from tasks.components import nfx as nfx_tasks
+
+    paths = [KNOWLEDGE / f"kk-{x}.nfx" for x in "abc"]
+    records = nfx_tasks.run_tests(nb, plugins.effective_roots(), paths)
+
+    assert {r["name"]: r["failures"] for r in records} == {"kk-a": [], "kk-b": [], "kk-c": []}
+    # one import pass: the chain extends what is loaded, the target is judged from its file
+    loaded = {r["name"] for r in nb.get_data("MATCH (m:KnowledgeMetadata) RETURN m.name AS name")}
+    assert loaded == {"kk-a", "kk-b"}
+
+
+def test_load_document(nb):
+    """Loaded through its closure, each node stays with the module that declares it."""
+    from neuro.base import nfx_load, plugins
+    from neuro.base.index import NfxIndex
+
+    idx = NfxIndex(*plugins.effective_roots())
+    for _ in range(2):  # a second pass changes nothing
+        for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
+            nfx_load.load_document(nb, idx, path)
+
+    owners = nb.get_data("""
+        MATCH (m:KnowledgeMetadata)-[:DEFINES]->(n)
+        RETURN m.name AS module, count(n) AS nodes ORDER BY module
+    """)
+    assert [(r["module"], r["nodes"]) for r in owners] == [("kk-a", 2), ("kk-b", 1)]
+    edges = nb.get_data("""
+        MATCH (:KnowledgeMetadata {name: "kk-b"})-[:DEFINES]->(a)-[:POINTS_TO]->(b)
+              <-[:DEFINES]-(owner:KnowledgeMetadata)
+        RETURN owner.name AS owner
+    """)
+    assert [r["owner"] for r in edges] == ["kk-a"]
+    pins = nb.get_data("""
+        MATCH (m:KnowledgeMetadata)-[:DEPENDS_ON]->(d)
+        RETURN m.name AS module, d.name AS dep ORDER BY module
+    """)
+    assert [(r["module"], r["dep"]) for r in pins] == [("kk-a", "Test"), ("kk-b", "kk-a"), ("kk-c", "kk-b")]
+
+
+def test_import_dependencies(nb):
+    """`knowledge.import`'s path: a pinned knowledge module that is missing is
+    loaded with the ontologies behind it, one already there is reused."""
+    from neuro.base import nfx, plugins
+    from neuro.base.index import NfxIndex
+
+    idx = NfxIndex(*plugins.effective_roots())
+    doc = nfx.read(KNOWLEDGE / "kk-c.nfx")
+    seen = []
+    for _ in range(2):
+        nb.metaontology._import_dependencies(
+            doc.dependencies, index=idx,
+            on_import=lambda name, imported, depth: seen.append((name, imported)),
+        )
+
+    assert ("test-kk-b", True) in seen and ("test-kk-a", True) in seen
+    assert ("test-kk-b", False) in seen and ("test-kk-a", False) in seen
+    assert nb.get_data("MATCH (:TestRequireRel)-[r:POINTS_TO]->(:TestKey) RETURN count(r) AS n")[0]["n"] == 1
+
+
 def test_start():
     neurobase.start(MockContext())
     with NeuroBase() as nb:

@@ -1,0 +1,22 @@
+{
+    "type": "knowledge",
+    "nid": "697ac9e8-c5d4-4edd-ba61-8ef19955c5b8",
+    "version": "1.0",
+    "name": "kk-a",
+    "description": "Bottom of a knowledge → knowledge chain: the nodes kk-b points its edges at",
+    "dependencies": [
+        "e75a8385-4d8f-43ad-8df0-31124369d0bd@2.1"
+    ],
+    "nodes": [
+        {
+            "nid": "308d552e-ae99-4793-9cbd-82d0292ba421",
+            "labels": ["TestKey"],
+            "properties": {"id": "KA1"}
+        },
+        {
+            "nid": "09c23e7f-f1e8-4e98-acfb-0489686bed3c",
+            "labels": ["TestKey"],
+            "properties": {"id": "KA2"}
+        }
+    ]
+}

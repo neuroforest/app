@@ -4,7 +4,7 @@ from pathlib import Path
 import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
-from neuro.base.index import KnowledgeIndex, OntologyIndex
+from neuro.base.index import KnowledgeIndex, NfxIndex
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
@@ -18,8 +18,8 @@ def index(c, knowledge=""):
     idx = KnowledgeIndex(*roots)
 
     if knowledge:
-        onto_idx = OntologyIndex(*roots)
-        _index_info(idx, onto_idx, knowledge)
+        # every type: a knowledge module may pin another
+        _index_info(idx, NfxIndex(*roots), knowledge)
         return
 
     app_dir = Path(os.environ["APP_DIR"])
@@ -62,19 +62,18 @@ def _index_info(idx, onto_idx, name):
 def import_(c, knowledge=""):
     """Import knowledge into neurobase non-destructively. -k/--knowledge required.
 
-    Missing ontology dependencies are loaded; ones already present at the right
-    version are reused. Knowledge nodes are anchored to a `KnowledgeMetadata`
-    node via `DEFINES` edges; re-running prunes file-absent nodes only within
-    that anchor's slice.
+    Missing dependencies are loaded - ontologies and pinned knowledge modules
+    alike, transitively; ones already present at the right version are reused.
+    Knowledge nodes are anchored to a `KnowledgeMetadata` node via `DEFINES`
+    edges; re-running prunes file-absent nodes only within that anchor's slice.
     """
     if not knowledge:
         print(f"{terminal_style.FAIL} -k/--knowledge required")
         raise SystemExit(1)
     roots = plugins.effective_roots()
-    onto_idx = OntologyIndex(*roots)
-    know_idx = KnowledgeIndex(*roots)
+    idx = NfxIndex(*roots)
 
-    path = nf_common.resolve(know_idx, knowledge)
+    path = nf_common.resolve(KnowledgeIndex(*roots), knowledge)
     if not path:
         print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
         raise SystemExit(1)
@@ -85,70 +84,44 @@ def import_(c, knowledge=""):
     with NeuroBase() as nb:
         with terminal_components.step(name) as status:
             nb.metaontology._import_dependencies(
-                doc.dependencies, index=onto_idx,
+                doc.dependencies, index=idx,
                 on_import=nfx_tasks.make_dep_logger(status),
             )
             # Every nid reachable through the declared deps - so sync_nfx can tell
             # a foreign reference stub (owned by a dependency, e.g. an OntologyNode
-            # class the metrics APPLIES_TO) from a node this file owns, and leave
-            # the former's properties (like `color`) intact.
+            # class the metrics APPLIES_TO, or a node of a pinned knowledge module)
+            # from a node this file owns, and leave the former's properties (like
+            # `color`) intact.
             dep_nids = nfx.NfxTree(
-                doc, nb.metaontology._resolver(onto_idx),
+                doc, nb.metaontology._resolver(idx),
             ).all_node_nids(scope="dependencies")
-            nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=know_idx)
+            nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=idx)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def test(c, knowledge=""):
-    """Validate knowledge nodes against the loaded ontology. -k: target one file."""
-    neurobase.clear(c, confirmed=True)
-    roots = plugins.effective_roots()
-    know_idx = KnowledgeIndex(*roots)
-
-    targets = nfx_tasks.resolve_target(know_idx, knowledge, kind="Knowledge")
-
-    if not targets:
-        print(f"{terminal_style.WARNING} No knowledge .nfx files found.")
-        return
-
-    # The knowledge documents of `nfx.test`.
-    with NeuroBase() as nb:
-        records = nfx_tasks.run_tests(nb, roots, targets)
-    nfx_tasks.report_tests(records)
+    """Shortcut for `nfx.test --kind knowledge`. -k: target one file."""
+    nfx_tasks.run_test_task(c, target=knowledge, kind="knowledge")
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def render(c, knowledge=""):
-    """Load knowledge (and its ontology dependencies) into neurobase and print Neo4j browser link. -k: target one file."""
+    """Load knowledge and its dependency closure - the ontologies and the knowledge
+    modules it pins - into neurobase and print Neo4j browser link. -k: target one file."""
     neurobase.start(c)
     roots = plugins.effective_roots()
-    onto_idx = OntologyIndex(*roots)
-    know_idx = KnowledgeIndex(*roots)
+    idx = NfxIndex(*roots)
 
-    targets = nfx_tasks.resolve_target(know_idx, knowledge, kind="Knowledge")
+    targets = nfx_tasks.resolve_target(KnowledgeIndex(*roots), knowledge, kind="Knowledge")
 
     if not targets:
         print(f"{terminal_style.WARNING} No knowledge .nfx files found.")
         return
 
-    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
     with NeuroBase() as nb:
         nb.clear(confirm=True)
-        imported = set()
+        loaded = set()
         for path in targets:
-            doc = nfx.read(path)
-            name = doc.name or path.stem
-            for dep_path in nfx_tasks.topo_targets(onto_idx, path, metaontology_nid):
-                if dep_path in imported:
-                    continue
-                dep_name = nfx.read(dep_path).name or dep_path.stem
-                with terminal_components.step(dep_name):
-                    nb.metaontology.import_nfx(dep_path, index=onto_idx)
-                imported.add(dep_path)
-            with terminal_components.step(name):
-                dep_nids = nfx.NfxTree(
-                    doc, nb.metaontology._resolver(onto_idx),
-                ).all_node_nids(scope="dependencies")
-                nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=know_idx)
+            nfx_tasks.load_closure(nb, idx, path, loaded)
 
     nfx_tasks.print_browser_url()

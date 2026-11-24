@@ -6,11 +6,11 @@ from pathlib import Path
 
 import invoke
 
-from neuro.base import NeuroBase, nf_repo, nfx, plugins, schema
-from neuro.base.index import NfxIndex, OntologyIndex
+from neuro.base import NeuroBase, nf_repo, nfx, nfx_load, plugins, schema
+from neuro.base.index import KnowledgeIndex, NfxIndex, OntologyIndex
 from neuro.base.metaontology import OntologyViolations
 from neuro.base.ontology import ObjectValidator
-from neuro.utils import terminal_components, terminal_style
+from neuro.utils import exceptions, terminal_components, terminal_style
 
 from tasks.actions import setup
 from tasks.components import neurobase, nf_common
@@ -237,26 +237,16 @@ def resolve_target(idx, name, kind="Target"):
     return idx.all_targets()
 
 
-def topo_targets(onto_idx, target_path, metaontology_nid):
-    """Topologically ordered ontology paths for a target: metaontology first,
-    then transitive deps deps-before-dependents, ending with the target's
-    direct ontology ancestors. The target itself is included only if it is an
-    ontology (knowledge targets are not in OntologyIndex)."""
-    target_doc = nfx.read(target_path)
-
-    def _resolve_doc(nid):
-        p = onto_idx.resolve(nid)
-        return nfx.read(p) if p else None
-
-    tree = nfx.NfxTree(target_doc, _resolve_doc)
-    paths = []
-    for nid in tree.topo_order():
-        if nid == metaontology_nid:
+def load_closure(nb, idx, path, loaded, include_self=True):
+    """Load the dependency closure of `path` into `nb`, one status line per
+    document, skipping what `loaded` (a set of paths, updated here) already
+    holds. `idx` is an `NfxIndex`: the closure is type-blind."""
+    for dep_path in idx.closure(path, include_self=include_self):
+        if dep_path in loaded:
             continue
-        p = onto_idx.resolve(nid)
-        if p:
-            paths.append(p)
-    return [onto_idx.metaontology_path] + paths
+        with terminal_components.step(nfx.read(dep_path).name or dep_path.stem):
+            nfx_load.load_document(nb, idx, dep_path)
+        loaded.add(dep_path)
 
 
 def validate_knowledge(nb, path):
@@ -342,10 +332,16 @@ def run_tests(nb, roots, targets=None):
 
     - ontology / metaontology: imported with its closure, the schema judged
       (`is_ontology_valid`), its pins checked, its pytest file run;
-    - knowledge: its ontology closure imported, every node's values judged
-      against it, its pins checked, its pytest file run; a `<concern>-fail.nfx`
-      fixture keeps its value violations under `expected`, not `failures`;
+    - knowledge: its closure loaded - the ontologies and the knowledge modules
+      it pins, and theirs - every node's values judged against it, its pins
+      checked, its pytest file run; a `<concern>-fail.nfx` fixture keeps its
+      value violations under `expected`, not `failures`;
     - namespace: the declaration's own form and pins - it has no schema.
+
+    What is loaded for a document does not depend on its type, only how it is
+    judged does: the closure is `NfxIndex.closure`, the same walk the
+    redundant-pin check makes. A knowledge module in a closure is
+    loaded, not judged - its own record judges it.
 
     `targets` are paths (default: every document of `roots`, declarations
     included). The base is cleared only when it holds something outside the
@@ -356,8 +352,6 @@ def run_tests(nb, roots, targets=None):
     """
     roots = [Path(r).resolve() for r in roots]
     idx = NfxIndex(*roots)
-    onto_idx = OntologyIndex(*roots)
-    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
     if targets is None:
         targets = [ns.path for ns in idx.namespaces()] + idx.all_targets()
 
@@ -373,7 +367,13 @@ def run_tests(nb, roots, targets=None):
         else:
             record["failures"] = nf_repo.document_failures(idx, path)
             if not record["failures"]:
-                closure[path] = [Path(p).resolve() for p in topo_targets(onto_idx, path, metaontology_nid)]
+                # A knowledge document is judged from the file and never loaded
+                # itself; an ontology is judged in the base, so it is.
+                try:
+                    closure[path] = [Path(p).resolve() for p in
+                                     idx.closure(path, include_self=doc.type != "knowledge")]
+                except exceptions.NfxViolation as e:
+                    record["failures"] = [str(e)]
         record["duration_s"] = time.monotonic() - record.pop("started")
 
     loaded: set[Path] = set()
@@ -386,10 +386,18 @@ def run_tests(nb, roots, targets=None):
         if not loaded <= set(closure[path]):
             nb.clear(confirm=True)
             loaded = set()
-        for dep in closure[path]:
-            if dep not in loaded:
-                nb.metaontology.import_nfx(dep, index=onto_idx)
-                loaded.add(dep)
+        try:
+            for dep in closure[path]:
+                if dep not in loaded:
+                    nfx_load.load_document(nb, idx, dep)
+                    loaded.add(dep)
+        except (exceptions.NfxViolation, ValueError) as e:
+            # The base now holds part of a closure: nothing may build on it.
+            record["failures"].append(f"{dep.stem} failed to load: {e}")
+            record["duration_s"] += time.monotonic() - started
+            nb.clear(confirm=True)
+            loaded = set()
+            continue
         if record["type"] == "knowledge":
             nb.metaontology.violations = OntologyViolations()
             validate_knowledge(nb, path)
@@ -460,7 +468,7 @@ def print_dependencies(idx, doc):
             print(f"  {terminal_style.FAIL} {dep_nid}@{dep_ver} (not found)")
 
 
-def _test_targets(idx, target):
+def _test_targets(idx, target, noun="Nfx"):
     """Paths for a comma-separated `-t`: each a document by stem, name, nid or
     path; `namespace` names every root's declaration."""
     paths = []
@@ -472,25 +480,51 @@ def _test_targets(idx, target):
             continue
         path = nf_common.resolve(idx, Path(key).stem if key.endswith(".nfx") and not Path(key).exists() else key)
         if not path:
-            print(f"{terminal_style.FAIL} Nfx not found: {key}")
+            print(f"{terminal_style.FAIL} {noun} not found: {key}")
             raise SystemExit(1)
         paths.append(path)
     return paths
 
 
-@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], help={
-    "target": "Documents to test, comma-separated (stem, name, nid or path; `namespace` = the declarations). "
-              "Default: everything.",
-    "trees": "Colon-separated trees to read instead of this environment's PLUGINS",
-    "fmt": "`json`: one record per document on stdout",
-    "out": "Also write the records as JSON to this file (what `nfx.release` reads)",
-})
-def test(c, target="", trees="", fmt="text", out=""):
-    """Test .nfx documents in the test base, each by its type: an ontology's schema and
-    validator tests, a knowledge document's values, a namespace's declaration."""
+# `ontology.test` and `knowledge.test` are shortcuts for `nfx.test --kind …`
+# the view a kind is resolved in, and what a miss is called.
+_KIND_VIEWS = {
+    "": (NfxIndex, "Nfx"),
+    "ontology": (OntologyIndex, "Ontology"),
+    "knowledge": (KnowledgeIndex, "Knowledge"),
+}
+
+
+def run_test_task(c, target="", trees="", fmt="text", out="", closure=False, kind=""):
+    """The body of `nfx.test`, callable from the per-kind shortcuts.
+
+    `kind` narrows what a name may resolve to and, with no target, what
+    "everything" means; it never changes how a document is loaded or judged.
+    `closure` adds each target's dependencies, of every type, as documents to
+    test in their own right - without it they are loaded only.
+    """
+    if kind not in _KIND_VIEWS:
+        print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
+        raise SystemExit(1)
+    view, noun = _KIND_VIEWS[kind]
     root_list = [Path(r).expanduser() for r in trees.split(":") if r] or plugins.effective_roots()
-    idx = NfxIndex(*root_list)
-    targets = _test_targets(idx, target) if target else None
+    idx = view(*root_list)
+    if target:
+        targets = _test_targets(idx, target, noun)
+    elif kind:
+        meta = idx.metaontology_path
+        targets = ([meta] if meta else []) + [p for p in idx.all_targets() if p != meta]
+    else:
+        targets = None
+    if closure and targets is not None:
+        full = NfxIndex(*root_list)
+        expanded = []
+        for path in targets:
+            try:
+                expanded += full.closure(path, include_self=True)
+            except exceptions.NfxViolation:
+                expanded.append(path)  # reported against the document by `run_tests`
+        targets = list(dict.fromkeys(expanded))
     neurobase.clear(c, confirmed=True)
     with NeuroBase() as nb:
         records = run_tests(nb, root_list, targets)
@@ -499,46 +533,41 @@ def test(c, target="", trees="", fmt="text", out=""):
     report_tests(records, fmt)
 
 
+@invoke.task(pre=[invoke.call(setup.env, environment="TESTING")], help={
+    "target": "Documents to test, comma-separated (stem, name, nid or path; `namespace` = the declarations). "
+              "Default: everything.",
+    "trees": "Colon-separated trees to read instead of this environment's PLUGINS",
+    "fmt": "`json`: one record per document on stdout",
+    "out": "Also write the records as JSON to this file (what `nfx.release` reads)",
+    "closure": "Also test everything the targets depend on, not only load it",
+    "kind": "`ontology` or `knowledge`: resolve targets among that kind only; with no target, test all of it",
+})
+def test(c, target="", trees="", fmt="text", out="", closure=False, kind=""):
+    """Test .nfx documents in the test base. What is loaded for a document is its whole
+    dependency closure, whatever the types in it; how it is judged goes by its type: an
+    ontology's schema and validator tests, a knowledge document's values, a namespace's
+    declaration."""
+    run_test_task(c, target, trees, fmt, out, closure, kind)
+
+
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])
 def render(c, name=""):
     """Load an .nfx (ontology, knowledge, or metaontology) and its dependencies
     into neurobase and print the Neo4j browser link. Without --name, renders
-    every discovered .nfx. Knowledge targets pull their ontology deps from
-    OntologyIndex."""
+    every discovered .nfx."""
     neurobase.start(c)
-    roots = plugins.effective_roots()
-    nfx_idx = NfxIndex(*roots)
-    onto_idx = OntologyIndex(*roots)
+    idx = NfxIndex(*plugins.effective_roots())
 
-    targets = resolve_target(nfx_idx, name, kind="Nfx")
+    targets = resolve_target(idx, name, kind="Nfx")
     if not targets:
         print(f"{terminal_style.WARN} No .nfx files found.")
         return
 
-    metaontology_nid = nfx.read(onto_idx.metaontology_path).nid
     with NeuroBase() as nb:
         nb.clear(confirm=True)
-        imported = set()
+        loaded = set()
         for path in targets:
-            doc = nfx.read(path)
-            target_name = doc.name or path.stem
-            if doc.type == "knowledge":
-                for dep_path in topo_targets(onto_idx, path, metaontology_nid):
-                    if dep_path in imported:
-                        continue
-                    dep_name = nfx.read(dep_path).name or dep_path.stem
-                    with terminal_components.step(dep_name):
-                        nb.metaontology.import_nfx(dep_path, index=onto_idx)
-                    imported.add(dep_path)
-                with terminal_components.step(target_name):
-                    nb.nodes.import_nfx(path)
-                imported.add(path)
-            else:
-                if path in imported:
-                    continue
-                with terminal_components.step(target_name):
-                    nb.metaontology.import_nfx(path, index=onto_idx)
-                imported.add(path)
+            load_closure(nb, idx, path, loaded)
 
     print_browser_url()
 
