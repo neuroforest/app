@@ -3,7 +3,7 @@
 A forest task takes no address and writes nothing; it reports. One tree is
 `tree.*`, one module is `nfx.*`.
 
-Two lists meet here. The **registry** (`~/.config/nf/trees.toml`,
+Two lists meet here. The **registry** (`~/.config/neuroforest/trees.toml`,
 `neuro.base.nf_trees`) names every tree on the machine, whatever environment
 is running. **`PLUGINS`** is the scope of the current environment: the trees
 it may load - by path, or as `@<token>` of a registered tree. `nf.trees` and

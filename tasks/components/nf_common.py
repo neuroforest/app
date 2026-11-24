@@ -102,7 +102,7 @@ def caller_tree():
 
 
 def registered():
-    """The machine's tree registry (`~/.config/nf/trees.toml`), as `nf_trees.Tree`s."""
+    """The machine's tree registry (`~/.config/neuroforest/trees.toml`), as `nf_trees.Tree`s."""
     try:
         return nf_trees.read()
     except nf_trees.RegistryError as e:

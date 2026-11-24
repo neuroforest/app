@@ -4,7 +4,7 @@ A tree task is addressed by `--tree`: a path, or the tree's namespace token
 (`root` for the empty one); without it, the tree the shell stands in. The
 forest is `nf.*`, one module is `nfx.*`.
 
-The trees of this machine are recorded in one file, `~/.config/nf/trees.toml`
+The trees of this machine are recorded in one file, `~/.config/neuroforest/trees.toml`
 (`neuro.base.nf_trees`): `tree.init`, `tree.register`, `tree.move` and
 `tree.split` write it, `tree.forget` drops a line, `nf.trees` shows it.
 
