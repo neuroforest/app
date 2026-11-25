@@ -237,6 +237,37 @@ def test_load_document(nb):
     assert [(r["module"], r["dep"]) for r in pins] == [("kk-a", "Test"), ("kk-b", "kk-a"), ("kk-c", "kk-b")]
 
 
+def test_print_info(nb, capsys):
+    """Each kind lists its own modules; a dependency is named whatever its kind,
+    and a knowledge tree runs down into the ontology behind it."""
+    from neuro.base import nfx_load, plugins
+    from neuro.base.index import NfxIndex
+    from tasks.components import nfx as nfx_tasks
+
+    idx = NfxIndex(*plugins.effective_roots())
+    for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
+        nfx_load.load_document(nb, idx, path)
+
+    assert {r["name"] for r in nfx_tasks.loaded_modules(nb, "knowledge")} == {"kk-a", "kk-b", "kk-c"}
+    kinds = {r["name"]: r["type"] for r in nfx_tasks.loaded_modules(nb)}
+    assert kinds["kk-a"] == "knowledge" and kinds["Test"] == "ontology"
+
+    nfx_tasks.print_info(nb, kind="knowledge")
+    table = capsys.readouterr().out
+    assert "3 knowledge modules, 3 nodes" in table and "Type" not in table.splitlines()[0]
+
+    nfx_tasks.print_info(nb, kind="knowledge", tree=True)
+    tree = capsys.readouterr().out.splitlines()
+    assert tree[0].startswith("kk-c@") and tree[1].startswith("└── kk-b@")
+    assert any("kk-a@" in line for line in tree[2:]) and any("Test@" in line for line in tree[3:])
+
+    nfx_tasks.print_info(nb)
+    assert "Type" in capsys.readouterr().out.splitlines()[0]
+
+    with pytest.raises(SystemExit):
+        nfx_tasks.print_info(nb, kind="bogus")
+
+
 def test_import_dependencies(nb):
     """`knowledge.import`'s path: a pinned knowledge module that is missing is
     loaded with the ontologies behind it, one already there is reused."""

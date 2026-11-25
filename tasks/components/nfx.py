@@ -9,7 +9,7 @@ import invoke
 from neuro.base import NeuroBase, nf_repo, nfx, nfx_load, plugins, schema
 from neuro.base.index import KnowledgeIndex, NfxIndex, OntologyIndex
 from neuro.base.metaontology import OntologyViolations
-from neuro.base.ontology import ObjectValidator
+from neuro.base.ontology import ObjectValidator, Ontology
 from neuro.utils import exceptions, terminal_components, terminal_style
 
 from tasks.actions import setup
@@ -570,6 +570,98 @@ def render(c, name=""):
             load_closure(nb, idx, path, loaded)
 
     print_browser_url()
+
+
+# ---- what the base holds: info ---------------------------------------------------------
+
+# `ontology.info` and `knowledge.info` are `nfx.info --kind …`: the metadata
+# label a kind anchors on, what its modules are called, and what they define.
+_INFO_KINDS = {
+    "": ("Metadata+", "modules", "nodes"),
+    "ontology": ("OntologyMetadata", "ontologies", "types"),
+    "knowledge": ("KnowledgeMetadata", "knowledge modules", "nodes"),
+}
+
+
+def loaded_modules(nb, kind=""):
+    """One row per module of `kind` loaded in the base (every kind when empty),
+    with what it defines and its direct dependencies, of whatever kind."""
+    label = _INFO_KINDS[kind][0]
+    return nb.get_data(f"""
+        MATCH (m:{label})
+        OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:Metadata+)
+        OPTIONAL MATCH (m)-[:DEFINES]->(n)
+        RETURN m.nid AS nid, m.namespace AS namespace, m.name AS name,
+               m.version AS version, m.type AS type,
+               count(DISTINCT n) AS defined,
+               collect(DISTINCT {{nid: d.nid, namespace: d.namespace, name: d.name}}) AS dependencies
+        ORDER BY m.namespace, m.name
+    """)
+
+
+def print_module_tree(nb, kind=""):
+    """Print the loaded dependency graph as an ASCII tree. With `kind`, the
+    roots are that kind's modules; what they depend on is drawn whatever its
+    kind. Keyed by nid: a name is unique inside its tree only."""
+    every = {r["nid"]: r for r in loaded_modules(nb)}
+    scope = {r["nid"] for r in loaded_modules(nb, kind)} if kind else set(every)
+
+    def deps(nid):
+        found = {d["nid"] for d in every[nid]["dependencies"] if d["nid"] in every}
+        return sorted(found, key=lambda n: every[n]["name"] or "")
+
+    depended = {d for nid in scope for d in deps(nid)}
+
+    def draw(nid, prefix="", is_last=True):
+        r = every[nid]
+        print(f"{prefix}{'└── ' if is_last else '├── '}{r['name']}@{r['version']}")
+        children = deps(nid)
+        for i, dep in enumerate(children):
+            draw(dep, prefix + ("    " if is_last else "│   "), i == len(children) - 1)
+
+    for root in sorted(scope - depended, key=lambda n: every[n]["name"] or ""):
+        print(f"{every[root]['name']}@{every[root]['version']}")
+        children = deps(root)
+        for i, dep in enumerate(children):
+            draw(dep, "", i == len(children) - 1)
+
+
+def print_info(nb, kind="", tree=False):
+    """The body of `nfx.info`, callable from the per-kind shortcuts: the
+    modules loaded in the base as a table, or with `tree` as a dependency graph."""
+    if kind not in _INFO_KINDS:
+        print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
+        raise SystemExit(1)
+    if tree:
+        print_module_tree(nb, kind)
+        return
+    label, plural, counted = _INFO_KINDS[kind]
+    data = loaded_modules(nb, kind)
+    # A name is unique inside its tree only: one row per module (by nid),
+    # its tree beside it, and dependencies by their qualified names.
+    rows = []
+    for r in data:
+        deps = ", ".join(sorted(Ontology.qualified_name(d) for d in r["dependencies"] if d["name"]))
+        namespace = "-" if r["namespace"] is None else (r["namespace"] or "·")
+        # every kind at once: say which each row is
+        kind_cell = () if kind else (r["type"] or "",)
+        rows.append((namespace, r["name"], *kind_cell, r["version"], str(r["defined"]), deps))
+    header = ("Namespace", "Name", *(() if kind else ("Type",)), "Version", counted.capitalize(), "Dependencies")
+    terminal_components.table(rows, header=header)
+
+    total = nb.get_data(f"MATCH (m:{label})-[:DEFINES]->(n) RETURN count(DISTINCT n) AS defined")[0]["defined"]
+    print(f"\n{len(data)} {plural}, {total} {counted}")
+
+
+@invoke.task(pre=[setup.env], help={
+    "tree": "The dependency graph instead of the table",
+    "kind": "`ontology` or `knowledge`: only that kind's modules",
+})
+def info(c, tree=False, kind=""):
+    """What is loaded in the base, not on disk: one row per module - ontology, knowledge
+    or metaontology - with its namespace, version, what it defines and what it depends on."""
+    with NeuroBase() as nb:
+        print_info(nb, kind, tree)
 
 
 # ---- a module in its tree: release, rename, move, log -------------------

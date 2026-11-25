@@ -9,7 +9,6 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
-from neuro.base.ontology import Ontology
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
 from tasks.components import neurobase, nf_common, nfx as nfx_tasks
@@ -292,38 +291,9 @@ def _index_tree(idx):
             _draw(dep_nid, "", j == len(children) - 1)
 
 
-def _ontology_tree(nb):
-    """Print the dependency graph as an ASCII tree."""
-    data = nb.get_data("""
-        MATCH (m:OntologyMetadata)
-        OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:OntologyMetadata)
-        RETURN m.name as name, m.version as version,
-               collect(DISTINCT d.name) as dependencies
-    """)
-    by_name = {r["name"]: r for r in data}
-    roots = [r["name"] for r in data
-             if not any(r["name"] in d["dependencies"] for d in data)]
-
-    def _draw(name, prefix="", is_last=True):
-        r = by_name[name]
-        connector = "└── " if is_last else "├── "
-        print(f"{prefix}{connector}{r['name']}@{r['version']}")
-        child_prefix = prefix + ("    " if is_last else "│   ")
-        deps = sorted(r["dependencies"])
-        for i, dep in enumerate(deps):
-            _draw(dep, child_prefix, i == len(deps) - 1)
-
-    for i, root in enumerate(sorted(roots)):
-        r = by_name[root]
-        print(f"{r['name']}@{r['version']}")
-        deps = sorted(r["dependencies"])
-        for j, dep in enumerate(deps):
-            _draw(dep, "", j == len(deps) - 1)
-
-
 @invoke.task(pre=[setup.env])
 def info(c, type="", tree=False):
-    """Show ontology info. Without --type: loaded ontologies overview. With --type: type details. With --tree: dependency graph."""
+    """Show ontology info. Without --type: loaded ontologies overview (`nfx.info --kind ontology`). With --type: type details. With --tree: dependency graph."""
     with NeuroBase() as nb:
         if type:
             try:
@@ -331,34 +301,8 @@ def info(c, type="", tree=False):
             except ValueError as e:
                 print(f"{terminal_style.FAIL} {e}")
                 raise SystemExit(1)
-        elif tree:
-            _ontology_tree(nb)
         else:
-            data = nb.get_data("""
-                MATCH (m:OntologyMetadata)
-                OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:OntologyMetadata)
-                OPTIONAL MATCH (m)-[:DEFINES]->(n)
-                RETURN m.nid as nid, m.namespace as namespace, m.name as name, m.version as version,
-                       count(DISTINCT n) as types,
-                       collect(DISTINCT {namespace: d.namespace, name: d.name}) as dependencies
-                ORDER BY m.namespace, m.name
-            """)
-            # A name is unique inside its tree only: one row per module (by nid),
-            # its tree beside it, and dependencies by their qualified names.
-            qualified = Ontology.qualified_name
-            rows = []
-            for r in data:
-                deps = ", ".join(sorted(qualified(d) for d in r["dependencies"] if d["name"]))
-                namespace = "-" if r["namespace"] is None else (r["namespace"] or "·")
-                rows.append((namespace, r["name"], r["version"], str(r["types"]), deps))
-            header = ("Namespace", "Name", "Version", "Types", "Dependencies")
-            terminal_components.table(rows, header=header)
-
-            total = nb.get_data("""
-                MATCH (m:OntologyMetadata)-[:DEFINES]->(n)
-                RETURN count(DISTINCT n) as types
-            """)[0]
-            print(f"\n{len(data)} ontologies, {total['types']} types")
+            nfx_tasks.print_info(nb, kind="ontology", tree=tree)
 
 
 @invoke.task(pre=[setup.env])

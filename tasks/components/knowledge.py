@@ -58,6 +58,14 @@ def _index_info(idx, onto_idx, name):
     print()
 
 
+@invoke.task(pre=[setup.env])
+def info(c, tree=False):
+    """Shortcut for `nfx.info --kind knowledge`: the knowledge modules loaded in the
+    base, not on disk. --tree: their dependency graph, ontologies included."""
+    with NeuroBase() as nb:
+        nfx_tasks.print_info(nb, kind="knowledge", tree=tree)
+
+
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, knowledge=""):
     """Import knowledge into neurobase non-destructively. -k/--knowledge required.
