@@ -79,6 +79,26 @@ In environment override files, these are typically set to absolute paths. In `.e
 | `NEO4J_USER` | `neo4j` | Neo4j username |
 | `NEO4J_PASSWORD` | | Neo4j password |
 
+### Knowledge trees
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PLUGINS` | `.nf` | The scope: the `.nf` trees this environment may load, colon-separated |
+| `NF_TREES` | `$XDG_CONFIG_HOME/neuroforest/trees.toml` | The tree registry file; set only for tests and scratch work |
+
+Every `.nfx` module lives in a `.nf` tree: a directory holding `namespace.nfx`, `ontology/`, `knowledge/` and `validators/`, usually its own git repository. `PLUGINS` lists the trees an environment loads. An entry is one of:
+
+- a path - `~`-expanded, and resolved against `APP_DIR` when relative. The default `.nf` is the app's own tree, which holds the metaontology.
+- `@<token>` - the tree registered under that namespace token in the registry. `@root` is the tree with the empty token.
+
+```
+PLUGINS=.nf:@root:@example:~/work/other/.nf
+```
+
+An entry that does not exist on this machine is logged and skipped, so one scope line can serve machines that hold different trees.
+
+The registry is one file per machine. It maps each tree's namespace nid to its directory and token, and is written only by the `tree.*` tasks (`tree.init`, `tree.register`, `tree.move`, `tree.split`, `tree.forget`). `invoke nf.trees` lists the registered trees and shows which are in scope.
+
 ### API keys
 
 | Variable | Default | Description |
