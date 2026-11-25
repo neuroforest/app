@@ -20,12 +20,12 @@ from tasks.components import desktop, neurobase, tw5
 @invoke.task(pre=[setup.env])
 def version(c, bump=""):
     """Show the app version. A bump is a release, made outside these tasks."""
-    # One literal, the VERSION file at the app root, shipped with the
-    # tree; APP_VERSION left .env with it. A release moves it,
+    # One literal, the VERSION file at the app root, shipped with the tree;
+    # APP_VERSION left .env with it. A release moves it (bump, commit, tag),
     # so there is nothing left for a task to rewrite.
     if bump:
         raise SystemExit(f"{terminal_style.FAIL} the app's version moves only through a release - "
-                         "run a release instead")
+                         f"no {bump} bump is made here")
     print((internal_utils.get_path("app") / "VERSION").read_text().strip())
 
 

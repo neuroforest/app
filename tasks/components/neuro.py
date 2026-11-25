@@ -17,11 +17,10 @@ MODES = {
 }
 
 
-# The version is one literal, neuro/VERSION: pyproject.toml reads
-# it as `dynamic`, neuro.__version__ reads the file in a checkout and the installed
-# metadata from a wheel. Moving it is a release, and a release is
-# made outside these tasks,
-# so there is nothing left for a task to rewrite.
+# The version is one literal, neuro/VERSION: pyproject.toml reads it as `dynamic`,
+# neuro.__version__ reads the file in a checkout and the installed metadata from a
+# wheel. Moving it is a release (bump, commit, tag, wheel), made outside these
+# tasks, so there is nothing left for a task to rewrite.
 VERSION_FILE = ("neuro", "VERSION")
 
 
@@ -39,7 +38,7 @@ def version(c, bump=""):
     """Show the neuro version. A bump is a release, made outside these tasks."""
     if bump:
         raise SystemExit(f"{terminal_style.FAIL} neuro's version moves only through a release - "
-                         "run a release instead")
+                         f"no {bump} bump is made here")
     print(read_version())
 
 
