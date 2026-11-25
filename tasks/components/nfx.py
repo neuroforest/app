@@ -8,6 +8,7 @@ import invoke
 
 from neuro.base import NeuroBase, nf_repo, nfx, nfx_load, plugins, schema
 from neuro.base.index import KnowledgeIndex, NfxIndex, OntologyIndex
+from neuro.base.labels import LabelExpansionError
 from neuro.base.metaontology import OntologyViolations
 from neuro.base.ontology import ObjectValidator, Ontology
 from neuro.utils import exceptions, terminal_components, terminal_style
@@ -583,13 +584,26 @@ _INFO_KINDS = {
 }
 
 
+def _info_label(nb, kind):
+    """The label to match a kind's metadata on. `:Metadata+` needs the class in
+    the base's ontology, and a base with no metaontology loaded has none: name
+    the two anchors outright there, so the task reports an empty base rather
+    than failing on it."""
+    label = _INFO_KINDS[kind][0]
+    try:
+        nb.expand(f"MATCH (m:{label}) RETURN m")
+    except LabelExpansionError:
+        return "OntologyMetadata|KnowledgeMetadata"
+    return label
+
+
 def loaded_modules(nb, kind=""):
     """One row per module of `kind` loaded in the base (every kind when empty),
     with what it defines and its direct dependencies, of whatever kind."""
-    label = _INFO_KINDS[kind][0]
+    label = _info_label(nb, kind)
     return nb.get_data(f"""
         MATCH (m:{label})
-        OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d:Metadata+)
+        OPTIONAL MATCH (m)-[:DEPENDS_ON]->(d)
         OPTIONAL MATCH (m)-[:DEFINES]->(n)
         RETURN m.nid AS nid, m.namespace AS namespace, m.name AS name,
                m.version AS version, m.type AS type,
@@ -635,7 +649,8 @@ def print_info(nb, kind="", tree=False):
     if tree:
         print_module_tree(nb, kind)
         return
-    label, plural, counted = _INFO_KINDS[kind]
+    _, plural, counted = _INFO_KINDS[kind]
+    label = _info_label(nb, kind)
     data = loaded_modules(nb, kind)
     # A name is unique inside its tree only: one row per module (by nid),
     # its tree beside it, and dependencies by their qualified names.
