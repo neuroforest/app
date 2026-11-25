@@ -1,4 +1,6 @@
+import contextlib
 import json
+import logging
 import os
 import subprocess
 import time
@@ -640,18 +642,38 @@ def print_module_tree(nb, kind=""):
             draw(dep, "", i == len(children) - 1)
 
 
+@contextlib.contextmanager
+def _quiet_notifications():
+    """Silence the driver's notifications for the queries inside. A base that
+    holds no module yet has none of the labels, relationship types or property
+    keys these queries name, and the server says so once for each of them -
+    a screenful of warnings in front of the one line that answers."""
+    logger = logging.getLogger("neo4j.notifications")
+    level = logger.level
+    logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        logger.setLevel(level)
+
+
 def print_info(nb, kind="", tree=False):
     """The body of `nfx.info`, callable from the per-kind shortcuts: the
     modules loaded in the base as a table, or with `tree` as a dependency graph."""
     if kind not in _INFO_KINDS:
         print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
         raise SystemExit(1)
-    if tree:
-        print_module_tree(nb, kind)
-        return
     _, plural, counted = _INFO_KINDS[kind]
-    label = _info_label(nb, kind)
-    data = loaded_modules(nb, kind)
+    with _quiet_notifications():
+        label = _info_label(nb, kind)
+        data = loaded_modules(nb, kind)
+        if not data:
+            print(f"{terminal_style.WARN} No {plural} loaded in `{os.getenv('BASE_NAME')}`.")
+            return
+        if tree:
+            print_module_tree(nb, kind)
+            return
+        total = nb.get_data(f"MATCH (m:{label})-[:DEFINES]->(n) RETURN count(DISTINCT n) AS defined")[0]["defined"]
     # A name is unique inside its tree only: one row per module (by nid),
     # its tree beside it, and dependencies by their qualified names.
     rows = []
@@ -663,8 +685,6 @@ def print_info(nb, kind="", tree=False):
         rows.append((namespace, r["name"], *kind_cell, r["version"], str(r["defined"]), deps))
     header = ("Namespace", "Name", *(() if kind else ("Type",)), "Version", counted.capitalize(), "Dependencies")
     terminal_components.table(rows, header=header)
-
-    total = nb.get_data(f"MATCH (m:{label})-[:DEFINES]->(n) RETURN count(DISTINCT n) AS defined")[0]["defined"]
     print(f"\n{len(data)} {plural}, {total} {counted}")
 
 
