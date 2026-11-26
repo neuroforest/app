@@ -26,7 +26,8 @@ from tasks.components.nf_common import ROOT_MARK, ROOT_WORDS, namespace_label
 
 
 def _hooks(root):
-    """The hooks column: `current`, `stale` (reinstall with `tree.hooks`), `none`, or `-` where no tree's repository is."""
+    """The hooks column: `global` (the machine's global nf check judges every tree), else the tree's own -
+    `current`, `stale` (reinstall with `tree.hooks`), `none` - or `-` where no tree's repository is."""
     if not plugins.is_consolidated(root):
         return "-"
     try:

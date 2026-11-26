@@ -192,6 +192,11 @@ def order(c, tree=""):
 def hooks(c, tree="", runner=""):
     """Install or refresh a tree's hooks: versioned shims in <tree>/.githooks/, a stub per hook where git runs it. --runner: the wrapper path (required the first time)."""
     repo = nf_common.repo(tree)
+    covered = nf_repo.global_check()
+    if covered is not None:
+        print(f"{terminal_style.SUCCESS} {repo.root}: judged by this machine's global check ({covered}); "
+              f"it needs no hooks of its own, and with them every commit would be judged twice - nothing written")
+        return
     runner = runner or repo.git("config", "--get", "nf.runner", check=False).strip()
     if not runner:
         raise SystemExit(f"{terminal_style.FAIL} --runner is required (e.g. /path/to/wrapper) - no default, "
@@ -225,11 +230,15 @@ def _register(root, replace=False):
     "name": "Its name (default: the token)",
     "description": "One line on what the tree holds",
     "pins": "Namespaces it may depend on besides the app's own, comma-separated tokens of trees on this machine",
-    "runner": "The wrapper its hooks call (e.g. /path/to/wrapper); required, there is no default",
+    "runner": "The wrapper its hooks call (e.g. /path/to/wrapper); required, with no default, unless this machine has a global nf check",
     "no-commit": "Stop before the first commit",
 })
-def init(c, to, token, runner, name="", description="", pins="", no_commit=False):
+def init(c, to, token, runner="", name="", description="", pins="", no_commit=False):
     """Make an empty tree: the directory, a repository, namespace.nfx with a fresh nid, hooks, a line in the registry. Inside a project's work tree the tree joins that repository."""
+    covered = nf_repo.global_check()
+    if covered is None and not runner:
+        raise SystemExit(f"{terminal_style.FAIL} --runner is required (e.g. /path/to/wrapper): this machine has no "
+                         f"global nf check, so the tree gets hooks of its own")
     root = Path(to).expanduser()
     words = [nf_common.tree_path(p.strip()) for p in pins.split(",") if p.strip()]
     try:
@@ -238,16 +247,22 @@ def init(c, to, token, runner, name="", description="", pins="", no_commit=False
     except nf_trees.RegistryError as e:
         nf_common.refused("init", e.issues)
     repo = nf_common.repo(str(root))
-    try:
-        repo.install(runner)
-    except FileExistsError as e:
-        raise SystemExit(f"{terminal_style.FAIL} {e}")
     word = doc.namespace or "root"
-    print(f"{terminal_style.SUCCESS} {repo.root}: namespace {word} ({doc.nid}), hooks through `{runner}`")
+    if covered is not None:
+        repo.track_notes()
+        print(f"{terminal_style.SUCCESS} {repo.root}: namespace {word} ({doc.nid}), judged by the global check ({covered})")
+    else:
+        try:
+            repo.install(runner)
+        except FileExistsError as e:
+            raise SystemExit(f"{terminal_style.FAIL} {e}")
+        print(f"{terminal_style.SUCCESS} {repo.root}: namespace {word} ({doc.nid}), hooks through `{runner}`")
     if repo.top != repo.root:
         print(f"{terminal_style.DIM}it is part of the repository {repo.top}{terminal_style.RESET}")
     if not no_commit:
-        paths = [repo.show(nfx.NAMESPACE_FILENAME), repo.show(nf_repo.SHIM_DIR)]
+        paths = [repo.show(nfx.NAMESPACE_FILENAME)]
+        if (repo.root / nf_repo.SHIM_DIR).is_dir():
+            paths.append(repo.show(nf_repo.SHIM_DIR))
         repo.git("add", "--", *paths)
         try:
             repo.git("commit", "-q", "-m", f"ADD: namespace {word}", "--", *paths)
@@ -273,7 +288,7 @@ def register(c, tree="", replace=False):
     for remote in repo.track_notes():
         print(f"  {remote} now fetches {nf_repo.NOTES_REF} - `git -C {repo.top} fetch {remote}` brings them")
     state = repo.hooks_state()
-    if state != "current":
+    if state not in ("current", "global"):
         print(f"{terminal_style.WARN} hooks: {state} - run `tree.hooks --tree {repo.root} --runner <wrapper>`")
     if repo.root not in plugins.effective_roots():
         print(f"{terminal_style.DIM}not in this environment's scope: add @{t.word} to PLUGINS to load it{terminal_style.RESET}")
