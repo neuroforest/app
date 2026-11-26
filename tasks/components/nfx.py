@@ -749,6 +749,7 @@ def release(c, target, tree="", major=False, dry_run=False, message="", no_test=
     """Release documents (comma-separated) with their in-tree dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit. The release is tested first (`nfx.test`) and refused on a failure."""
     targets = [nf_common.key(t, tree) for t in target.split(",") if t.strip()]
     repo = nf_common.repo(tree or nf_common.owner_tree(targets[0]))
+    nf_common.require_in_scope(repo, "release")
     others = plugins.effective_trees()
     try:
         steps = repo.plan_release(targets, major, others) if dry_run else None

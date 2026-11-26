@@ -137,6 +137,14 @@ def repo(tree=""):
         raise SystemExit(f"{terminal_style.FAIL} {e}")
 
 
+def require_in_scope(repo, verb):
+    """Refuse a tree this environment does not list in PLUGINS: naming it
+    outright (`--tree`) does not widen the scope."""
+    if Path(repo.root).resolve() not in {Path(t).resolve() for t in plugins.effective_trees()}:
+        raise SystemExit(f"{terminal_style.FAIL} {repo.root}: outside this environment's scope (PLUGINS) - "
+                         f"cannot {verb} from here")
+
+
 def owner_tree(module):
     """The tree among PLUGINS that holds the module `module` names."""
     trees = plugins.effective_trees()
