@@ -274,6 +274,77 @@ def test_sync_nfx(test_ontology, tmp_path):
     assert report["orphaned"] == [(f"TestKey {held}", 1)] and report["removed"] == [f"TestKey {empty}"]
 
 
+def test_write_document(test_ontology, tmp_path):
+    """A module adds a label and a property to a node of the module it pins:
+    the owner's re-import leaves both, the extender's takes back what it
+    stopped declaring, and neither may set the other's property."""
+    import uuid
+
+    from neuro.base import nf_repo, nfx, nfx_load, plugins
+    from neuro.base.index import NfxIndex
+    from neuro.utils import exceptions
+
+    nb, root = test_ontology, tmp_path / ".nf"
+    (root / "knowledge").mkdir(parents=True)
+    env = {**os.environ, **{f"GIT_{who}_{what}": value for who in ("AUTHOR", "COMMITTER")
+                            for what, value in (("NAME", "T"), ("EMAIL", "t@example.org"))}}
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(root), *args], env=env, check=True, capture_output=True)
+
+    git("init", "-q", "-b", "master")
+    git("config", "core.hooksPath", "/dev/null")  # no global hooks in tests
+    a, b, x = (str(uuid.uuid4()) for _ in range(3))
+
+    def release(name, nid, version, pin, node):
+        """Release `name` at `version`, import it, and return the report."""
+        path = root / "knowledge" / f"{name}.nfx"
+        nfx.write(path, nfx.Nfx(nid=nid, type="knowledge", name=name, version=version,
+                                dependencies=(pin,), nodes=(node,) if node else ()))
+        git("add", "-A")
+        git("commit", "-q", "-m", f"RELEASE: knowledge {name} {version}")
+        git("tag", "-a", f"knowledge/{name}/{version}", "-m", version)
+        idx = NfxIndex(*plugins.effective_roots(), root)
+        return nfx_load.import_document(nb, idx, path)
+
+    def state():
+        rows = nb.get_data("MATCH (n {nid: $nid}) RETURN labels(n) AS labels, properties(n) AS props", {"nid": x})
+        return (set(rows[0]["labels"]), rows[0]["props"]) if rows else None
+
+    test = ("e75a8385-4d8f-43ad-8df0-31124369d0bd", "2.1")
+    release("a", a, "1.0", test, {"nid": x, "labels": ["TestKey"], "properties": {"id": "X1"}})
+    report = release("b", b, "1.0", (a, "1.0"),
+                     {"nid": x, "labels": ["TestKey", "TestRequire"], "properties": {"name": "x"}})
+    assert report["extended"] == 1
+    assert state() == ({"TestKey", "TestRequire"}, {"nid": x, "id": "X1", "name": "x"})
+
+    # The owner changes its own part; what `b` added is not its to take back.
+    release("a", a, "1.1", test, {"nid": x, "labels": ["TestKey"], "properties": {"id": "X2"}})
+    assert state() == ({"TestKey", "TestRequire"}, {"nid": x, "id": "X2", "name": "x"})
+    defined_by = nb.get_data("MATCH (m)-[:DEFINES]->({nid: $nid}) RETURN m.name AS name", {"nid": x})
+    assert [r["name"] for r in defined_by] == ["a"]
+
+    with pytest.raises(exceptions.NfxViolation, match="declared by a with another value"):
+        release("b", b, "1.1", (a, "1.1"),
+                {"nid": x, "labels": ["TestKey", "TestRequire"], "properties": {"name": "x", "id": "mine"}})
+    # ... and the document check says so before any base is asked.
+    failures = nf_repo.document_failures(
+        NfxIndex(*plugins.effective_roots(), root), root / "knowledge" / "b.nfx")
+    assert len(failures) == 1 and "'id' is declared by a" in failures[0]
+    with pytest.raises(exceptions.NfxViolation, match="name"):  # TestRequire asks for it
+        release("b", b, "1.2", (a, "1.1"), {"nid": x, "labels": ["TestKey", "TestRequire"]})
+    assert state() == ({"TestKey", "TestRequire"}, {"nid": x, "id": "X2", "name": "x"})
+
+    # The owner drops the node while `b` still adds to it: kept, and reported.
+    report = release("a", a, "1.2", test, None)
+    assert report["orphaned"] == [("x", 2)] and state() is not None
+    release("a", a, "1.3", test, {"nid": x, "labels": ["TestKey"], "properties": {"id": "X2"}})
+
+    # `b` goes back to naming the node only, as an endpoint.
+    release("b", b, "1.3", (a, "1.3"), {"nid": x, "labels": ["TestKey"]})
+    assert state() == ({"TestKey"}, {"nid": x, "id": "X2"})
+
+
 def test_print_info(nb, capsys):
     """Each kind lists its own modules; a dependency is named whatever its kind."""
     from neuro.base import nfx_load, plugins

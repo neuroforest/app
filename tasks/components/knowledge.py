@@ -77,15 +77,13 @@ def import_(c, knowledge=""):
                 doc.dependencies, index=idx,
                 on_import=nfx_tasks.make_dep_logger(status),
             )
-            # Every nid reachable through the declared deps - so sync_nfx can tell
-            # a foreign reference stub (owned by a dependency, e.g. an OntologyNode
-            # class the metrics APPLIES_TO, or a node of a pinned knowledge module)
-            # from a node this file owns, and leave the former's properties (like
-            # `color`) intact.
-            dep_nids = nfx.NfxTree(
-                doc, nb.metaontology._resolver(idx),
-            ).all_node_nids(scope="dependencies")
-            report = nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=idx)
+            # Every node reachable through the declared deps - so sync_nfx can tell
+            # a node a dependency owns (an OntologyNode class the metrics
+            # APPLIES_TO, a node of a pinned knowledge module) from one this file
+            # owns: the owner's part (like `color`) stays intact, and the file
+            # writes only what it adds to it.
+            dep_nodes = nfx.NfxTree(doc, nb.metaontology._resolver(idx)).dependency_nodes()
+            report = nb.nodes.sync_nfx(path, dependency_nodes=dep_nodes, index=idx)
             nfx_tasks.print_import_report(status, report)
 
 
