@@ -36,6 +36,14 @@ def _hooks(root):
     return f"{terminal_style.WARN} stale" if state == "stale" else state
 
 
+def _version(root):
+    """The version of the tree's namespace declaration, `-` where it has none to read."""
+    try:
+        return nf_trees.declared(root).version or "-"
+    except nf_trees.RegistryError:
+        return "-"
+
+
 def _forest(scope_only=False):
     """The trees to show, as `(root, in scope, registry line or None)`: this
     environment's scope in its order, then the registered trees outside it."""
@@ -49,7 +57,7 @@ def _forest(scope_only=False):
 
 @invoke.task(pre=[setup.env], help={"scope": "Only the trees this environment may load (its PLUGINS)"})
 def trees(c, scope=False):
-    """List the trees on this machine: namespace token, module count, hooks, whether this environment may load it, whether it is registered, absolute path."""
+    """List the trees on this machine: namespace token and version, module count, hooks, whether this environment may load it, whether it is registered, absolute path."""
     forest = _forest(scope)
     idx = NfxIndex(*(root for root, loaded, _ in forest if loaded))
     rows = []
@@ -64,12 +72,12 @@ def trees(c, scope=False):
         else:
             live = nf_trees.declared(root)
             registry = "✔" if (live.nid, live.namespace or "") == (line.nid, line.token) else f"{terminal_style.WARN} outdated"
-        rows.append((label, str(count) if present else "-", _hooks(root) if present else "-",
-                     "✔" if loaded else "", registry, str(root)))
-    terminal_components.table(rows, header=("Namespace", "Modules", "Hooks", "Scope", "Registry", "Path"))
+        rows.append((label, _version(root) if present else "-", str(count) if present else "-",
+                     _hooks(root) if present else "-", "✔" if loaded else "", registry, str(root)))
+    terminal_components.table(rows, header=("Namespace", "Version", "Modules", "Hooks", "Scope", "Registry", "Path"))
     for entry in plugins.missing_roots():
         print(f"{terminal_style.WARN} {entry} is listed in PLUGINS but names nothing here - skipped, not fatal")
-    if any("outdated" in r[4] for r in rows):
+    if any("outdated" in r[5] for r in rows):
         print(f"{terminal_style.WARN} a registry line no longer matches its tree's declaration - `tree.register --tree <path>`")
     for root, loaded, line in forest:
         if loaded and line is None and plugins.is_consolidated(root) and not _of_checkout(root):
