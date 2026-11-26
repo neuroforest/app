@@ -169,14 +169,14 @@ def test_print_dependant_hint(tmp_path, capsys):
 
     paths = [write("root", root, [mid]), write("mid", mid, [leaf]),
              write("leaf", leaf, []), write("outside", outside, [leaf])]
-    idx = SimpleNamespace(all_targets=lambda: paths)
+    idx = SimpleNamespace(all_targets=lambda: paths, qualified_for=lambda nid: None)
 
     # Importing root writes mid and leaf too. `mid` depends on written `leaf`,
     # but is itself written - naming it would be a re-import of what just ran.
     nfx_tasks.print_dependant_hint(idx, {root, mid, leaf})
     out = capsys.readouterr().out
-    assert "ontology.import -o outside" in out
-    assert "-o mid" not in out and "-o root" not in out
+    assert "nfx.import outside" in out
+    assert "import mid" not in out and "import root" not in out
 
     # Importing the whole closure leaves nothing pending.
     nfx_tasks.print_dependant_hint(idx, {root, mid, leaf, outside})

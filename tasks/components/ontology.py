@@ -16,37 +16,12 @@ from tasks.components import neurobase, nf as nf_tasks, nf_common, nfx as nfx_ta
 
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, ontology=""):
-    """Import ontology into neurobase. -o/--ontology required."""
+    """Shortcut for `nfx.import --kind ontology`: import an ontology (or the
+    metaontology) into neurobase. -o/--ontology required; a knowledge module is refused."""
     if not ontology:
         print(f"{terminal_style.FAIL} -o/--ontology required")
         raise SystemExit(1)
-    ontology_dirs = plugins.effective_trees()
-    idx = OntologyIndex(*ontology_dirs)
-
-    targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
-    written = set()
-    with NeuroBase() as nb:
-        for path in targets:
-            doc = nfx.read(path)
-            name = doc.name or path.stem
-            fresh = []
-            with terminal_components.step(name) as status:
-                log_dep = nfx_tasks.make_dep_logger(status)
-
-                def on_import(dep_name, imported, depth=1, _fresh=fresh):
-                    if imported:
-                        _fresh.append(dep_name)
-                    log_dep(dep_name, imported, depth)
-
-                report = nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
-                nfx_tasks.print_import_report(status, report)
-            written.add(doc.nid)
-            for dep_name in fresh:
-                dep_path = idx.resolve(dep_name)
-                if dep_path:
-                    written.add(nfx.read(dep_path).nid)
-        nfx_tasks.print_orphan_hint(nb)
-    nfx_tasks.print_dependant_hint(idx, written - {None, ""})
+    nfx_tasks.run_import_task(ontology, kind="ontology")
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

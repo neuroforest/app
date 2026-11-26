@@ -202,11 +202,14 @@ def print_orphan_hint(nb):
 
 
 def print_dependant_hint(idx, written_nids):
-    """Print the re-import commands for ontologies that depend on anything
-    written this run and were not themselves written.
+    """Print the re-import commands for the modules that depend on anything
+    written this run and were not themselves written. `idx` decides which
+    kinds are looked at: over an `NfxIndex` a knowledge module pinning a
+    re-imported ontology is named too, by the qualified name that always
+    resolves back to it.
 
     Detect and print only - never re-import them here. Re-importing in the same
-    run would let a command aimed at one ontology write to ontologies the user
+    run would let a command aimed at one module write to modules the user
     never named.
 
     "Not written" is decided by nid, not by which file the operator named: a
@@ -221,12 +224,65 @@ def print_dependant_hint(idx, written_nids):
         if doc.nid in written_nids:
             continue
         if written_nids & set(doc.dep_nids):
-            pending.append(doc.name or path.stem)
+            pending.append(idx.qualified_for(doc.nid) or doc.name or path.stem)
     if not pending:
         return
     print(f"\n{terminal_style.WARN} Dependents not re-imported:")
     for name in sorted(pending):
-        print(f"    ontology.import -o {name}")
+        print(f"    nfx.import {name}")
+
+
+def run_import_task(target, kind=""):
+    """The body of `nfx.import`, callable from the per-kind shortcuts.
+
+    One module, named by stem, name, qualified name, nid or path, is written
+    with the dependencies the base lacks - whatever their kinds. `kind` only
+    narrows what the name may resolve to: a shortcut refuses a module of the
+    other kind rather than import it under the wrong verb.
+    """
+    if kind not in _KIND_VIEWS:
+        print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
+        raise SystemExit(1)
+    view, noun = _KIND_VIEWS[kind]
+    if not target:
+        print(f"{terminal_style.FAIL} a target is required: the module to import")
+        raise SystemExit(1)
+    trees = plugins.effective_trees()
+    idx = NfxIndex(*trees)  # every kind: a module pins, and is pinned by, either
+
+    # Among the asked kind when it has a module of that name, so a name both
+    # kinds use means that kind's; otherwise among all, to say what it is.
+    narrowed = view(*trees)
+    path = nf_common.resolve(narrowed if narrowed.matches(target) else idx, target)
+    if not path:
+        print(f"{terminal_style.FAIL} {noun} not found: {target}")
+        raise SystemExit(1)
+    doc = nfx.read(path)
+    if doc.is_namespace:
+        print(f"{terminal_style.FAIL} {path} is a namespace declaration, not a module - nothing to "
+              f"import (its graph form is the `:NfxPackage`, seeded by its own importer)")
+        raise SystemExit(1)
+    if kind and ("knowledge" if doc.type == "knowledge" else "ontology") != kind:
+        print(f"{terminal_style.FAIL} {doc.name or target} is {doc.type or 'an ontology'}, not {kind} "
+              f"- `nfx.import {target}` imports either kind")
+        raise SystemExit(1)
+
+    written = {doc.nid}
+    with NeuroBase() as nb:
+        with terminal_components.step(doc.name or path.stem) as status:
+            log_dep = make_dep_logger(status)
+
+            def on_import(dep_name, imported, depth=1):
+                if imported:
+                    dep_path = idx.resolve(dep_name)
+                    if dep_path:
+                        written.add(nfx.read(dep_path).nid)
+                log_dep(dep_name, imported, depth)
+
+            report = nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
+            print_import_report(status, report)
+        print_orphan_hint(nb)
+    print_dependant_hint(idx, written - {None, ""})
 
 
 def resolve_target(idx, name, kind="Target"):
@@ -656,6 +712,19 @@ def print_info(nb, kind=""):
     header = ("Namespace", "Name", *(() if kind else ("Type",)), "Version", counted.capitalize(), "Dependencies")
     terminal_components.table(rows, header=header)
     print(f"\n{len(data)} {plural}, {total} {counted}")
+
+
+@invoke.task(name="import", pre=[setup.env], help={
+    "target": "The module to import: stem, name, qualified name, nid or path",
+    "kind": "`ontology` or `knowledge`: refuse a module of the other kind",
+})
+def import_(c, target, kind=""):
+    """Import one .nfx module into the base, with the dependencies the base lacks -
+    ontology, knowledge or the metaontology alike. A node the module stops declaring
+    is released, and deleted only when nothing is left on it; an edge, a label or a
+    property is taken back when the module's previous release declared it and this
+    one does not. Modules that pin what was written are listed, never re-imported."""
+    run_import_task(target, kind)
 
 
 @invoke.task(pre=[setup.env], help={

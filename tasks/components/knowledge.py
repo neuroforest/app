@@ -2,7 +2,7 @@ import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import KnowledgeIndex, NfxIndex
-from neuro.utils import terminal_components, terminal_style
+from neuro.utils import terminal_style
 
 from tasks.actions import setup
 from tasks.components import neurobase, nf as nf_tasks, nf_common, nfx as nfx_tasks
@@ -49,7 +49,8 @@ def info(c):
 
 @invoke.task(name="import", pre=[setup.env])
 def import_(c, knowledge=""):
-    """Import knowledge into neurobase non-destructively. -k/--knowledge required.
+    """Shortcut for `nfx.import --kind knowledge`: import a knowledge module into
+    neurobase. -k/--knowledge required; an ontology is refused.
 
     Missing dependencies are loaded - ontologies and pinned knowledge modules
     alike, transitively; ones already present at the right version are reused.
@@ -60,31 +61,7 @@ def import_(c, knowledge=""):
     if not knowledge:
         print(f"{terminal_style.FAIL} -k/--knowledge required")
         raise SystemExit(1)
-    trees = plugins.effective_trees()
-    idx = NfxIndex(*trees)
-
-    path = nf_common.resolve(KnowledgeIndex(*trees), knowledge)
-    if not path:
-        print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
-        raise SystemExit(1)
-
-    doc = nfx.read(path)
-    name = doc.name or path.stem
-
-    with NeuroBase() as nb:
-        with terminal_components.step(name) as status:
-            nb.metaontology._import_dependencies(
-                doc.dependencies, index=idx,
-                on_import=nfx_tasks.make_dep_logger(status),
-            )
-            # Every node reachable through the declared deps - so sync_nfx can tell
-            # a node a dependency owns (an OntologyNode class the metrics
-            # APPLIES_TO, a node of a pinned knowledge module) from one this file
-            # owns: the owner's part (like `color`) stays intact, and the file
-            # writes only what it adds to it.
-            dep_nodes = nfx.NfxTree(doc, nb.metaontology._resolver(idx)).dependency_nodes()
-            report = nb.nodes.sync_nfx(path, dependency_nodes=dep_nodes, index=idx)
-            nfx_tasks.print_import_report(status, report)
+    nfx_tasks.run_import_task(knowledge, kind="knowledge")
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

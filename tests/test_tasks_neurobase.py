@@ -370,6 +370,30 @@ def test_print_info(nb, capsys):
         nfx_tasks.print_info(nb, kind="bogus")
 
 
+def test_run_import_task(nb, capsys):
+    """`nfx.import` writes a module of either kind and names what pins it; a
+    shortcut refuses the other kind, and a namespace is nobody's to import."""
+    from tasks.components import nfx as nfx_tasks
+
+    for target, kind, said in (("kk-a", "ontology", "is knowledge, not ontology"),
+                               ("Test", "knowledge", "is ontology, not knowledge"),
+                               (str(KNOWLEDGE.parent / "namespace.nfx"), "", "namespace declaration")):
+        with pytest.raises(SystemExit):
+            nfx_tasks.run_import_task(target, kind)
+        assert said in capsys.readouterr().out
+    assert nb.get_data("MATCH (m:OntologyMetadata|KnowledgeMetadata) RETURN count(m) AS n")[0]["n"] == 0
+
+    nfx_tasks.run_import_task("Test")
+    out = capsys.readouterr().out
+    assert "nfx.import test-kk-a" in out and "nfx.import test-kk-b" not in out
+
+    nfx_tasks.run_import_task("kk-b", kind="knowledge")  # brings kk-a with it
+    out = capsys.readouterr().out
+    assert "nfx.import test-kk-c" in out and "nfx.import test-kk-a" not in out
+    loaded = {r["name"] for r in nb.get_data("MATCH (m:KnowledgeMetadata) RETURN m.name AS name")}
+    assert loaded == {"kk-a", "kk-b"}
+
+
 def test_import_dependencies(nb):
     """`knowledge.import`'s path: a pinned knowledge module that is missing is
     loaded with the ontologies behind it, one already there is reused."""
