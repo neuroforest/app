@@ -91,13 +91,16 @@ def _of_checkout(root):
     return Path(os.environ["APP_DIR"]).resolve() in root.parents
 
 
-@invoke.task(pre=[setup.env], help={
-    "namespace": "Only this namespace's documents (`root` or `·` for the empty token)",
-    "scope": "Only the trees this environment may load (its PLUGINS)",
-})
-def index(c, namespace="", scope=False):
-    """Show every discovered .nfx (ontology, knowledge, metaontology) in one table;
-    --namespace narrows to one tree, --scope to what this environment loads."""
+_INDEX_KINDS = {"": None, "ontology": {"metaontology", "ontology"}, "knowledge": {"knowledge"}}
+
+
+def print_index(namespace="", scope=False, kind=""):
+    """The body of `nf.index`, callable from the per-kind shortcuts
+    (`ontology.index`, `knowledge.index`)."""
+    if kind not in _INDEX_KINDS:
+        print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
+        raise SystemExit(1)
+    types = _INDEX_KINDS[kind]
     forest = _forest(scope)
     outside = {root for root, loaded, line in forest if not loaded and line.present}
     roots = [root for root, loaded, line in forest if loaded or line.present]
@@ -120,18 +123,29 @@ def index(c, namespace="", scope=False):
         ns = namespace_label(idx, entry.registry_root)
         typed = "root" if ns == ROOT_MARK else ns
         seen.add(typed)
-        if want and typed != want:
+        if (want and typed != want) or (types and entry.type not in types):
             continue
         if entry.registry_root in outside:
             ns = f"{ns} {terminal_style.DIM}(out of scope){terminal_style.RESET}"
         entries.append((entry.type, entry.name or entry.path.stem, entry.version, entry.nid, ns))
-    if want and not entries:
+    if want and want not in seen:
         print(f"{terminal_style.FAIL} no namespace {namespace!r} - known: {', '.join(sorted(seen))}")
         raise SystemExit(1)
     entries.sort(key=lambda r: (type_order.get(r[0], 99), r[1].casefold()))
-    if want:
-        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8]) for t, n, v, nid, _ in entries]
-        terminal_components.table(rows, header=("Type", "Name", "Version", "NID"))
-    else:
-        rows = [(type_label.get(t, t or "?"), n, v, (nid or "")[:8], ns) for t, n, v, nid, ns in entries]
-        terminal_components.table(rows, header=("Type", "Name", "Version", "NID", "Namespace"))
+    # a column that would say the same on every row is left out
+    typed_column, ns_column = not types or len(types) > 1, not want
+    rows = [(*((type_label.get(t, t or "?"),) if typed_column else ()), n, v, (nid or "")[:8],
+             *((ns,) if ns_column else ())) for t, n, v, nid, ns in entries]
+    header = (*(("Type",) if typed_column else ()), "Name", "Version", "NID", *(("Namespace",) if ns_column else ()))
+    terminal_components.table(rows, header=header)
+
+
+@invoke.task(pre=[setup.env], help={
+    "namespace": "Only this namespace's documents (`root` or `·` for the empty token)",
+    "scope": "Only the trees this environment may load (its PLUGINS)",
+    "kind": "`ontology` (the metaontology with them) or `knowledge`: only that kind's documents",
+})
+def index(c, namespace="", scope=False, kind=""):
+    """Show every discovered .nfx (ontology, knowledge, metaontology) in one table;
+    --namespace narrows to one tree, --scope to what this environment loads, --kind to one kind."""
+    print_index(namespace, scope, kind)

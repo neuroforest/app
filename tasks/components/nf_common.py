@@ -70,7 +70,7 @@ def find(idx, key):
 def resolve(idx, key):
     """`idx.resolve` for a name typed by the user: a path, or what `find` settles on."""
     path = Path(key)
-    if path.exists():
+    if path.is_file():  # a directory of that name beside the shell (`tw5` in the app) is not the module
         return path
     entry = find(idx, key)
     return entry.path if entry else None

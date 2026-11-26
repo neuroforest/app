@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import invoke
 
 from neuro.base import NeuroBase, nfx, plugins
@@ -8,34 +5,18 @@ from neuro.base.index import KnowledgeIndex, NfxIndex
 from neuro.utils import terminal_components, terminal_style
 
 from tasks.actions import setup
-from tasks.components import neurobase, nf_common, nfx as nfx_tasks
+from tasks.components import neurobase, nf as nf_tasks, nf_common, nfx as nfx_tasks
 
 
 @invoke.task(pre=[setup.env])
 def index(c, knowledge=""):
-    """Show discovered knowledge .nfx files. -k/--knowledge: details for one."""
-    roots = plugins.effective_roots()
-    idx = KnowledgeIndex(*roots)
-
+    """Shortcut for `nf.index --kind knowledge --scope`: the knowledge modules this environment loads. -k/--knowledge: details of one."""
     if knowledge:
+        roots = plugins.effective_roots()
         # every type: a knowledge module may pin another
-        _index_info(idx, NfxIndex(*roots), knowledge)
+        _index_info(KnowledgeIndex(*roots), NfxIndex(*roots), knowledge)
         return
-
-    app_dir = Path(os.environ["APP_DIR"])
-    rows = []
-    for entry in idx.entries():
-        path = entry.path
-        try:
-            rel = os.path.relpath(path, app_dir)
-        except ValueError:
-            rel = str(path)
-        rows.append((
-            entry.name or path.stem, entry.version, (entry.nid or "")[:8],
-            nf_common.namespace_label(idx, entry.registry_root), rel,
-        ))
-    rows.sort(key=lambda r: r[0].casefold())
-    terminal_components.table(rows, header=("Name", "Version", "NID", "Namespace", "Path"))
+    nf_tasks.print_index(scope=True, kind="knowledge")
 
 
 def _index_info(idx, onto_idx, name):

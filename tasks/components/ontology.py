@@ -11,7 +11,7 @@ from neuro.base import NeuroBase, nfx, plugins
 from neuro.base.index import OntologyIndex
 from neuro.utils import exceptions, terminal_components, terminal_style
 from tasks.actions import setup
-from tasks.components import neurobase, nf_common, nfx as nfx_tasks
+from tasks.components import neurobase, nf as nf_tasks, nf_common, nfx as nfx_tasks
 
 
 @invoke.task(name="import", pre=[setup.env])
@@ -131,32 +131,11 @@ def _dependant_paths(idx, target_path, target_nid):
 
 @invoke.task(pre=[setup.env])
 def index(c, ontology=""):
-    """Show discovered ontologies from PLUGINS search path. -o/--ontology: ontology details."""
-    ontology_dirs = plugins.effective_roots()
-    idx = OntologyIndex(*ontology_dirs)
-
+    """Shortcut for `nf.index --kind ontology --scope`: the ontologies and the metaontology this environment loads. -o/--ontology: details of one."""
     if ontology:
-        _index_info(idx, ontology)
+        _index_info(OntologyIndex(*plugins.effective_roots()), ontology)
         return
-
-    app_dir = Path(os.environ["APP_DIR"])
-    rows = []
-    for entry in idx.entries():
-        path = entry.path
-        try:
-            rel = os.path.relpath(path, app_dir)
-        except ValueError:
-            rel = str(path)
-        rows.append((
-            entry.name or path.stem,
-            entry.version,
-            (entry.nid or "")[:8],
-            nf_common.namespace_label(idx, entry.registry_root),
-            rel,
-        ))
-    rows.sort(key=lambda r: (r[0].casefold() != "metaontology", r[0].casefold()))
-    header = ("Name", "Version", "NID", "Namespace", "Path")
-    terminal_components.table(rows, header=header)
+    nf_tasks.print_index(scope=True, kind="ontology")
 
 
 def _strip_properties(nb):
