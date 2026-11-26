@@ -238,8 +238,7 @@ def test_import_document(nb):
 
 
 def test_print_info(nb, capsys):
-    """Each kind lists its own modules; a dependency is named whatever its kind,
-    and a knowledge tree runs down into the ontology behind it."""
+    """Each kind lists its own modules; a dependency is named whatever its kind."""
     from neuro.base import nfx_load, plugins
     from neuro.base.index import NfxIndex
     from tasks.components import nfx as nfx_tasks
@@ -255,11 +254,6 @@ def test_print_info(nb, capsys):
     nfx_tasks.print_info(nb, kind="knowledge")
     table = capsys.readouterr().out
     assert "3 knowledge modules, 3 nodes" in table and "Type" not in table.splitlines()[0]
-
-    nfx_tasks.print_info(nb, kind="knowledge", tree=True)
-    tree = capsys.readouterr().out.splitlines()
-    assert tree[0].startswith("kk-c@") and tree[1].startswith("└── kk-b@")
-    assert any("kk-a@" in line for line in tree[2:]) and any("Test@" in line for line in tree[3:])
 
     nfx_tasks.print_info(nb)
     assert "Type" in capsys.readouterr().out.splitlines()[0]

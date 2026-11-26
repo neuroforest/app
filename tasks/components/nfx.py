@@ -615,33 +615,6 @@ def loaded_modules(nb, kind=""):
     """)
 
 
-def print_module_tree(nb, kind=""):
-    """Print the loaded dependency graph as an ASCII tree. With `kind`, the
-    roots are that kind's modules; what they depend on is drawn whatever its
-    kind. Keyed by nid: a name is unique inside its tree only."""
-    every = {r["nid"]: r for r in loaded_modules(nb)}
-    scope = {r["nid"] for r in loaded_modules(nb, kind)} if kind else set(every)
-
-    def deps(nid):
-        found = {d["nid"] for d in every[nid]["dependencies"] if d["nid"] in every}
-        return sorted(found, key=lambda n: every[n]["name"] or "")
-
-    depended = {d for nid in scope for d in deps(nid)}
-
-    def draw(nid, prefix="", is_last=True):
-        r = every[nid]
-        print(f"{prefix}{'└── ' if is_last else '├── '}{r['name']}@{r['version']}")
-        children = deps(nid)
-        for i, dep in enumerate(children):
-            draw(dep, prefix + ("    " if is_last else "│   "), i == len(children) - 1)
-
-    for root in sorted(scope - depended, key=lambda n: every[n]["name"] or ""):
-        print(f"{every[root]['name']}@{every[root]['version']}")
-        children = deps(root)
-        for i, dep in enumerate(children):
-            draw(dep, "", i == len(children) - 1)
-
-
 @contextlib.contextmanager
 def _quiet_notifications():
     """Silence the driver's notifications for the queries inside. A base that
@@ -657,9 +630,9 @@ def _quiet_notifications():
         logger.setLevel(level)
 
 
-def print_info(nb, kind="", tree=False):
+def print_info(nb, kind=""):
     """The body of `nfx.info`, callable from the per-kind shortcuts: the
-    modules loaded in the base as a table, or with `tree` as a dependency graph."""
+    modules loaded in the base as a table."""
     if kind not in _INFO_KINDS:
         print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
         raise SystemExit(1)
@@ -669,9 +642,6 @@ def print_info(nb, kind="", tree=False):
         data = loaded_modules(nb, kind)
         if not data:
             print(f"{terminal_style.WARN} No {plural} loaded in `{os.getenv('BASE_NAME')}`.")
-            return
-        if tree:
-            print_module_tree(nb, kind)
             return
         total = nb.get_data(f"MATCH (m:{label})-[:DEFINES]->(n) RETURN count(DISTINCT n) AS defined")[0]["defined"]
     # A name is unique inside its tree only: one row per module (by nid),
@@ -689,14 +659,13 @@ def print_info(nb, kind="", tree=False):
 
 
 @invoke.task(pre=[setup.env], help={
-    "tree": "The dependency graph instead of the table",
     "kind": "`ontology` or `knowledge`: only that kind's modules",
 })
-def info(c, tree=False, kind=""):
+def info(c, kind=""):
     """What is loaded in the base, not on disk: one row per module - ontology, knowledge
     or metaontology - with its namespace, version, what it defines and what it depends on."""
     with NeuroBase() as nb:
-        print_info(nb, kind, tree)
+        print_info(nb, kind)
 
 
 # ---- a module in its tree: release, rename, move, log -------------------

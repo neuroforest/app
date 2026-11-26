@@ -130,16 +130,13 @@ def _dependant_paths(idx, target_path, target_nid):
 
 
 @invoke.task(pre=[setup.env])
-def index(c, tree=False, ontology=""):
-    """Show discovered ontologies from PLUGINS search path. --tree: dependency graph. -o/--ontology: ontology details."""
+def index(c, ontology=""):
+    """Show discovered ontologies from PLUGINS search path. -o/--ontology: ontology details."""
     ontology_dirs = plugins.effective_roots()
     idx = OntologyIndex(*ontology_dirs)
 
     if ontology:
         _index_info(idx, ontology)
-        return
-    if tree:
-        _index_tree(idx)
         return
 
     app_dir = Path(os.environ["APP_DIR"])
@@ -259,41 +256,9 @@ def _version_history(path):
     return history
 
 
-def _index_tree(idx):
-    """Print a dependency tree from NFX file metadata (no DB needed)."""
-    packages = {}
-    for path in idx.all_targets():
-        doc = nfx.read(path)
-        packages[doc.nid] = {
-            "name": doc.name or path.stem,
-            "version": doc.version,
-            "dep_nids": list(doc.dep_nids),
-        }
-
-    # Find roots: packages that no other package depends on
-    all_deps = {d for p in packages.values() for d in p["dep_nids"]}
-    roots = [nid for nid in packages if nid not in all_deps]
-
-    def _draw(nid, prefix="", is_last=True):
-        p = packages[nid]
-        connector = "└── " if is_last else "├── "
-        print(f"{prefix}{connector}{p['name']}@{p['version']}")
-        child_prefix = prefix + ("    " if is_last else "│   ")
-        children = [d for d in p["dep_nids"] if d in packages]
-        for i, dep_nid in enumerate(sorted(children, key=lambda d: packages[d]["name"])):
-            _draw(dep_nid, child_prefix, i == len(children) - 1)
-
-    for i, nid in enumerate(sorted(roots, key=lambda n: packages[n]["name"])):
-        p = packages[nid]
-        print(f"{p['name']}@{p['version']}")
-        children = [d for d in p["dep_nids"] if d in packages]
-        for j, dep_nid in enumerate(sorted(children, key=lambda d: packages[d]["name"])):
-            _draw(dep_nid, "", j == len(children) - 1)
-
-
 @invoke.task(pre=[setup.env])
-def info(c, type="", tree=False):
-    """Show ontology info. Without --type: loaded ontologies overview (`nfx.info --kind ontology`). With --type: type details. With --tree: dependency graph."""
+def info(c, type=""):
+    """Show ontology info. Without --type: loaded ontologies overview (`nfx.info --kind ontology`). With --type: type details."""
     with NeuroBase() as nb:
         if type:
             try:
@@ -302,7 +267,7 @@ def info(c, type="", tree=False):
                 print(f"{terminal_style.FAIL} {e}")
                 raise SystemExit(1)
         else:
-            nfx_tasks.print_info(nb, kind="ontology", tree=tree)
+            nfx_tasks.print_info(nb, kind="ontology")
 
 
 @invoke.task(pre=[setup.env])
