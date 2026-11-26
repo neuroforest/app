@@ -86,7 +86,7 @@ def key(target, tree=""):
     target = Path(target).stem if target.endswith(".nfx") else target
     if tree:
         return target
-    entry = find(NfxIndex(*plugins.effective_roots()), target)
+    entry = find(NfxIndex(*plugins.effective_trees()), target)
     return entry.nid if entry else target
 
 
@@ -120,9 +120,9 @@ def tree_path(tree):
     if known is not None and known.present:
         return known.path
     want = "" if tree in ROOT_WORDS else tree
-    roots = plugins.effective_roots()
-    idx = NfxIndex(*roots)
-    found = [r for r in roots if (ns := idx.namespace_of(r)) is not None and (ns.token or "") == want]
+    trees = plugins.effective_trees()
+    idx = NfxIndex(*trees)
+    found = [r for r in trees if (ns := idx.namespace_of(r)) is not None and (ns.token or "") == want]
     if len(found) != 1:
         raise SystemExit(f"{terminal_style.FAIL} {tree}: neither a path nor the token of a registered tree "
                          f"or of one in PLUGINS")
@@ -139,9 +139,9 @@ def repo(tree=""):
 
 def owner_tree(module):
     """The tree among PLUGINS that holds the module `module` names."""
-    roots = plugins.effective_roots()
-    path = NfxIndex(*roots).resolve(module)
-    root = path and plugins.registry_root_of(path, roots)
+    trees = plugins.effective_trees()
+    path = NfxIndex(*trees).resolve(module)
+    root = path and plugins.tree_of(path, trees)
     if root is None:
         raise SystemExit(f"{terminal_style.FAIL} {module}: in none of the PLUGINS trees - pass --tree")
     return root
@@ -154,20 +154,20 @@ def refused(what, issues):
     raise SystemExit(1)
 
 
-def test_gate(repo, roots):
+def test_gate(repo, trees):
     """The gate of a release: `nfx.test` over the documents about to
     be committed, run as a child in ENV=TESTING - its base is wiped, so it must
     never be this process's - reading this release's trees, not TESTING's."""
-    roots = [*repo._others(roots, repo.root), repo.root]
+    trees = [*repo._others(trees, repo.root), repo.root]
 
     def gate(paths):
-        return nfx_test(roots, paths, lambda path: repo.show(Path(path).relative_to(repo.root)))
+        return nfx_test(trees, paths, lambda path: repo.show(Path(path).relative_to(repo.root)))
 
     return gate
 
 
-def nfx_test(roots, paths=None, show=str):
-    """Run `nfx.test` as a child in ENV=TESTING over `roots` (`paths`: only
+def nfx_test(trees, paths=None, show=str):
+    """Run `nfx.test` as a child in ENV=TESTING over `trees` (`paths`: only
     these documents) and return its failures as issue lines. The child starts
     from the wrapper's own environment, so the base it wipes is the test one."""
     env = {k: v for k, v in STARTED_WITH.items() if k not in ("NF_CONFIG", "NF_DATA", "NF_STATE", "NF_CACHE")}
@@ -179,7 +179,7 @@ def nfx_test(roots, paths=None, show=str):
         with terminal_components.step(f"Testing {what} in the test base"):
             r = subprocess.run(
                 [os.path.join(setup.get_nenv_dir(), "bin", "invoke"), f"--search-root={os.environ['APP_DIR']}",
-                 "nfx.test", *target, "--trees", ":".join(str(p) for p in roots), "--out", str(out)],
+                 "nfx.test", *target, "--trees", ":".join(str(p) for p in trees), "--out", str(out)],
                 env=env, capture_output=True, text=True)
         if not out.is_file():
             tail = (r.stdout + r.stderr).strip().splitlines()[-8:]

@@ -48,7 +48,7 @@ def test_import(nb, tmp_path, monkeypatch):
     shared, twin, top = uuid4(), uuid4(), uuid4()
     alpha = tree("alpha", "a", [("shared", shared, []), ("top", top, [shared])])
     home = tree("home", "", [("shared", twin, [])])
-    monkeypatch.setattr(plugins, "effective_roots",
+    monkeypatch.setattr(plugins, "effective_trees",
                         lambda: [METAONTOLOGY_PATH.parents[1], alpha, home])
 
     import_.__wrapped__(MockContext(), ontology="a-top")

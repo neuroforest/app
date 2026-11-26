@@ -159,7 +159,7 @@ def rebuild(c, src, dst, nid="", verbose=False):
 def check(c, tree="", rev=""):
     """Pre-commit verdict on a tree's index (--rev: on that commit against its parent). Exits 1 on any issue."""
     repo = nf_common.repo(tree)
-    verdict = repo.check(rev or None, others=plugins.effective_roots())
+    verdict = repo.check(rev or None, others=plugins.effective_trees())
     what = f"{rev}" if rev else "the index"
     if verdict.issues:
         print(f"{terminal_style.FAIL} {terminal_style.BOLD}{what} refused{terminal_style.RESET} "
@@ -183,7 +183,7 @@ def tag(c, tree=""):
 @invoke.task(pre=[setup.env])
 def order(c, tree=""):
     """The tree's uncommitted documents in dependency order (a diagnostic - one commit may hold them all)."""
-    rows = nf_common.repo(tree).order(others=plugins.effective_roots())
+    rows = nf_common.repo(tree).order(others=plugins.effective_trees())
     for i, (rel, name, version) in enumerate(rows, 1):
         print(f"{terminal_style.DIM}[{i}]{terminal_style.RESET} {rel}  {name}@{version}")
 
@@ -290,7 +290,7 @@ def register(c, tree="", replace=False):
     state = repo.hooks_state()
     if state not in ("current", "global"):
         print(f"{terminal_style.WARN} hooks: {state} - run `tree.hooks --tree {repo.root} --runner <wrapper>`")
-    if repo.root not in plugins.effective_roots():
+    if repo.root not in plugins.effective_trees():
         print(f"{terminal_style.DIM}not in this environment's scope: add @{t.word} to PLUGINS to load it{terminal_style.RESET}")
 
 
@@ -384,7 +384,7 @@ def split(c, target="", to="", token="", name="", tree="", manifest="", with_dep
         part["modules"] = [nf_common.key(m, tree) for m in part.get("modules", ())]
     first = next((m for part in parts for m in part["modules"]), None)
     repo = nf_common.repo(tree or (str(nf_common.owner_tree(first)) if first else ""))
-    others = plugins.effective_roots()
+    others = plugins.effective_trees()
     try:
         p = nf_split.plan(repo, parts, others, with_dependants, rewrite_published, rename=kept_rename, events=events)
     except nf_split.SplitRefused as e:

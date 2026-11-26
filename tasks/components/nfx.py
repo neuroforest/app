@@ -310,9 +310,9 @@ def validate_knowledge(nb, path):
     nb.metaontology.violations.undefined_node_types.extend(sorted(undefined["node"].items()))
 
 
-def _run_module_tests(path, roots):
+def _run_module_tests(path, trees):
     """A module's pytest file, run; the output when it fails, else None."""
-    test_path = nf_repo.module_test_path(path, roots)
+    test_path = nf_repo.module_test_path(path, trees)
     if test_path is None:
         return None
     pytest_bin = os.path.join(setup.get_nenv_dir(), "bin", "pytest")
@@ -330,7 +330,7 @@ def _expects_violations(record):
     return record["type"] == "knowledge" and Path(record["path"]).stem.endswith("-fail")
 
 
-def run_tests(nb, roots, targets=None):
+def run_tests(nb, trees, targets=None):
     """Test `.nfx` documents, each by its type; one record per document.
 
     - ontology / metaontology: imported with its closure, the schema judged
@@ -346,15 +346,15 @@ def run_tests(nb, roots, targets=None):
     redundant-pin check makes. A knowledge module in a closure is
     loaded, not judged - its own record judges it.
 
-    `targets` are paths (default: every document of `roots`, declarations
+    `targets` are paths (default: every document of `trees`, declarations
     included). The base is cleared only when it holds something outside the
     next document's closure, and documents that extend what is loaded go
     first - a chain of dependants is one import pass, not one per document.
     A document that fails on its own terms (`document_failures`) is not
     imported. `nb` is a base this may wipe: the TESTING one.
     """
-    roots = [Path(r).resolve() for r in roots]
-    idx = NfxIndex(*roots)
+    trees = [Path(r).resolve() for r in trees]
+    idx = NfxIndex(*trees)
     if targets is None:
         targets = [ns.path for ns in idx.namespaces()] + idx.all_targets()
 
@@ -413,7 +413,7 @@ def run_tests(nb, roots, targets=None):
             record["failures"] += violations
         record["warnings"] = [str(w) for w in nb.metaontology.violations.warnings]
         record["failures"] += [str(e) for e in idx.check_dependency_versions(path)]
-        output = _run_module_tests(path, roots)
+        output = _run_module_tests(path, trees)
         if output:
             record["failures"].append(output)
         record["duration_s"] += time.monotonic() - started
@@ -510,8 +510,8 @@ def run_test_task(c, target="", trees="", fmt="text", out="", closure=False, kin
         print(f"{terminal_style.FAIL} --kind is `ontology` or `knowledge`, not {kind!r}")
         raise SystemExit(1)
     view, noun = _KIND_VIEWS[kind]
-    root_list = [Path(r).expanduser() for r in trees.split(":") if r] or plugins.effective_roots()
-    idx = view(*root_list)
+    tree_list = [Path(r).expanduser() for r in trees.split(":") if r] or plugins.effective_trees()
+    idx = view(*tree_list)
     if target:
         targets = _test_targets(idx, target, noun)
     elif kind:
@@ -520,7 +520,7 @@ def run_test_task(c, target="", trees="", fmt="text", out="", closure=False, kin
     else:
         targets = None
     if closure and targets is not None:
-        full = NfxIndex(*root_list)
+        full = NfxIndex(*tree_list)
         expanded = []
         for path in targets:
             try:
@@ -530,7 +530,7 @@ def run_test_task(c, target="", trees="", fmt="text", out="", closure=False, kin
         targets = list(dict.fromkeys(expanded))
     neurobase.clear(c, confirmed=True)
     with NeuroBase() as nb:
-        records = run_tests(nb, root_list, targets)
+        records = run_tests(nb, tree_list, targets)
     if out:
         Path(out).write_text(json.dumps(records, indent=2, default=str))
     report_tests(records, fmt)
@@ -559,7 +559,7 @@ def render(c, name=""):
     into neurobase and print the Neo4j browser link. Without --name, renders
     every discovered .nfx."""
     neurobase.start(c)
-    idx = NfxIndex(*plugins.effective_roots())
+    idx = NfxIndex(*plugins.effective_trees())
 
     targets = resolve_target(idx, name, kind="Nfx")
     if not targets:
@@ -680,7 +680,7 @@ def release(c, target, tree="", major=False, dry_run=False, message="", no_test=
     """Release documents (comma-separated) with their in-tree dependants: re-pin, bump, one commit, one tag each. An edited validators or test file of a released module goes into the same commit. The release is tested first (`nfx.test`) and refused on a failure."""
     targets = [nf_common.key(t, tree) for t in target.split(",") if t.strip()]
     repo = nf_common.repo(tree or nf_common.owner_tree(targets[0]))
-    others = plugins.effective_roots()
+    others = plugins.effective_trees()
     try:
         steps = repo.plan_release(targets, major, others) if dry_run else None
         if not dry_run:
@@ -707,7 +707,7 @@ def rename(c, target, new, tree="", dry_run=False):
     try:
         plan = repo.plan_rename(target, new)
         if not dry_run:
-            sha, plan = repo.rename(target, new, plugins.effective_roots())
+            sha, plan = repo.rename(target, new, plugins.effective_trees())
     except (ValueError, RuntimeError) as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
     except nf_repo.ReleaseRefused as e:
@@ -732,7 +732,7 @@ def move_(c, target, to, tree="", with_dependants=False, as_="", dry_run=False):
     target = nf_common.key(target, tree)
     source = nf_common.repo(tree or nf_common.owner_tree(target))
     dest = nf_common.repo(to)
-    others = plugins.effective_roots()
+    others = plugins.effective_trees()
     try:
         if dry_run:
             plan = nf_repo.plan_move(source, dest, target, with_dependants, as_, others)
@@ -765,7 +765,7 @@ def log_(c, target, tree="", trees=""):
             entries, note = nf_repo.namespace_log(nf_common.repo(tree)), None
         else:
             repo = nf_common.repo(tree or nf_common.owner_tree(target))
-            entries, note = nf_repo.module_log(repo, target, roots=[*extra, *plugins.effective_roots()])
+            entries, note = nf_repo.module_log(repo, target, trees=[*extra, *plugins.effective_trees()])
     except (ValueError, RuntimeError) as e:
         raise SystemExit(f"{terminal_style.FAIL} {e}")
 

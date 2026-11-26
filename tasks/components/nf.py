@@ -48,7 +48,7 @@ def _version(root):
 def _forest(scope_only=False):
     """The trees to show, as `(root, in scope, registry line or None)`: this
     environment's scope in its order, then the registered trees outside it."""
-    in_scope = plugins.effective_roots()
+    in_scope = plugins.effective_trees()
     by_path = {t.path.resolve(): t for t in nf_common.registered()}
     rows = [(root, True, by_path.pop(root, None)) for root in in_scope]
     if not scope_only:
@@ -76,7 +76,7 @@ def trees(c, scope=False):
         rows.append((label, _version(root) if present else "-", str(count) if present else "-",
                      _hooks(root) if present else "-", "✔" if loaded else "", registry, str(root)))
     terminal_components.table(rows, header=("Namespace", "Version", "Modules", "Hooks", "Scope", "Registry", "Path"))
-    for entry in plugins.missing_roots():
+    for entry in plugins.missing_trees():
         print(f"{terminal_style.WARN} {entry} is listed in PLUGINS but names nothing here - skipped, not fatal")
     if any("outdated" in r[5] for r in rows):
         print(f"{terminal_style.WARN} a registry line no longer matches its tree's declaration - `tree.register --tree <path>`")
@@ -103,16 +103,16 @@ def print_index(namespace="", scope=False, kind=""):
     types = _INDEX_KINDS[kind]
     forest = _forest(scope)
     outside = {root for root, loaded, line in forest if not loaded and line.present}
-    roots = [root for root, loaded, line in forest if loaded or line.present]
+    trees = [root for root, loaded, line in forest if loaded or line.present]
     try:
-        idx = NfxIndex(*roots)
+        idx = NfxIndex(*trees)
     except exceptions.NfxViolation as e:
         if not outside:
             raise
         print(f"{terminal_style.WARN} the trees outside this environment's scope do not index together with it "
               f"({e}) - showing the scope only")
-        outside, roots = set(), [root for root, loaded, _ in forest if loaded]
-        idx = NfxIndex(*roots)
+        outside, trees = set(), [root for root, loaded, _ in forest if loaded]
+        idx = NfxIndex(*trees)
     want = "root" if namespace in ROOT_WORDS else namespace
 
     type_label = {"metaontology": "meta", "ontology": "onto", "knowledge": "know"}
@@ -120,12 +120,12 @@ def print_index(namespace="", scope=False, kind=""):
     entries = []
     seen = set()
     for entry in idx.entries():
-        ns = namespace_label(idx, entry.registry_root)
+        ns = namespace_label(idx, entry.tree)
         typed = "root" if ns == ROOT_MARK else ns
         seen.add(typed)
         if (want and typed != want) or (types and entry.type not in types):
             continue
-        if entry.registry_root in outside:
+        if entry.tree in outside:
             ns = f"{ns} {terminal_style.DIM}(out of scope){terminal_style.RESET}"
         entries.append((entry.type, entry.name or entry.path.stem, entry.version, entry.nid, ns))
     if want and want not in seen:

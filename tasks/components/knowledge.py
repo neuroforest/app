@@ -12,9 +12,9 @@ from tasks.components import neurobase, nf as nf_tasks, nf_common, nfx as nfx_ta
 def index(c, knowledge=""):
     """Shortcut for `nf.index --kind knowledge --scope`: the knowledge modules this environment loads. -k/--knowledge: details of one."""
     if knowledge:
-        roots = plugins.effective_roots()
+        trees = plugins.effective_trees()
         # every type: a knowledge module may pin another
-        _index_info(KnowledgeIndex(*roots), NfxIndex(*roots), knowledge)
+        _index_info(KnowledgeIndex(*trees), NfxIndex(*trees), knowledge)
         return
     nf_tasks.print_index(scope=True, kind="knowledge")
 
@@ -60,10 +60,10 @@ def import_(c, knowledge=""):
     if not knowledge:
         print(f"{terminal_style.FAIL} -k/--knowledge required")
         raise SystemExit(1)
-    roots = plugins.effective_roots()
-    idx = NfxIndex(*roots)
+    trees = plugins.effective_trees()
+    idx = NfxIndex(*trees)
 
-    path = nf_common.resolve(KnowledgeIndex(*roots), knowledge)
+    path = nf_common.resolve(KnowledgeIndex(*trees), knowledge)
     if not path:
         print(f"{terminal_style.FAIL} Knowledge not found: {knowledge}")
         raise SystemExit(1)
@@ -98,10 +98,10 @@ def render(c, knowledge=""):
     """Load knowledge and its dependency closure - the ontologies and the knowledge
     modules it pins - into neurobase and print Neo4j browser link. -k: target one file."""
     neurobase.start(c)
-    roots = plugins.effective_roots()
-    idx = NfxIndex(*roots)
+    trees = plugins.effective_trees()
+    idx = NfxIndex(*trees)
 
-    targets = nfx_tasks.resolve_target(KnowledgeIndex(*roots), knowledge, kind="Knowledge")
+    targets = nfx_tasks.resolve_target(KnowledgeIndex(*trees), knowledge, kind="Knowledge")
 
     if not targets:
         print(f"{terminal_style.WARNING} No knowledge .nfx files found.")

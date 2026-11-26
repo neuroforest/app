@@ -43,6 +43,6 @@ def sync(c, dry_run=False):
     """Bring every :NcbiTaxon in the base to what NCBI says it is now -
     renames, moves (one IS_CHILD parent, replaced), merges, pruned ancestors -
     one changelog line per change. --dry-run decides and prints, writes nothing."""
-    OntologyIndex(*plugins.effective_roots())
+    OntologyIndex(*plugins.effective_trees())
     with NeuroBase() as nb:
         run(nb, dry_run=dry_run)

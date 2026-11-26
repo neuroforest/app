@@ -185,7 +185,7 @@ def test_run_tests(nb):
     from tasks.components import nfx as nfx_tasks
 
     paths = [KNOWLEDGE / "test-pass.nfx", KNOWLEDGE / "required-property-fail.nfx"]
-    by_name = {r["name"]: r for r in nfx_tasks.run_tests(nb, plugins.effective_roots(), paths)}
+    by_name = {r["name"]: r for r in nfx_tasks.run_tests(nb, plugins.effective_trees(), paths)}
 
     assert by_name["TestPass"]["failures"] == [] and "expected" not in by_name["TestPass"]
     failing = by_name["TestRequiredPropertyFail"]
@@ -201,7 +201,7 @@ def test_run_tests_knowledge_chain(nb):
     from tasks.components import nfx as nfx_tasks
 
     paths = [KNOWLEDGE / f"kk-{x}.nfx" for x in "abc"]
-    records = nfx_tasks.run_tests(nb, plugins.effective_roots(), paths)
+    records = nfx_tasks.run_tests(nb, plugins.effective_trees(), paths)
 
     assert {r["name"]: r["failures"] for r in records} == {"kk-a": [], "kk-b": [], "kk-c": []}
     # one import pass: the chain extends what is loaded, the target is judged from its file
@@ -214,7 +214,7 @@ def test_import_document(nb):
     from neuro.base import nfx_load, plugins
     from neuro.base.index import NfxIndex
 
-    idx = NfxIndex(*plugins.effective_roots())
+    idx = NfxIndex(*plugins.effective_trees())
     for _ in range(2):  # a second pass changes nothing
         for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
             nfx_load.import_document(nb, idx, path)
@@ -304,7 +304,7 @@ def test_write_document(test_ontology, tmp_path):
         git("add", "-A")
         git("commit", "-q", "-m", f"RELEASE: knowledge {name} {version}")
         git("tag", "-a", f"knowledge/{name}/{version}", "-m", version)
-        idx = NfxIndex(*plugins.effective_roots(), root)
+        idx = NfxIndex(*plugins.effective_trees(), root)
         return nfx_load.import_document(nb, idx, path)
 
     def state():
@@ -329,7 +329,7 @@ def test_write_document(test_ontology, tmp_path):
                 {"nid": x, "labels": ["TestKey", "TestRequire"], "properties": {"name": "x", "id": "mine"}})
     # ... and the document check says so before any base is asked.
     failures = nf_repo.document_failures(
-        NfxIndex(*plugins.effective_roots(), root), root / "knowledge" / "b.nfx")
+        NfxIndex(*plugins.effective_trees(), root), root / "knowledge" / "b.nfx")
     assert len(failures) == 1 and "'id' is declared by a" in failures[0]
     with pytest.raises(exceptions.NfxViolation, match="name"):  # TestRequire asks for it
         release("b", b, "1.2", (a, "1.1"), {"nid": x, "labels": ["TestKey", "TestRequire"]})
@@ -351,7 +351,7 @@ def test_print_info(nb, capsys):
     from neuro.base.index import NfxIndex
     from tasks.components import nfx as nfx_tasks
 
-    idx = NfxIndex(*plugins.effective_roots())
+    idx = NfxIndex(*plugins.effective_trees())
     for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
         nfx_load.import_document(nb, idx, path)
 
@@ -376,7 +376,7 @@ def test_import_dependencies(nb):
     from neuro.base import nfx, plugins
     from neuro.base.index import NfxIndex
 
-    idx = NfxIndex(*plugins.effective_roots())
+    idx = NfxIndex(*plugins.effective_trees())
     doc = nfx.read(KNOWLEDGE / "kk-c.nfx")
     seen = []
     for _ in range(2):

@@ -20,7 +20,7 @@ def import_(c, ontology=""):
     if not ontology:
         print(f"{terminal_style.FAIL} -o/--ontology required")
         raise SystemExit(1)
-    ontology_dirs = plugins.effective_roots()
+    ontology_dirs = plugins.effective_trees()
     idx = OntologyIndex(*ontology_dirs)
 
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
@@ -53,7 +53,7 @@ def import_(c, ontology=""):
 def render(c, ontology="", independent=False, bare=False, dependants=False):
     """Load ontology into neurobase and print Neo4j browser link. --independent: without dependencies. --bare: skip property nodes. --dependants: also load ontologies that depend on target."""
     neurobase.start(c)
-    ontology_dirs = plugins.effective_roots()
+    ontology_dirs = plugins.effective_trees()
     idx = OntologyIndex(*ontology_dirs)
 
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
@@ -133,7 +133,7 @@ def _dependant_paths(idx, target_path, target_nid):
 def index(c, ontology=""):
     """Shortcut for `nf.index --kind ontology --scope`: the ontologies and the metaontology this environment loads. -o/--ontology: details of one."""
     if ontology:
-        _index_info(OntologyIndex(*plugins.effective_roots()), ontology)
+        _index_info(OntologyIndex(*plugins.effective_trees()), ontology)
         return
     nf_tasks.print_index(scope=True, kind="ontology")
 
@@ -209,7 +209,7 @@ def _version_history(path):
     """Extract (version, date) pairs from git tags '<name>/<version>' across all PLUGINS repos."""
     name = (nfx.read(path).name or Path(path).stem).lower()
     repos = set()
-    for d in plugins.effective_roots():
+    for d in plugins.effective_trees():
         try:
             root = subprocess.run(
                 ["git", "-C", str(d), "rev-parse", "--show-toplevel"],
@@ -299,13 +299,13 @@ def test(c, o="", fmt="text"):
 @invoke.task(pre=[setup.env])
 def rehash(c, ontology=""):
     """Recompute sha256 of a module's validators and update its `hash` field (dir-form or .nf layout). -o: target one ontology."""
-    ontology_dirs = plugins.effective_roots()
+    ontology_dirs = plugins.effective_trees()
     idx = OntologyIndex(*ontology_dirs)
     targets = nfx_tasks.resolve_target(idx, ontology, kind="Ontology")
 
     touched = 0
     for path in targets:
-        validators_path = plugins.validators_path_for(path, idx.roots)
+        validators_path = plugins.validators_path_for(path, idx.trees)
         if validators_path is None or not validators_path.is_file():
             continue
         current = hashlib.sha256(validators_path.read_bytes()).hexdigest()
