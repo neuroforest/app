@@ -324,9 +324,10 @@ def test_write_document(test_ontology, tmp_path):
     defined_by = nb.get_data("MATCH (m)-[:DEFINES]->({nid: $nid}) RETURN m.name AS name", {"nid": x})
     assert [r["name"] for r in defined_by] == ["a"]
 
-    with pytest.raises(exceptions.NfxViolation, match="declared by a with another value"):
+    # A key the owner declares is the owner's, whatever value `b` gives it.
+    with pytest.raises(exceptions.NfxViolation, match="'id' is declared by a"):
         release("b", b, "1.1", (a, "1.1"),
-                {"nid": x, "labels": ["TestKey", "TestRequire"], "properties": {"name": "x", "id": "mine"}})
+                {"nid": x, "labels": ["TestKey", "TestRequire"], "properties": {"name": "x", "id": "X2"}})
     # ... and the document check says so before any base is asked.
     failures = nf_repo.document_failures(
         NfxIndex(*plugins.effective_trees(), root), root / "knowledge" / "b.nfx")
