@@ -25,18 +25,6 @@ from tasks.components import nf_common
 from tasks.components.nf_common import ROOT_MARK, ROOT_WORDS, namespace_label
 
 
-def _hooks(root):
-    """The hooks column: `global` (the machine's global nf check judges every tree), else the tree's own -
-    `current`, `stale` (reinstall with `tree.hooks`), `none` - or `-` where no tree's repository is."""
-    if not plugins.is_consolidated(root):
-        return "-"
-    try:
-        state = nf_repo.Repo(root).hooks_state()
-    except (ValueError, RuntimeError):
-        return "-"
-    return f"{terminal_style.WARN} stale" if state == "stale" else state
-
-
 def _version(root):
     """The version of the tree's namespace declaration, `-` where it has none to read."""
     try:
@@ -58,7 +46,7 @@ def _forest(scope_only=False):
 
 @invoke.task(pre=[setup.env], help={"scope": "Only the trees this environment may load (its PLUGINS)"})
 def trees(c, scope=False):
-    """List the trees on this machine: namespace token and version, module count, hooks, whether this environment may load it, whether it is registered, absolute path."""
+    """List the trees on this machine: namespace token and version, module count, whether this environment may load it, whether it is registered, absolute path - and whether the machine judges commits to them."""
     forest = _forest(scope)
     idx = NfxIndex(*(root for root, loaded, _ in forest if loaded))
     rows = []
@@ -74,11 +62,18 @@ def trees(c, scope=False):
             live = nf_trees.declared(root)
             registry = "✔" if (live.nid, live.namespace or "") == (line.nid, line.token) else f"{terminal_style.WARN} outdated"
         rows.append((label, _version(root) if present else "-", str(count) if present else "-",
-                     _hooks(root) if present else "-", "✔" if loaded else "", registry, str(root)))
-    terminal_components.table(rows, header=("Namespace", "Version", "Modules", "Hooks", "Scope", "Registry", "Path"))
+                     "✔" if loaded else "", registry, str(root)))
+    terminal_components.table(rows, header=("Namespace", "Version", "Modules", "Scope", "Registry", "Path"))
+    # A tree carries no hook of its own: what judges a commit is one check for the machine.
+    check = nf_repo.global_check()
+    if check is None:
+        print(f"{terminal_style.WARN} no global nf check on this machine (an executable pre-commit.d/nf under the "
+              f"global core.hooksPath) - commits to these trees are not judged")
+    else:
+        print(f"{terminal_style.DIM}commits are judged by {check}{terminal_style.RESET}")
     for entry in plugins.missing_trees():
         print(f"{terminal_style.WARN} {entry} is listed in PLUGINS but names nothing here - skipped, not fatal")
-    if any("outdated" in r[5] for r in rows):
+    if any("outdated" in r[4] for r in rows):
         print(f"{terminal_style.WARN} a registry line no longer matches its tree's declaration - `tree.register --tree <path>`")
     for root, loaded, line in forest:
         if loaded and line is None and plugins.is_consolidated(root) and not _of_checkout(root):
