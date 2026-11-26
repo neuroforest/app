@@ -773,9 +773,11 @@ def log_(c, target, tree="", trees=""):
         return tuple(f"{terminal_style.DIM}{v}{terminal_style.RESET}" if e.repin and v else v for v in cells)
 
     # the subject sits before the tags and runs over that column where a commit has none
-    rows = [dim(e, (e.date, e.token or nf_common.ROOT_MARK, e.sha[:7], e.version, e.subject, ", ".join(e.tags)))
+    # Via: blank for a commit read in the tree asked, `linked` for one read in another, through a move
+    rows = [dim(e, (e.date, e.token or nf_common.ROOT_MARK, e.via, e.sha[:7], e.version, e.subject,
+                    ", ".join(e.tags)))
             for e in entries]
-    terminal_components.table(rows, header=("Date", "Tree", "Commit", "Version", "Subject", "Tags"), shrink=4)
+    terminal_components.table(rows, header=("Date", "Tree", "Via", "Commit", "Version", "Subject", "Tags"), shrink=5)
     repins = sum(e.repin for e in entries)
     if repins:
         print(f"\n{terminal_style.DIM}{repins} of {len(entries)} commit(s) only re-pin a dependency{terminal_style.RESET}")
