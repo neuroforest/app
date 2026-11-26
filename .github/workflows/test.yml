@@ -49,12 +49,17 @@ jobs:
         run: uv sync --frozen --project neuro --extra dev
 
       - name: Compile TW5 plugins
-        if: matrix.component == 'neuro'
+        if: matrix.component != 'app'
         run: nenv/bin/invoke tw5.compile
+
+      - name: Git identity for the tests
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.org"
 
       - name: Run ${{ matrix.component }} tests
         run: nenv/bin/invoke test.local -c ${{ matrix.component }}
         env:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           NEO4J_PASSWORD: testpass
-          PLUGINS: assets/ontology:assets/test/input/ontology
+          PLUGINS: .nf:tests/.nf
