@@ -271,7 +271,8 @@ def test_sync_nfx(test_ontology, tmp_path):
     )}
     assert left == {held: False, kept: True}
     assert test_ontology.get_data("MATCH (:Snapshot)-[r:SNAPSHOT_OF]->() RETURN count(r) AS c")[0]["c"] == 1
-    assert report["orphaned"] == [(f"TestKey {held}", 1)] and report["removed"] == [f"TestKey {empty}"]
+    # named by the key the ontology declares for the class, where it has no name
+    assert report["orphaned"] == [(f"TestKey {held[:8]}", 1)] and report["removed"] == [f"TestKey {empty[:8]}"]
 
 
 def test_write_document(test_ontology, tmp_path):
@@ -350,7 +351,7 @@ def test_write_document(test_ontology, tmp_path):
     release("b", b, "1.4", (a, "1.3"), {"nid": x, "labels": ["TestKey"]}, {"nid": y, "labels": ["TestRequireRel"]},
             edges=[{"from": y, "to": x, "type": "POINTS_TO"}])
     report = release("a", a, "1.4", test, None)
-    assert report["orphaned"] == [(f"TestKey {x}", 1)] and report["edges_pruned"] == 0
+    assert report["orphaned"] == [("TestKey X2", 1)] and report["edges_pruned"] == 0
     assert nb.get_data("MATCH ({nid: $y})-[r:POINTS_TO]->({nid: $x}) RETURN count(r) AS c",
                        {"x": x, "y": y})[0]["c"] == 1
 
