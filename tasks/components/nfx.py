@@ -267,7 +267,9 @@ def run_import_task(target, kind=""):
               f"- `nfx.import {target}` imports either kind")
         raise SystemExit(1)
 
-    written = {doc.nid}
+    # `step` reports an exception and swallows it, so a refused import is told
+    # from a written one by whether it got as far as its report.
+    written, report = set(), None
     with NeuroBase() as nb:
         with terminal_components.step(doc.name or path.stem) as status:
             log_dep = make_dep_logger(status)
@@ -280,9 +282,14 @@ def run_import_task(target, kind=""):
                 log_dep(dep_name, imported, depth)
 
             report = nb.metaontology.import_nfx(path, index=idx, on_import=on_import)
+            written.add(doc.nid)
             print_import_report(status, report)
-        print_orphan_hint(nb)
+        if report is not None:  # a base refused its first module holds no ontology to ask
+            print_orphan_hint(nb)
+    # Dependencies written before a refusal are written all the same.
     print_dependant_hint(idx, written - {None, ""})
+    if report is None:
+        raise SystemExit(1)
 
 
 def resolve_target(idx, name, kind="Target"):

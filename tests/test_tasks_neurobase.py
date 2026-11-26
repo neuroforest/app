@@ -296,11 +296,11 @@ def test_write_document(test_ontology, tmp_path):
     git("config", "core.hooksPath", "/dev/null")  # no global hooks in tests
     a, b, x = (str(uuid.uuid4()) for _ in range(3))
 
-    def release(name, nid, version, pin, node):
+    def release(name, nid, version, pin, *nodes, edges=()):
         """Release `name` at `version`, import it, and return the report."""
         path = root / "knowledge" / f"{name}.nfx"
-        nfx.write(path, nfx.Nfx(nid=nid, type="knowledge", name=name, version=version,
-                                dependencies=(pin,), nodes=(node,) if node else ()))
+        nfx.write(path, nfx.Nfx(nid=nid, type="knowledge", name=name, version=version, dependencies=(pin,),
+                                nodes=tuple(n for n in nodes if n), relationships=tuple(edges)))
         git("add", "-A")
         git("commit", "-q", "-m", f"RELEASE: knowledge {name} {version}")
         git("tag", "-a", f"knowledge/{name}/{version}", "-m", version)
@@ -344,6 +344,15 @@ def test_write_document(test_ontology, tmp_path):
     release("b", b, "1.3", (a, "1.3"), {"nid": x, "labels": ["TestKey"]})
     assert state() == ({"TestKey"}, {"nid": x, "id": "X2"})
 
+    # An edge `b` declares onto the node holds it when the owner drops it.
+    y = str(uuid.uuid4())
+    release("b", b, "1.4", (a, "1.3"), {"nid": x, "labels": ["TestKey"]}, {"nid": y, "labels": ["TestRequireRel"]},
+            edges=[{"from": y, "to": x, "type": "POINTS_TO"}])
+    report = release("a", a, "1.4", test, None)
+    assert report["orphaned"] == [(f"TestKey {x}", 1)] and report["edges_pruned"] == 0
+    assert nb.get_data("MATCH ({nid: $y})-[r:POINTS_TO]->({nid: $x}) RETURN count(r) AS c",
+                       {"x": x, "y": y})[0]["c"] == 1
+
 
 def test_print_info(nb, capsys):
     """Each kind lists its own modules; a dependency is named whatever its kind."""
@@ -370,10 +379,17 @@ def test_print_info(nb, capsys):
         nfx_tasks.print_info(nb, kind="bogus")
 
 
-def test_run_import_task(nb, capsys):
+def test_run_import_task(nb, capsys, tmp_path):
     """`nfx.import` writes a module of either kind and names what pins it; a
-    shortcut refuses the other kind, and a namespace is nobody's to import."""
+    shortcut refuses the other kind, a namespace is nobody's to import, and an
+    import the importer refuses fails the task."""
     from tasks.components import nfx as nfx_tasks
+
+    nameless = tmp_path / "nameless.nfx"
+    nameless.write_text('{"type": "knowledge", "nid": "5b0c4a0e-7a39-4e0a-9d43-6c2f1f0c9a11", "version": "1.0"}')
+    with pytest.raises(SystemExit):
+        nfx_tasks.run_import_task(str(nameless))
+    assert "declares no 'name'" in capsys.readouterr().out
 
     for target, kind, said in (("kk-a", "ontology", "is knowledge, not ontology"),
                                ("Test", "knowledge", "is ontology, not knowledge"),
