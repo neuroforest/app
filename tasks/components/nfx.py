@@ -41,12 +41,11 @@ def print_import_report(status, report):
         return
     for label, claimed_by in report.get("reparented", ()):
         status.log(f"  ↷ {label} → now defined by {', '.join(claimed_by)}")
-    for label, edges in report.get("orphaned", ()):
-        if edges:
-            status.log(f"  {terminal_style.WARN} {label} orphaned, "
-                       f"{edges} edge(s) from outside the ontology layer")
-        else:
-            status.log(f"  · {label} orphaned")
+    for label, holders in report.get("orphaned", ()):
+        status.log(f"  {terminal_style.WARN} {label} no longer declared, "
+                   f"kept: {holders} edge(s) or instance(s) still on it")
+    for label in report.get("removed", ()):
+        status.log(f"  − {label} removed, nothing was left on it")
     if report.get("edges_pruned"):
         status.log(f"  − {report['edges_pruned']} edge(s) pruned")
 

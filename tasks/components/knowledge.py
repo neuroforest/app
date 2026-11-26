@@ -73,7 +73,8 @@ def import_(c, knowledge=""):
     Missing dependencies are loaded - ontologies and pinned knowledge modules
     alike, transitively; ones already present at the right version are reused.
     Knowledge nodes are anchored to a `KnowledgeMetadata` node via `DEFINES`
-    edges; re-running prunes file-absent nodes only within that anchor's slice.
+    edges; a node the file stops declaring is released, and deleted only when
+    nothing is left on it.
     """
     if not knowledge:
         print(f"{terminal_style.FAIL} -k/--knowledge required")
@@ -103,7 +104,8 @@ def import_(c, knowledge=""):
             dep_nids = nfx.NfxTree(
                 doc, nb.metaontology._resolver(idx),
             ).all_node_nids(scope="dependencies")
-            nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=idx)
+            report = nb.nodes.sync_nfx(path, dependency_nids=dep_nids, index=idx)
+            nfx_tasks.print_import_report(status, report)
 
 
 @invoke.task(pre=[invoke.call(setup.env, environment="TESTING")])

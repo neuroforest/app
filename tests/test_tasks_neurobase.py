@@ -237,6 +237,43 @@ def test_import_document(nb):
     assert [(r["module"], r["dep"]) for r in pins] == [("kk-a", "Test"), ("kk-b", "kk-a"), ("kk-c", "kk-b")]
 
 
+def test_sync_nfx(test_ontology, tmp_path):
+    """A knowledge node the file drops is released, never pruned: it stays while
+    anything outside the file reaches it, and goes when nothing does."""
+    import uuid
+
+    from neuro.base import nfx
+
+    held, empty, kept = (str(uuid.uuid4()) for _ in range(3))
+    path = tmp_path / "k.nfx"
+
+    def write(version, nids):
+        nfx.write(path, nfx.Nfx(
+            nid="2f9f4d0e-6f0b-4d5c-9a53-0f4b8f1f6c11", type="knowledge", name="k", version=version,
+            dependencies=(("e75a8385-4d8f-43ad-8df0-31124369d0bd", "2.1"),),
+            nodes=tuple({"nid": nid, "labels": ["TestKey"], "properties": {"id": nid[:8]}} for nid in nids),
+        ))
+
+    write("1.0", [held, empty, kept])
+    test_ontology.nodes.sync_nfx(path)
+    test_ontology.run_query(
+        "MATCH (n {nid: $nid}) CREATE (:Snapshot {nid: 'snap'})-[:SNAPSHOT_OF]->(n)", {"nid": held})
+
+    write("1.1", [kept])
+    report = test_ontology.nodes.sync_nfx(path)
+
+    left = {r["nid"]: r["defined"] for r in test_ontology.get_data(
+        """
+        MATCH (n) WHERE n.nid IN $nids
+        RETURN n.nid AS nid, EXISTS { (:KnowledgeMetadata)-[:DEFINES]->(n) } AS defined
+        """,
+        {"nids": [held, empty, kept]},
+    )}
+    assert left == {held: False, kept: True}
+    assert test_ontology.get_data("MATCH (:Snapshot)-[r:SNAPSHOT_OF]->() RETURN count(r) AS c")[0]["c"] == 1
+    assert report["orphaned"] == [(f"TestKey {held}", 1)] and report["removed"] == [f"TestKey {empty}"]
+
+
 def test_print_info(nb, capsys):
     """Each kind lists its own modules; a dependency is named whatever its kind."""
     from neuro.base import nfx_load, plugins
