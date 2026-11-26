@@ -209,7 +209,7 @@ def test_run_tests_knowledge_chain(nb):
     assert loaded == {"kk-a", "kk-b"}
 
 
-def test_load_document(nb):
+def test_import_document(nb):
     """Loaded through its closure, each node stays with the module that declares it."""
     from neuro.base import nfx_load, plugins
     from neuro.base.index import NfxIndex
@@ -217,7 +217,7 @@ def test_load_document(nb):
     idx = NfxIndex(*plugins.effective_roots())
     for _ in range(2):  # a second pass changes nothing
         for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
-            nfx_load.load_document(nb, idx, path)
+            nfx_load.import_document(nb, idx, path)
 
     owners = nb.get_data("""
         MATCH (m:KnowledgeMetadata)-[:DEFINES]->(n)
@@ -246,7 +246,7 @@ def test_print_info(nb, capsys):
 
     idx = NfxIndex(*plugins.effective_roots())
     for path in idx.closure(KNOWLEDGE / "kk-c.nfx", include_self=True):
-        nfx_load.load_document(nb, idx, path)
+        nfx_load.import_document(nb, idx, path)
 
     assert {r["name"] for r in nfx_tasks.loaded_modules(nb, "knowledge")} == {"kk-a", "kk-b", "kk-c"}
     kinds = {r["name"]: r["type"] for r in nfx_tasks.loaded_modules(nb)}

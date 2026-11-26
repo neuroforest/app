@@ -248,7 +248,7 @@ def load_closure(nb, idx, path, loaded, include_self=True):
         if dep_path in loaded:
             continue
         with terminal_components.step(nfx.read(dep_path).name or dep_path.stem):
-            nfx_load.load_document(nb, idx, dep_path)
+            nfx_load.import_document(nb, idx, dep_path)
         loaded.add(dep_path)
 
 
@@ -392,7 +392,7 @@ def run_tests(nb, roots, targets=None):
         try:
             for dep in closure[path]:
                 if dep not in loaded:
-                    nfx_load.load_document(nb, idx, dep)
+                    nfx_load.import_document(nb, idx, dep)
                     loaded.add(dep)
         except (exceptions.NfxViolation, ValueError) as e:
             # The base now holds part of a closure: nothing may build on it.
